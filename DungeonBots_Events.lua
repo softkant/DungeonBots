@@ -103,13 +103,21 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             end
         end
         if DungeonBotsDB.botSpecs then
-            for _, specList in pairs(DungeonBotsDB.botSpecs) do
+            for botName, specList in pairs(DungeonBotsDB.botSpecs) do
                 if type(specList) == "table" then
-                    for idx, specVal in ipairs(specList) do
+                    local deduped = {}
+                    local seen = {}
+                    for _, specVal in ipairs(specList) do
                         if type(specVal) == "string" and specVal ~= "" then
-                            specList[idx] = DungeonBots:CleanSpecText(specVal)
+                            local cleanedSpec = DungeonBots:CleanSpecText(specVal)
+                            local lowerSpec = string.lower(cleanedSpec)
+                            if cleanedSpec ~= "" and not seen[lowerSpec] then
+                                seen[lowerSpec] = true
+                                table.insert(deduped, cleanedSpec)
+                            end
                         end
                     end
+                    DungeonBotsDB.botSpecs[botName] = deduped
                 end
             end
         end

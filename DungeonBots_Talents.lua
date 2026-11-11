@@ -22,10 +22,64 @@ end
 -- =========================================================================
 -- Limpieza y Normalización de Ramas de Talentos
 -- =========================================================================
+local SPEC_NOISE_PREFIXES = {
+    "available talent specs", "available specs", "available spec",
+    "current talent spec", "current spec", "active spec",
+    "my talent spec", "my spec", "using spec",
+    "current talents", "my talents", "talents",
+    "picking spec", "picked spec", "selecting spec", "selected spec",
+    "choosing spec", "chose spec",
+    "switching to spec", "switching to", "switched to spec", "switched to",
+    "changing to spec", "changing to", "changed to spec", "changed to",
+    "picking", "picked", "selecting", "selected",
+    "choosing", "chose", "switching", "switched",
+    "changing", "changed", "applying", "applied", "using",
+    "rama actual", "specs", "spec",
+}
+
+local function StripSpecNoisePrefix(text)
+    if not text or text == "" then return "" end
+    local s = StripWowFormatting(text)
+    s = string.gsub(s, "^%s*(.-)%s*$", "%1")
+    local colonPos = string.find(s, ":", 1, true)
+    if colonPos then
+        local head = string.lower(string.sub(s, 1, colonPos - 1))
+        if string.find(head, "spec", 1, true)
+            or string.find(head, "talent", 1, true)
+            or string.find(head, "available", 1, true)
+            or string.find(head, "rama", 1, true) then
+            s = string.sub(s, colonPos + 1)
+        end
+    end
+    local changed = true
+    while changed do
+        changed = false
+        s = string.gsub(s, "^[%s%*:>%-=]+", "")
+        local ls = string.lower(s)
+        for _, p in ipairs(SPEC_NOISE_PREFIXES) do
+            if string.sub(ls, 1, #p) == p then
+                local nextCh = string.sub(ls, #p + 1, #p + 1)
+                if nextCh == "" or string.match(nextCh, "[%s:=%-]") then
+                    s = string.sub(s, #p + 1)
+                    changed = true
+                    break
+                end
+            end
+        end
+    end
+    s = string.gsub(s, "^[%s%*:>%-=]+", "")
+    s = string.gsub(s, "^%s*(.-)%s*$", "%1")
+    return s
+end
+
 function DungeonBots:CleanSpecText(specText)
     if not specText or specText == "" then return "" end
-    local cleaned = string.gsub(specText, "%s*%([^%)]*%d[^%)]*%)", "")
+    local cleaned = StripWowFormatting(specText)
+    cleaned = string.gsub(cleaned, "%s*%([^%)]*%d[^%)]*%)", "")
     cleaned = string.gsub(cleaned, "^[%s:=]+", "")
+    cleaned = string.gsub(cleaned, "^[Ii][Ss][%s:=]+", "")
+    cleaned = string.gsub(cleaned, "^[Ee][Ss][%s:=]+", "")
+    cleaned = StripSpecNoisePrefix(cleaned)
     cleaned = string.gsub(cleaned, "^[Ii][Ss][%s:=]+", "")
     cleaned = string.gsub(cleaned, "^[Ee][Ss][%s:=]+", "")
     cleaned = string.gsub(cleaned, "^[%s:=]+", "")
@@ -75,47 +129,6 @@ local CLASS_TREE_BY_TAB = {
     WARLOCK     = { "affliction", "demonology", "destruction" },
     DRUID       = { "balance", "feral", "restoration" },
 }
-
-local function StripSpecNoisePrefix(text)
-    if not text or text == "" then return "" end
-    local s = string.gsub(text, "^%s*(.-)%s*$", "%1")
-    local colonPos = string.find(s, ":", 1, true)
-    if colonPos then
-        local head = string.lower(string.sub(s, 1, colonPos - 1))
-        if string.find(head, "spec", 1, true)
-            or string.find(head, "talent", 1, true)
-            or string.find(head, "available", 1, true)
-            or string.find(head, "rama", 1, true) then
-            s = string.sub(s, colonPos + 1)
-        end
-    end
-    local prefixes = {
-        "available talent specs", "available specs", "available spec",
-        "current talent spec", "current spec", "active spec",
-        "my talent spec", "my spec", "using spec",
-        "current talents", "my talents", "talents",
-        "rama actual", "specs", "spec",
-    }
-    local changed = true
-    while changed do
-        changed = false
-        s = string.gsub(s, "^[%s%*:>%-=]+", "")
-        local ls = string.lower(s)
-        for _, p in ipairs(prefixes) do
-            if string.sub(ls, 1, #p) == p then
-                local nextCh = string.sub(ls, #p + 1, #p + 1)
-                if nextCh == "" or string.match(nextCh, "[%s:=%-]") then
-                    s = string.sub(s, #p + 1)
-                    changed = true
-                    break
-                end
-            end
-        end
-    end
-    s = string.gsub(s, "^[%s%*:>%-=]+", "")
-    s = string.gsub(s, "^%s*(.-)%s*$", "%1")
-    return s
-end
 
 local function ResolveTreeToSpec(botName, treeKey)
     local specs = DungeonBots.botSpecs and DungeonBots.botSpecs[botName]

@@ -187,7 +187,11 @@ function DungeonBots:StripChatFormatting(text)
     if not text or text == "" then return "" end
     local clean = string.gsub(text, "|c%x%x%x%x%x%x%x%x", "")
     clean = string.gsub(clean, "|r", "")
+    clean = string.gsub(clean, "|T[^|]*|t", "")
     clean = string.gsub(clean, "|H[^|]*|h(.-)|h", "%1")
+    clean = string.gsub(clean, "|H[^|]*|h", "")
+    clean = string.gsub(clean, "|h", "")
+    clean = string.gsub(clean, "|H[^|]*", "")
     return clean
 end
 

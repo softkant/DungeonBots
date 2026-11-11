@@ -57,46 +57,105 @@ function DungeonBots:GetLocalizedClassName(classToken, compactName)
 end
 
 local ES_SPEC_TOKENS = {
-    { pat = "beastmastery",   es = "Bestias" },
+    -- Nombres compuestos primero
     { pat = "beast mastery",  es = "Bestias" },
+    { pat = "frost fire",     es = "Pirofrío" },
+    { pat = "death knight",   es = "C. de la Muerte" },
+
+    -- Ramas completas y abreviaturas de mod-playerbots
+    { pat = "beastmastery",   es = "Bestias" },
     { pat = "beast",          es = "Bestias" },
+    { pat = "bm",             es = "Bestias" },
     { pat = "marksmanship",   es = "Puntería" },
+    { pat = "mm",             es = "Puntería" },
     { pat = "survival",       es = "Supervivencia" },
+    { pat = "surv",           es = "Supervivencia" },
+    { pat = "sv",             es = "Supervivencia" },
+
     { pat = "protection",     es = "Protección" },
+    { pat = "prot",           es = "Protección" },
     { pat = "holy",           es = "Sagrado" },
     { pat = "retribution",    es = "Reprensión" },
+    { pat = "ret",            es = "Reprensión" },
+
     { pat = "arms",           es = "Armas" },
     { pat = "fury",           es = "Furia" },
+
     { pat = "blood",          es = "Sangre" },
     { pat = "frostfire",      es = "Pirofrío" },
+    { pat = "ffb",            es = "Pirofrío" },
+    { pat = "ff",             es = "Pirofrío" },
     { pat = "frost",          es = "Escarcha" },
     { pat = "unholy",         es = "Profano" },
+    { pat = "unh",            es = "Profano" },
+
     { pat = "discipline",     es = "Disciplina" },
+    { pat = "disc",           es = "Disciplina" },
     { pat = "shadow",         es = "Sombras" },
+    { pat = "shad",           es = "Sombras" },
+
     { pat = "feral",          es = "Feral" },
     { pat = "balance",        es = "Equilibrio" },
+    { pat = "bala",           es = "Equilibrio" },
+    { pat = "bal",            es = "Equilibrio" },
     { pat = "restoration",    es = "Restauración" },
+    { pat = "resto",          es = "Restauración" },
+
     { pat = "elemental",      es = "Elemental" },
+    { pat = "elem",           es = "Elemental" },
+    { pat = "elec",           es = "Elemental" },
+    { pat = "ele",            es = "Elemental" },
     { pat = "enhancement",    es = "Mejora" },
+    { pat = "enh",            es = "Mejora" },
+
     { pat = "arcane",         es = "Arcano" },
+    { pat = "arc",            es = "Arcano" },
     { pat = "fire",           es = "Fuego" },
+
     { pat = "affliction",     es = "Aflicción" },
+    { pat = "afflic",         es = "Aflicción" },
+    { pat = "affli",          es = "Aflicción" },
+    { pat = "aff",            es = "Aflicción" },
     { pat = "demonology",     es = "Demonología" },
+    { pat = "demo",           es = "Demonología" },
     { pat = "destruction",    es = "Destrucción" },
+    { pat = "destro",         es = "Destrucción" },
+
     { pat = "combat",         es = "Combate" },
     { pat = "assassination",  es = "Asesinato" },
+    { pat = "assass",         es = "Asesinato" },
+    { pat = "assas",          es = "Asesinato" },
+    { pat = "as",             es = "Asesinato" },
     { pat = "subtlety",       es = "Sutileza" },
+    { pat = "subt",           es = "Sutileza" },
+    { pat = "sub",            es = "Sutileza" },
+
+    -- Clases en inglés devueltas por 'talents' (ej: "protection paladin", "fury warrior")
+    { pat = "warrior",        es = "Guerrero" },
+    { pat = "paladin",        es = "Paladín" },
+    { pat = "hunter",         es = "Cazador" },
+    { pat = "rogue",          es = "Pícaro" },
+    { pat = "priest",         es = "Sacerdote" },
+    { pat = "deathknight",    es = "C. de la Muerte" },
+    { pat = "dk",             es = "C. de la Muerte" },
+    { pat = "shaman",         es = "Chamán" },
+    { pat = "mage",           es = "Mago" },
+    { pat = "warlock",        es = "Brujo" },
+    { pat = "druid",          es = "Druida" },
+
     { pat = "pve",            es = "PvE" },
     { pat = "pvp",            es = "PvP" },
 }
 
 function DungeonBots:LocalizeSpecText(specText)
     if not specText or specText == "" then return "" end
+    local plain = TrimText(StripWowFormatting(specText))
+    if plain == "" then return "" end
     if not DungeonBots:IsSpanishLocale() then
-        return specText
+        return plain
     end
 
-    local lower = string.lower(TrimText(specText))
+    local lower = string.lower(plain)
     lower = string.gsub(lower, "[_%-]+", " ")
     lower = string.gsub(lower, "%s+", " ")
 
@@ -112,7 +171,7 @@ function DungeonBots:LocalizeSpecText(specText)
 
     local result = TrimText(normalized)
     if result == lower then
-        return specText
+        return plain
     end
     return result
 end
