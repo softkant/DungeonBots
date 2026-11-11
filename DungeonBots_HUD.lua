@@ -56,14 +56,78 @@ local HUD_ACTIONS = {
         color = { 1.0, 0.3, 0.3 }
     },
     {
-        name = "Descansar",
-        cmd = "drink",
-        icon = "Interface\\Icons\\INV_Drink_07",
-        title = "|cff00e5ffDescansar / Beber|r",
-        desc = "Ordena a los curadores y lanzadores de hechizos sentarse a recuperar maná y vida antes del siguiente combate.",
-        color = { 0.3, 0.7, 1.0 }
+        name = "Hablar PNJ",
+        cmd = "talk",
+        isTalkPicker = true,
+        icon = "Interface\\Icons\\INV_Letter_15",
+        title = "|cff00e5ffHablar con PNJ (Talk)|r",
+        desc = "Consulta los diálogos y misiones del PNJ seleccionado mediante un bot.\n\n|cff71d5ffSi hay varios bots en grupo abre un menú para elegir cuál; si solo hay uno, lo envía directo.|r",
+        color = { 0.2, 0.8, 1.0 }
     },
 }
+
+local hudTalkDropDown = nil
+
+local function GetOrCreateHudTalkDropDown()
+    if hudTalkDropDown then return hudTalkDropDown end
+    hudTalkDropDown = CreateFrame("Frame", "DungeonBots_HUDTalkDropDown", UIParent, "UIDropDownMenuTemplate")
+    hudTalkDropDown.displayMode = "MENU"
+    hudTalkDropDown:Hide()
+    return hudTalkDropDown
+end
+
+local function HandleHudTalkClick(anchorBtn)
+    local bots = DungeonBots.GetPartyBotsList and DungeonBots:GetPartyBotsList() or {}
+    if #bots == 0 then
+        if CloseDropDownMenus then CloseDropDownMenus() end
+        DungeonBots:Warn("No hay bots detectados en el grupo para hablar con el PNJ.")
+        return
+    end
+    if #bots == 1 then
+        if CloseDropDownMenus then CloseDropDownMenus() end
+        DungeonBots:SendTalkCommand(bots[1].name, "talk")
+        return
+    end
+
+    local dd = GetOrCreateHudTalkDropDown()
+    if UIDROPDOWNMENU_OPEN_MENU ~= dd and CloseDropDownMenus then
+        CloseDropDownMenus()
+    end
+    local bottomY = anchorBtn.GetBottom and anchorBtn:GetBottom() or 0
+    local opensUp = (bottomY < 220)
+    if opensUp then
+        dd.point = "BOTTOMLEFT"
+        dd.relativePoint = "TOPLEFT"
+    else
+        dd.point = "TOPLEFT"
+        dd.relativePoint = "BOTTOMLEFT"
+    end
+
+    UIDropDownMenu_Initialize(dd, function(self, level)
+        local infoTitle = UIDropDownMenu_CreateInfo()
+        infoTitle.text = "-- Elegir bot para 'talk' --"
+        infoTitle.isTitle = true
+        infoTitle.notCheckable = true
+        UIDropDownMenu_AddButton(infoTitle, level)
+
+        for _, bot in ipairs(bots) do
+            local info = UIDropDownMenu_CreateInfo()
+            local c = (bot.classToken and RAID_CLASS_COLORS and RAID_CLASS_COLORS[bot.classToken]) or { r = 1.0, g = 0.82, b = 0.0 }
+            local hex = string.format("|cff%02x%02x%02x", math.floor(c.r * 255), math.floor(c.g * 255), math.floor(c.b * 255))
+            local specBadge = (bot.spec and bot.spec ~= "") and (" |cffaaaaaa(" .. bot.spec .. ")|r") or ""
+            info.text = hex .. bot.name .. "|r" .. specBadge
+            info.notCheckable = true
+            local chosenName = bot.name
+            info.func = function()
+                if CloseDropDownMenus then CloseDropDownMenus() end
+                DungeonBots:SendTalkCommand(chosenName, "talk")
+            end
+            UIDropDownMenu_AddButton(info, level)
+        end
+    end, "MENU")
+
+    ToggleDropDownMenu(1, nil, dd, anchorBtn, 0, opensUp and 4 or -4)
+end
 
 function DungeonBots:IsInFiveManDungeon()
     local inInstance, instanceType = IsInInstance()
@@ -199,16 +263,24 @@ function DungeonBots:InitHUD()
         highlight:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
         highlight:SetBlendMode("ADD")
 
-        btn:SetScript("OnClick", function()
+        btn:SetScript("OnClick", function(self)
             PlaySound("igMainMenuOptionCheckBoxOn")
-            DungeonBots:SendPartyCommand(action.cmd)
+            if action.isTalkPicker then
+                HandleHudTalkClick(self)
+            else
+                DungeonBots:SendPartyCommand(action.cmd)
+            end
         end)
 
         btn:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
             GameTooltip:AddLine(action.title, 1, 1, 1)
             GameTooltip:AddLine(action.desc, 0.85, 0.85, 0.85, true)
-            GameTooltip:AddLine("Comando enviado: |cffffd200/p " .. action.cmd .. "|r", 0.5, 0.8, 1.0)
+            if action.isTalkPicker then
+                GameTooltip:AddLine("Acción: |cffffd200/w <Bot> talk|r (menú si hay 2+ bots)", 0.5, 0.8, 1.0)
+            else
+                GameTooltip:AddLine("Comando enviado: |cffffd200/p " .. action.cmd .. "|r", 0.5, 0.8, 1.0)
+            end
             GameTooltip:Show()
         end)
         btn:SetScript("OnLeave", function()

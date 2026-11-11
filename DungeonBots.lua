@@ -12,7 +12,7 @@ local DEFAULT_CONFIG = {
     hudScale = 1.0,
     hudVisible = true,
     hudOnlyInDungeon = true,
-    whisperMuteMode = "auto",
+    whisperMuteMode = "all",
     muteBotGroupChat = false,
     closeWimBotWindows = true,
     hudPosition = { point = "BOTTOM", x = 0, y = 140 },
@@ -164,8 +164,6 @@ DungeonBots.botSpecTriplets = {}
 DungeonBots.dalaranTimeRemaining = 0
 DungeonBots.isDalaranTimerRunning = false
 DungeonBots.recentOutgoingAddonWhispers = {}
-DungeonBots.lastAddonCommandAt = {}
-DungeonBots.lastPartyAddonCommandAt = 0
 DungeonBots.justPromotedBotWhisper = {}
 DungeonBots.pendingQuestCapture = {}
 DungeonBots.questDialogData = {}
@@ -487,8 +485,6 @@ function DungeonBots:MarkAddonOutgoingWhisper(botName, cmd, ttlSeconds)
         cmd = string.lower(TrimText(cmd)),
         expiresAt = now + (ttlSeconds or 4.0),
     })
-    DungeonBots.lastAddonCommandAt = DungeonBots.lastAddonCommandAt or {}
-    DungeonBots.lastAddonCommandAt[cleanBot] = now + 4.5
 end
 
 function DungeonBots:IsRecentAddonOutgoingWhisper(botName, message)
@@ -517,7 +513,6 @@ end
 -- Comandos de grupo (/p follow, /p summon, /p accept *, etc.)
 function DungeonBots:SendPartyCommand(cmd)
     if not cmd or cmd == "" then return end
-    DungeonBots.lastPartyAddonCommandAt = NowTime() + 4.5
     if GetNumPartyMembers() > 0 then
         SendChatMessage(cmd, "PARTY")
     else
@@ -1116,12 +1111,37 @@ function DungeonBots:DropBotQuest(botName, questEntry)
     local target = questEntry.safeLink or questEntry.title
     if not target or target == "" then return end
     local now = NowTime()
-    DungeonBots.lastAddonCommandAt[cleanBot] = now + 4.5
     DungeonBots:SendWhisperCommand(cleanBot, "drop " .. target)
     DungeonBots.pendingQuestRefresh[cleanBot] = now + 0.55
     if DungeonBots.uiCaptureFrame then
         DungeonBots.uiCaptureFrame:Show()
     end
+end
+
+function DungeonBots:GetPartyBotsList()
+    local bots = {}
+    local seen = {}
+    for i = 1, 4 do
+        local unit = "party" .. i
+        if UnitExists(unit) then
+            local rawName = UnitName(unit)
+            local name = NormalizePlayerName(rawName)
+            if name and name ~= "" and name ~= UNKNOWNOBJECT and name ~= "Unknown" and not seen[name] then
+                if DungeonBots:ShouldTreatAsBot(name) then
+                    seen[name] = true
+                    local _, classToken = UnitClass(unit)
+                    local activeSpec = DungeonBotsDB and DungeonBotsDB.botActiveSpec and DungeonBotsDB.botActiveSpec[name]
+                    table.insert(bots, {
+                        unit = unit,
+                        name = name,
+                        classToken = classToken,
+                        spec = activeSpec,
+                    })
+                end
+            end
+        end
+    end
+    return bots
 end
 
 function DungeonBots:FindDefaultTalkBot()
@@ -1686,26 +1706,6 @@ local chatFiltersRegistered = false
 local sendChatHooked = false
 local wimWrappedMethods = {}
 
-local function HasActiveAddonReplyWindow(cleanName)
-    local now = NowTime()
-    if cleanName and DungeonBots.lastAddonCommandAt and (DungeonBots.lastAddonCommandAt[cleanName] or 0) > now then
-        return true
-    end
-    if (DungeonBots.lastPartyAddonCommandAt or 0) > now then
-        return true
-    end
-    if cleanName and queryStates and queryStates[cleanName] ~= nil then
-        return true
-    end
-    if cleanName and DungeonBots.pendingQuestCapture and DungeonBots.pendingQuestCapture[cleanName] ~= nil then
-        return true
-    end
-    if cleanName and DungeonBots.pendingTalkCapture and DungeonBots.pendingTalkCapture[cleanName] ~= nil then
-        return true
-    end
-    return false
-end
-
 local function IsPureTalentResponse(message)
     local lowerMsg = string.lower(TrimText(StripWowFormatting(message or "")))
     if lowerMsg == "" then return false end
@@ -1743,44 +1743,6 @@ local function IsBotDetectionText(message)
         or string.find(lowerMsg, "autogear")
         or string.find(lowerMsg, "nothing to say")
         or string.find(lowerMsg, "no npc")
-        or string.match(lowerMsg, "%d+[-/]%d+[-/]%d+")) and true or false
-end
-
-local function IsTechnicalBotMessage(message)
-    local lowerMsg = string.lower(message or "")
-    return (string.find(lowerMsg, "follow distance")
-        or string.find(lowerMsg, "following")
-        or string.find(lowerMsg, "staying")
-        or string.find(lowerMsg, "strategies:")
-        or string.find(lowerMsg, "available specs")
-        or string.find(lowerMsg, "talents")
-        or string.find(lowerMsg, "co %+")
-        or string.find(lowerMsg, "nc %+")
-        or string.find(lowerMsg, "fleeing")
-        or string.find(lowerMsg, "stats:")
-        or string.find(lowerMsg, "money:")
-        or string.find(lowerMsg, "active quests")
-        or string.find(lowerMsg, "completed quests")
-        or string.find(lowerMsg, "quest log")
-        or string.find(lowerMsg, "no active quests")
-        or string.find(lowerMsg, "no completed quests")
-        or string.find(lowerMsg, "no quests")
-        or string.find(lowerMsg, "summary:")
-        or string.find(lowerMsg, "quest dropped")
-        or string.find(lowerMsg, "abandoned")
-        or string.find(lowerMsg, "accepting")
-        or string.find(lowerMsg, "accepted")
-        or string.find(lowerMsg, "turned in")
-        or string.find(lowerMsg, "|hquest:")
-        or string.find(lowerMsg, "autogear")
-        or string.find(lowerMsg, "equipped")
-        or string.find(lowerMsg, "equipping")
-        or string.find(lowerMsg, "item level")
-        or string.find(lowerMsg, "avg ilvl")
-        or string.find(lowerMsg, "nothing to say")
-        or string.find(lowerMsg, "no npc")
-        or string.find(lowerMsg, "no target")
-        or string.find(lowerMsg, "gossip")
         or string.match(lowerMsg, "%d+[-/]%d+[-/]%d+")) and true or false
 end
 
@@ -1885,7 +1847,7 @@ function DungeonBots:ShouldSuppressChatEvent(event, message, sender)
         return false
     end
 
-    local whisperMode = DungeonBotsDB.whisperMuteMode or "auto"
+    local whisperMode = (DungeonBotsDB.whisperMuteMode == "off") and "off" or "all"
     local muteGroup = DungeonBotsDB.muteBotGroupChat and true or false
 
     if event == "CHAT_MSG_WHISPER_INFORM" then
@@ -1895,10 +1857,7 @@ function DungeonBots:ShouldSuppressChatEvent(event, message, sender)
         if DungeonBots:IsRecentAddonOutgoingWhisper(cleanName, message) then
             return true
         end
-        if whisperMode == "all" and DungeonBots:ShouldTreatAsBot(cleanName) then
-            return true
-        end
-        return false
+        return DungeonBots:ShouldTreatAsBot(cleanName)
 
     elseif event == "CHAT_MSG_WHISPER" then
         if whisperMode == "off" then
@@ -1908,29 +1867,13 @@ function DungeonBots:ShouldSuppressChatEvent(event, message, sender)
         if not eval or not eval.isBot then
             return false
         end
-        if whisperMode == "all" then
-            return true
-        end
-        -- Modo "auto": ocultar respuestas técnicas, capturas UI, saludos de invocación/escaneo y ventanas recientes del addon
-        if eval.justPromoted or ((DungeonBots.justPromotedBotWhisper[cleanName] or 0) > NowTime()) then
-            return true
-        end
-        if HasActiveAddonReplyWindow(cleanName) then
-            return true
-        end
-        if IsTechnicalBotMessage(message) then
-            return true
-        end
-        return false
+        return true
 
     elseif event == "CHAT_MSG_AFK" or event == "CHAT_MSG_DND" then
-        if whisperMode == "off" or not DungeonBots:ShouldTreatAsBot(cleanName) then
+        if whisperMode == "off" then
             return false
         end
-        if whisperMode == "all" then
-            return true
-        end
-        return HasActiveAddonReplyWindow(cleanName)
+        return DungeonBots:ShouldTreatAsBot(cleanName)
 
     elseif event == "CHAT_MSG_PARTY"
         or event == "CHAT_MSG_PARTY_LEADER"
@@ -2373,6 +2316,9 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                     DungeonBotsDB[k] = v
                 end
             end
+            if DungeonBotsDB.whisperMuteMode == "auto" then
+                DungeonBotsDB.whisperMuteMode = "all"
+            end
         elseif addonName == "WIM" then
             if DungeonBots.SetupWIMCompatibility then
                 DungeonBots:SetupWIMCompatibility()
@@ -2419,6 +2365,9 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             end
         end
         DungeonBots.botSpecs = DungeonBotsDB.botSpecs or {}
+        if DungeonBotsDB.whisperMuteMode == "auto" then
+            DungeonBotsDB.whisperMuteMode = "all"
+        end
 
         DungeonBotsDB.historyMigrated = true
 

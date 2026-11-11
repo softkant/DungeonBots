@@ -415,38 +415,31 @@ function DungeonBots:BuildTab1(parent)
         DungeonBots:Print("Barra táctica solo en mazmorra (5j): " .. (val and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
     end)
 
-    -- Selector de modo para ocultar susurros de bots (Blizzard Chat + WIM)
+    -- Selector para ocultar susurros de bots
     local muteLabel = actionBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     muteLabel:SetPoint("TOPLEFT", 14, -80)
-    muteLabel:SetText("Ocultar susurros de bots (Chat / WIM):")
+    muteLabel:SetText("Ocultar susurros de bots:")
 
     local muteModes = {
         {
+            key = "all",
+            label = "Activado",
+            width = 86,
+            tipTitle = "Ocultar Susurros: Activado",
+            tipText = "Oculta todos los susurros entrantes y salientes con cualquier personaje identificado como bot.\n\nLos jugadores humanos reales ([JUGADOR] o desconocidos) NUNCA se ocultan.",
+        },
+        {
             key = "off",
             label = "Desactivado",
-            width = 86,
-            tipTitle = "Ocultamiento Desactivado",
-            tipText = "Muestra todos los susurros y consultas de los bots normalmente tanto en el Chat de Blizzard como en WIM.",
-        },
-        {
-            key = "auto",
-            label = "Automáticos",
-            width = 92,
-            tipTitle = "Ocultar Solo Automáticos (Recomendado)",
-            tipText = "Oculta susurros técnicos, consultas del addon, saludos iniciales al invocar, listados de misiones y diálogos de PNJ (tanto en Chat como en WIM).\n\nLos susurros manuales escritos por ti y todos los jugadores reales siguen viéndose.",
-        },
-        {
-            key = "all",
-            label = "Todos",
-            width = 68,
-            tipTitle = "Ocultar Todos los Susurros de Bots",
-            tipText = "Oculta por completo todos los susurros entrantes y salientes con cualquier personaje identificado como bot (Chat y WIM).\n\nLos jugadores humanos reales ([JUGADOR] o desconocidos) NUNCA se ocultan.",
+            width = 94,
+            tipTitle = "Ocultar Susurros: Desactivado",
+            tipText = "Muestra todos los susurros y consultas de los bots normalmente en el chat.",
         },
     }
 
     local muteModeBtns = {}
     local function RefreshMuteModeButtons()
-        local current = (DungeonBotsDB and DungeonBotsDB.whisperMuteMode) or "auto"
+        local current = (DungeonBotsDB and DungeonBotsDB.whisperMuteMode == "off") and "off" or "all"
         for _, item in ipairs(muteModeBtns) do
             local isSelected = (item.key == current)
             if isSelected then

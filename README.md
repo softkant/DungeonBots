@@ -13,7 +13,7 @@
 * **Global Group Controls & Chat Hiding:**
   * Toggle auto-invite for newly summoned bots.
   * Toggle whether the floating Combat HUD appears only inside 5-player dungeons (`IsInInstance()` == `"party"`).
-  * **Bot Whisper Hiding (Blizzard Chat & WIM Compatible):** Choose between `Desactivado` (Off), `Automáticos` (hides technical queries, summon greetings, quests, NPC talk captures, and addon outgoing whispers while keeping manual whispers visible), and `Todos` (hides all incoming and outgoing whispers with known bots). Includes an optional toggle to also hide bot messages in `/p`, `/y`, and `/s`. Real human players (`[JUGADOR]` or unknown players) are never filtered, and WIM's SavedVariables are never modified.
+  * **Bot Whisper Hiding (`Activado` / `Desactivado`):** Hides all incoming and outgoing whispers with known bots (compatible with Blizzard chat and WIM without touching WIM's SavedVariables), plus an optional toggle to hide bot messages in `/p`, `/y`, and `/s`. Real human players (`[JUGADOR]` or unknown players) are never filtered.
   * **`Reinvocar Grupo`:** Runs `.playerbots bot add *` to recall absent bots that are still in your party.
   * **`Despedir a Todos`:** Runs `.playerbots bot remove *` and removes confirmed bots from the party while preserving human players.
   * **`Reparar Equipo`:** Sends `/p repair`.
@@ -56,7 +56,7 @@ Compact, draggable, and lockable floating bar (shown only inside 5-player dungeo
 4. **Seguir:** `follow`
 5. **Summon:** `summon`
 6. **¡Huir!:** `flee`
-7. **Descansar:** `drink`
+7. **Hablar PNJ:** `talk` (opens a bot selector dropdown if 2+ party bots are present, or queries the single bot directly and opens the interactive NPC Talk dialog)
 
 ---
 
