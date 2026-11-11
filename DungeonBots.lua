@@ -1154,7 +1154,9 @@ function DungeonBots:DropBotQuest(botName, questEntry, fromTalkDialog)
         DungeonBots.pendingTalkCapture[cleanBot] = nil
     end
 
+    local qDisplay = questEntry.safeLink or questEntry.displayLink or ("|cffffff00[" .. (questEntry.title or target) .. "]|r")
     DungeonBots:SendWhisperCommand(cleanBot, "drop " .. target)
+    DungeonBots:Print("|cffffd200" .. cleanBot .. "|r abandonó la misión: " .. qDisplay)
 
     if DungeonBots.UpdateQuestDialog and DungeonBots.questFrame and DungeonBots.questFrame:IsShown() and DungeonBots.questFrame.currentBot == cleanBot then
         DungeonBots:UpdateQuestDialog(cleanBot)
@@ -1287,6 +1289,13 @@ function DungeonBots:ArmTalkCapture(botName, cmd, resetLines)
     local now = NowTime()
     local lowerCmd = string.lower(TrimText(cmd or "talk"))
     local isAcceptCmd = (lowerCmd == "accept *" or lowerCmd == "accept" or string.match(lowerCmd, "^accept%s+.+$") ~= nil)
+    local pendingAcceptTarget = nil
+    if isAcceptCmd then
+        local arg = TrimText(string.match(TrimText(cmd or ""), "^[Aa][Cc][Cc][Ee][Pp][Tt]%s+(.+)$") or "")
+        if arg ~= "" and arg ~= "*" then
+            pendingAcceptTarget = arg
+        end
+    end
     DungeonBots.pendingQuestCapture[cleanBot] = nil
     DungeonBots.pendingTalkRefresh[cleanBot] = nil
     DungeonBots.lastTalkBot = cleanBot
@@ -1298,6 +1307,10 @@ function DungeonBots:ArmTalkCapture(botName, cmd, resetLines)
             lastCmd = cmd or "talk",
             isAcceptCmd = isAcceptCmd,
             acceptError = false,
+            playedAcceptSound = false,
+            printedAcceptMsg = false,
+            printedAcceptKeys = {},
+            pendingAcceptTarget = pendingAcceptTarget,
             loading = true,
             done = false,
             lines = {},
@@ -1312,6 +1325,10 @@ function DungeonBots:ArmTalkCapture(botName, cmd, resetLines)
         data.lastCmd = cmd or data.lastCmd or "talk"
         data.isAcceptCmd = isAcceptCmd
         data.acceptError = false
+        data.playedAcceptSound = false
+        data.printedAcceptMsg = false
+        data.printedAcceptKeys = {}
+        data.pendingAcceptTarget = pendingAcceptTarget
         if UnitExists("target") and not UnitIsPlayer("target") then
             data.npcName = UnitName("target")
         end
@@ -2194,6 +2211,10 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
                             data.playedAcceptSound = true
                             PlaySound("QUESTADDED")
                         end
+                        if not data.printedAcceptMsg and data.pendingAcceptTarget then
+                            data.printedAcceptMsg = true
+                            DungeonBots:Print("|cffffd200" .. botName .. "|r aceptó la misión: " .. data.pendingAcceptTarget)
+                        end
                         if DungeonBots.talkFrame and DungeonBots.talkFrame:IsShown() and DungeonBots.talkFrame.currentBot == botName then
                             DungeonBots.pendingTalkRefresh[botName] = now + 0.15
                             hasAny = true
@@ -2515,13 +2536,28 @@ local function ParseTalkCaptureWhisper(cleanSender, message)
             if cap.isAcceptCmd then
                 if isAcceptErr then
                     data.acceptError = true
-                elseif (string.find(lowerClean, "accepted", 1, true)
+                elseif string.find(lowerClean, "accepted", 1, true)
                     or string.find(lowerClean, "aceptada", 1, true)
                     or string.find(lowerClean, "completed", 1, true)
-                    or string.find(lowerClean, "turned in", 1, true))
-                    and not data.playedAcceptSound then
-                    data.playedAcceptSound = true
-                    PlaySound("QUESTADDED")
+                    or string.find(lowerClean, "turned in", 1, true) then
+                    if not data.playedAcceptSound then
+                        data.playedAcceptSound = true
+                        PlaySound("QUESTADDED")
+                    end
+                    local safeLink, _, _, rawLink = ExtractSafeQuestLinkFromText(line)
+                    local qDisplay = safeLink or (rawLink and ("|cffffff00" .. rawLink .. "|r")) or data.pendingAcceptTarget or cleanLine
+                    local acceptKey = string.lower(tostring(rawLink or qDisplay or ""))
+                    data.printedAcceptKeys = data.printedAcceptKeys or {}
+                    if not data.printedAcceptKeys[acceptKey] then
+                        data.printedAcceptKeys[acceptKey] = true
+                        data.printedAcceptMsg = true
+                        if string.find(lowerClean, "completed", 1, true)
+                            or string.find(lowerClean, "turned in", 1, true) then
+                            DungeonBots:Print("|cffffd200" .. cleanSender .. "|r entregó la misión: " .. qDisplay)
+                        else
+                            DungeonBots:Print("|cffffd200" .. cleanSender .. "|r aceptó la misión: " .. qDisplay)
+                        end
+                    end
                 end
             end
 
@@ -2753,7 +2789,6 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             end
             DungeonBots:RegisterBot(cleanSender, true)
             DungeonBots:RecordBotHistory(cleanSender)
-            DungeonBots:Print("Ramas actualizadas para |cffffd200" .. cleanSender .. "|r: " .. table.concat(DungeonBots.botSpecs[cleanSender], ", "))
 
             -- Si 'talents' llegó antes que 'talents spec list', refinar con las ramas reales recién recibidas
             if not detectedActiveSpec then
