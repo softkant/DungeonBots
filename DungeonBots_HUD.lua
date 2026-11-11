@@ -98,7 +98,7 @@ local UTIL_ACTIONS = {
         actionKind = "spells",
         icon = "Interface\\Icons\\Spell_Holy_MagicalSentry",
         title = "|cffb266ffPoderes y Hechizos de Bot|r",
-        desc = "Abre un menú desplegable para elegir un bot del grupo y ver sus hechizos, recetas y glifos.\n\n|cff71d5ffPermite filtrar ('spells'), consultar detalle ('spell') y ordenar lanzamientos ('cast').|r",
+        desc = "Abre un menú desplegable para elegir un bot del grupo y ver sus hechizos, recetas y glifos.\n\n|cff71d5ffPermite buscar en la lista y ordenar lanzamientos ('cast').|r",
         tooltipCmd = "Acción: |cffffd200Elegir bot -> /w <Bot> spells|r",
         color = { 0.68, 0.45, 1.0 }
     },

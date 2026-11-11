@@ -102,13 +102,9 @@ local function UpdateSpellSelectionUI()
 
     if sp.activeMode == "spells" then
         if selected then
-            sp.detailBtn:Enable()
-            sp.detailBtn:SetAlpha(1.0)
             sp.castBtn:Enable()
             sp.castBtn:SetAlpha(1.0)
         else
-            sp.detailBtn:Disable()
-            sp.detailBtn:SetAlpha(0.45)
             sp.castBtn:Disable()
             sp.castBtn:SetAlpha(0.45)
         end
@@ -122,7 +118,7 @@ local function CreateSpellRowButton(parent, idx)
     ApplyDarkBackdrop(row, 8)
     row:SetBackdropColor(0.06, 0.08, 0.12, 0.94)
     row:SetBackdropBorderColor(0.26, 0.34, 0.50, 0.85)
-    row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    row:RegisterForClicks("LeftButtonUp")
 
     local iconBg = row:CreateTexture(nil, "BACKGROUND")
     iconBg:SetSize(32, 32)
@@ -227,27 +223,17 @@ local function CreateSpellRowButton(parent, idx)
             GameTooltip:AddLine("Crafteables disponibles: x" .. entry.craftableCount, 0.25, 0.88, 0.45)
         end
         GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("Clic izquierdo: |cffffffffSeleccionar|r  |  Clic derecho: |cff71d5ffInfo ('spell')|r", 0.8, 0.8, 0.8)
+        GameTooltip:AddLine("Clic izquierdo: |cffffffffSeleccionar|r  |  Shift + Clic: |cff71d5ffEnlazar|r", 0.8, 0.8, 0.8)
         GameTooltip:Show()
     end)
     row:SetScript("OnLeave", function()
         GameTooltip:Hide()
     end)
 
-    row:SetScript("OnClick", function(self, mouseBtn)
+    row:SetScript("OnClick", function(self)
         local sp = DungeonBots.spellsFrame
         local entry = self.spellEntry
         if not sp or not entry then return end
-
-        if mouseBtn == "RightButton" then
-            if entry.kind == "glyph" then return end
-            sp.selectedSpell = entry
-            UpdateSpellSelectionUI()
-            if DungeonBots.QueryBotSpellDetail then
-                DungeonBots:QueryBotSpellDetail(sp.currentBot, entry)
-            end
-            return
-        end
 
         if IsModifiedClick and IsModifiedClick("CHATLINK") and ChatEdit_InsertLink then
             local link = entry.displayLink or entry.rawLink or entry.plainLink
@@ -335,17 +321,10 @@ function DungeonBots:BuildSpellsDialog()
     refreshBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
         if sp.currentBot and DungeonBots.QueryBotSpells then
-            local filterTxt = (sp.activeMode == "spells" and sp.serverFilterBox) and sp.serverFilterBox:GetText() or ""
-            DungeonBots:QueryBotSpells(sp.currentBot, sp.activeMode, filterTxt, false)
+            DungeonBots:QueryBotSpells(sp.currentBot, sp.activeMode, "", false)
         end
     end)
     sp.refreshBtn = refreshBtn
-
-    local statusLabel = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    statusLabel:SetPoint("RIGHT", refreshBtn, "LEFT", -8, 0)
-    statusLabel:SetWidth(150)
-    statusLabel:SetJustifyH("RIGHT")
-    sp.statusLabel = statusLabel
 
     -- Subpestanas de modo: Hechizos / Glifos
     sp.modeButtons = {}
@@ -363,8 +342,7 @@ function DungeonBots:BuildSpellsDialog()
                 rec.activeMode = tabDef.id
             end
             if sp.currentBot and (not existingTab or (existingTab.updatedAt == 0 and not existingTab.loading)) then
-                local fTxt = (tabDef.id == "spells" and sp.serverFilterBox) and sp.serverFilterBox:GetText() or ""
-                DungeonBots:QueryBotSpells(sp.currentBot, tabDef.id, fTxt, false)
+                DungeonBots:QueryBotSpells(sp.currentBot, tabDef.id, "", false)
             else
                 DungeonBots:UpdateSpellsDialog(sp.currentBot)
             end
@@ -372,7 +350,7 @@ function DungeonBots:BuildSpellsDialog()
         sp.modeButtons[tabDef.id] = mBtn
     end
 
-    -- Barra de filtros (visible en modo Hechizos)
+    -- Barra de busqueda local (visible en modo Hechizos)
     local filterBar = CreateFrame("Frame", nil, sp)
     filterBar:SetPoint("TOPLEFT", sp, "TOPLEFT", 10, -66)
     filterBar:SetPoint("TOPRIGHT", sp, "TOPRIGHT", -10, -66)
@@ -384,7 +362,7 @@ function DungeonBots:BuildSpellsDialog()
     localLbl:SetText("Buscar:")
 
     local localSearchBox = CreateFrame("EditBox", "DungeonBots_SpellsLocalSearchBox", filterBar, "InputBoxTemplate")
-    localSearchBox:SetSize(142, 20)
+    localSearchBox:SetSize(468, 20)
     localSearchBox:SetPoint("LEFT", localLbl, "RIGHT", 8, 0)
     localSearchBox:SetAutoFocus(false)
     localSearchBox:SetScript("OnTextChanged", function()
@@ -394,60 +372,6 @@ function DungeonBots:BuildSpellsDialog()
     end)
     localSearchBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     sp.localSearchBox = localSearchBox
-
-    local serverLbl = filterBar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    serverLbl:SetPoint("LEFT", localSearchBox, "RIGHT", 14, 0)
-    serverLbl:SetText("Filtro 'spells':")
-
-    local serverFilterBox = CreateFrame("EditBox", "DungeonBots_SpellsServerFilterBox", filterBar, "InputBoxTemplate")
-    serverFilterBox:SetSize(124, 20)
-    serverFilterBox:SetPoint("LEFT", serverLbl, "RIGHT", 8, 0)
-    serverFilterBox:SetAutoFocus(false)
-    serverFilterBox:SetScript("OnEnterPressed", function(self)
-        self:ClearFocus()
-        if sp.currentBot and DungeonBots.QueryBotSpells then
-            DungeonBots:QueryBotSpells(sp.currentBot, "spells", self:GetText(), false)
-        end
-    end)
-    serverFilterBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-    serverFilterBox:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Filtro de comando 'spells <parámetro>'", 1, 0.82, 0)
-        GameTooltip:AddLine("Ejemplos compatibles:", 1, 1, 1)
-        GameTooltip:AddLine("  <nombre>       - Filtra por nombre de poder", 0.85, 0.85, 0.85)
-        GameTooltip:AddLine("  tailoring      - Recetas de profesión", 0.85, 0.85, 0.85)
-        GameTooltip:AddLine("  +first aid     - Solo lo crafteable ahora", 0.85, 0.85, 0.85)
-        GameTooltip:AddLine("  20-40          - Crafteos de nivel 20 a 40", 0.85, 0.85, 0.85)
-        GameTooltip:AddLine("  head / chest   - Recetas por hueco de equipo", 0.85, 0.85, 0.85)
-        GameTooltip:AddLine("Pulsa Enter o 'Consultar' (vacío = todos).", 0.5, 0.8, 1.0)
-        GameTooltip:Show()
-    end)
-    serverFilterBox:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    sp.serverFilterBox = serverFilterBox
-
-    local queryFilterBtn = CreateFrame("Button", nil, filterBar, "UIPanelButtonTemplate")
-    queryFilterBtn:SetSize(74, 20)
-    queryFilterBtn:SetPoint("LEFT", serverFilterBox, "RIGHT", 6, 0)
-    queryFilterBtn:SetText("Consultar")
-    queryFilterBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        if sp.currentBot and DungeonBots.QueryBotSpells then
-            DungeonBots:QueryBotSpells(sp.currentBot, "spells", serverFilterBox:GetText(), false)
-        end
-    end)
-
-    local clearFilterBtn = CreateFrame("Button", nil, filterBar, "UIPanelButtonTemplate")
-    clearFilterBtn:SetSize(52, 20)
-    clearFilterBtn:SetPoint("LEFT", queryFilterBtn, "RIGHT", 4, 0)
-    clearFilterBtn:SetText("Todos")
-    clearFilterBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        localSearchBox:SetText("")
-        serverFilterBox:SetText("")
-        if sp.currentBot and DungeonBots.QueryBotSpells then
-            DungeonBots:QueryBotSpells(sp.currentBot, "spells", "", false)
-        end
-    end)
 
     -- Hint de modo secundario (cuando NO esta en modo Hechizos)
     local modeHintLabel = sp:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -486,40 +410,7 @@ function DungeonBots:BuildSpellsDialog()
     emptyLabel:SetText("Esperando respuesta del bot...")
     sp.emptyLabel = emptyLabel
 
-    -- Caja inferior opcional de detalle ('spell [link]')
-    local detailBox = CreateFrame("Frame", nil, sp)
-    detailBox:SetPoint("BOTTOMLEFT", sp, "BOTTOMLEFT", 10, 42)
-    detailBox:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", -10, 42)
-    detailBox:SetHeight(58)
-    ApplyDarkBackdrop(detailBox, 8)
-    detailBox:SetBackdropColor(0.05, 0.07, 0.11, 1.0)
-    detailBox:SetBackdropBorderColor(0.45, 0.35, 0.75, 0.90)
-    detailBox:Hide()
-    sp.detailBox = detailBox
-
-    local detailTitle = detailBox:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    detailTitle:SetPoint("TOPLEFT", detailBox, "TOPLEFT", 8, -6)
-    detailTitle:SetPoint("RIGHT", detailBox, "RIGHT", -28, 0)
-    detailTitle:SetJustifyH("LEFT")
-    sp.detailTitle = detailTitle
-
-    local detailBody = detailBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    detailBody:SetPoint("TOPLEFT", detailTitle, "BOTTOMLEFT", 0, -3)
-    detailBody:SetPoint("BOTTOMRIGHT", detailBox, "BOTTOMRIGHT", -8, 6)
-    detailBody:SetJustifyH("LEFT")
-    detailBody:SetJustifyV("TOP")
-    sp.detailBody = detailBody
-
-    local detailCloseBtn = CreateFrame("Button", nil, detailBox, "UIPanelCloseButton")
-    detailCloseBtn:SetSize(18, 18)
-    detailCloseBtn:SetPoint("TOPRIGHT", detailBox, "TOPRIGHT", -2, -2)
-    detailCloseBtn:SetScript("OnClick", function()
-        local _, rec = DB_Internal.GetBotSpellTabData(sp.currentBot, sp.activeMode)
-        if rec then rec.spellDetail = nil end
-        DungeonBots:UpdateSpellsDialog(sp.currentBot)
-    end)
-
-    -- Barra inferior: Siguiente Bot + (idx/total) + Talentos  |  Info (spell) + Lanzar (cast)
+    -- Barra inferior: Siguiente Bot + (idx/total) + Talentos  |  Lanzar (cast)
     local nextBotBtn = CreateFrame("Button", nil, sp, "UIPanelButtonTemplate")
     nextBotBtn:SetSize(118, 24)
     nextBotBtn:SetPoint("BOTTOMLEFT", sp, "BOTTOMLEFT", 12, 10)
@@ -528,8 +419,7 @@ function DungeonBots:BuildSpellsDialog()
         PlaySound("igMainMenuOptionCheckBoxOn")
         sp.selectedSpell = nil
         if DungeonBots.CycleNextSpellsBot then
-            local filterTxt = sp.serverFilterBox and sp.serverFilterBox:GetText() or ""
-            DungeonBots:CycleNextSpellsBot(sp.currentBot, sp.activeMode, filterTxt)
+            DungeonBots:CycleNextSpellsBot(sp.currentBot, sp.activeMode, "")
         end
     end)
     sp.nextBotBtn = nextBotBtn
@@ -579,40 +469,6 @@ function DungeonBots:BuildSpellsDialog()
     castBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
     sp.castBtn = castBtn
 
-    local detailBtn = CreateFrame("Button", nil, sp, "UIPanelButtonTemplate")
-    detailBtn:SetSize(96, 24)
-    detailBtn:SetPoint("RIGHT", castBtn, "LEFT", -6, 0)
-    detailBtn:SetText("Detalle")
-    detailBtn:Disable()
-    detailBtn:SetAlpha(0.45)
-    detailBtn:SetScript("OnClick", function()
-        if not sp.currentBot or not sp.selectedSpell then return end
-        if DungeonBots.QueryBotSpellDetail then
-            DungeonBots:QueryBotSpellDetail(sp.currentBot, sp.selectedSpell)
-        end
-    end)
-    detailBtn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Consultar info del hechizo ('spell')", 1, 0.82, 0)
-        GameTooltip:AddLine("Envía 'spell [link]' al bot para ver detalles del servidor.", 0.85, 0.85, 0.85, true)
-        GameTooltip:Show()
-    end)
-    detailBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    sp.detailBtn = detailBtn
-
-    local modeRefreshBtn = CreateFrame("Button", nil, sp, "UIPanelButtonTemplate")
-    modeRefreshBtn:SetSize(112, 24)
-    modeRefreshBtn:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", -12, 10)
-    modeRefreshBtn:SetText("Reconsultar")
-    modeRefreshBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        if sp.currentBot and DungeonBots.QueryBotSpells then
-            DungeonBots:QueryBotSpells(sp.currentBot, sp.activeMode, "", false)
-        end
-    end)
-    modeRefreshBtn:Hide()
-    sp.modeRefreshBtn = modeRefreshBtn
-
     DungeonBots.spellsFrame = sp
 end
 
@@ -626,7 +482,7 @@ function DungeonBots:UpdateSpellsDialog(botName)
 
     local mode = (sp.activeMode == "glyphs") and "glyphs" or "spells"
     sp.activeMode = mode
-    local tab, rec = DB_Internal.GetBotSpellTabData(targetBot, mode)
+    local tab = DB_Internal.GetBotSpellTabData(targetBot, mode)
 
     local unit = DungeonBots.FindPartyUnitByName and DungeonBots:FindPartyUnitByName(targetBot)
     local classHex = "|cffffd200"
@@ -649,19 +505,6 @@ function DungeonBots:UpdateSpellsDialog(botName)
         end
     end
 
-    local hasDetail = (mode == "spells" and rec and rec.spellDetail ~= nil)
-    if hasDetail then
-        sp.detailTitle:SetText("|cffb266ffInfo 'spell':|r |cffffd200" .. (rec.spellDetail.title or "Hechizo") .. "|r")
-        sp.detailBody:SetText(table.concat(rec.spellDetail.lines or {}, "  |  "))
-        sp.detailBox:Show()
-    else
-        sp.detailBox:Hide()
-    end
-
-    sp.listBg:ClearAllPoints()
-    sp.listBg:SetPoint("TOPLEFT", sp, "TOPLEFT", 10, -96)
-    sp.listBg:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", -10, hasDetail and 106 or 42)
-
     local allItems = (tab and tab.items) or {}
     local visibleEntries = {}
     local filterRaw = ""
@@ -669,9 +512,7 @@ function DungeonBots:UpdateSpellsDialog(botName)
     if mode == "spells" then
         sp.filterBar:Show()
         sp.modeHintLabel:Hide()
-        sp.detailBtn:Show()
         sp.castBtn:Show()
-        sp.modeRefreshBtn:Hide()
 
         filterRaw = sp.localSearchBox and sp.localSearchBox:GetText() or ""
         local filterText = string.lower(string.gsub(filterRaw, "^%s*(.-)%s*$", "%1"))
@@ -709,33 +550,13 @@ function DungeonBots:UpdateSpellsDialog(botName)
         if not selectedVisible then
             sp.selectedSpell = nil
         end
-
-        if tab and tab.loading then
-            sp.statusLabel:SetText("|cffffd200Consultando...|r (" .. #allItems .. ")")
-        elseif #allItems == 0 then
-            sp.statusLabel:SetText("|cff8888880 hechizos|r")
-        elseif filterText ~= "" then
-            sp.statusLabel:SetText("|cff34c759" .. #visibleEntries .. "/" .. #allItems .. "|r")
-        else
-            sp.statusLabel:SetText("|cff34c759" .. #allItems .. "|r poderes")
-        end
     else
         sp.filterBar:Hide()
         sp.modeHintLabel:Show()
-        sp.detailBtn:Hide()
         sp.castBtn:Hide()
-        sp.modeRefreshBtn:Show()
         sp.modeHintLabel:SetText("|cff71d5ffGlifos equipados ('glyphs'):|r Cada glifo se muestra en su fila; pasa el ratón para ver detalles.")
         sp.selectedSpell = nil
-
         visibleEntries = allItems
-        if tab and tab.loading then
-            sp.statusLabel:SetText("|cffffd200Consultando...|r (" .. #allItems .. ")")
-        elseif #allItems == 0 then
-            sp.statusLabel:SetText("|cff8888880 glifos|r")
-        else
-            sp.statusLabel:SetText("|cff34c759" .. #allItems .. "|r glifo(s)")
-        end
     end
 
     if #visibleEntries == 0 then
@@ -785,7 +606,7 @@ function DungeonBots:UpdateSpellsDialog(botName)
 
             local regText = FormatReagentsSummary(entry.reagents)
             local metaText = FormatPowerAndCastMeta(entry)
-            row.subLabel:SetText(regText or metaText or "|cff667788Clic izq.: sel.  |  Clic der.: 'spell'|r")
+            row.subLabel:SetText(regText or metaText or "|cff667788Clic izq.: seleccionar  |  Shift + Clic: enlazar|r")
         end
         row:Show()
     end
@@ -828,10 +649,6 @@ function DungeonBots:OpenSpellsDialog(botName, mode)
         sp.activeMode = mode
     elseif sp.activeMode ~= "spells" and sp.activeMode ~= "glyphs" then
         sp.activeMode = "spells"
-    end
-    local _, rec = DB_Internal.GetBotSpellTabData(botName, sp.activeMode)
-    if sp.serverFilterBox and rec then
-        sp.serverFilterBox:SetText(rec.spellsFilter or "")
     end
     sp.currentBot = botName
     DungeonBots:UpdateSpellsDialog(botName)
