@@ -1409,13 +1409,43 @@ function DungeonBots:BuildTalkDialog()
     emptyOptLabel:SetText("Esperando respuesta del PNJ...")
     tf.emptyOptLabel = emptyOptLabel
 
-    -- Zona inferior: pista + acceso a Registro Misiones + Cerrar
-    local footerHint = tf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    footerHint:SetPoint("BOTTOMLEFT", 14, 15)
-    footerHint:SetWidth(268)
-    footerHint:SetJustifyH("LEFT")
-    footerHint:SetWordWrap(false)
-    footerHint:SetText("|cffaaaaaaUsa |cffffd200/w Bot talk|r o |cffffd200/db talk|r tras elegir un PNJ.|r")
+    -- Zona inferior: Siguiente Bot + acceso a Registro Misiones + Cerrar
+    local nextBotBtn = CreateFrame("Button", nil, tf, "UIPanelButtonTemplate")
+    nextBotBtn:SetSize(122, 24)
+    nextBotBtn:SetPoint("BOTTOMLEFT", tf, "BOTTOMLEFT", 12, 10)
+    nextBotBtn:SetText("Siguiente Bot")
+    nextBotBtn:SetScript("OnClick", function()
+        PlaySound("igMainMenuOptionCheckBoxOn")
+        if DungeonBots.CycleNextTalkBot then
+            DungeonBots:CycleNextTalkBot(tf.currentBot)
+        end
+    end)
+    nextBotBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Siguiente Bot (talk)", 1, 0.85, 0.2)
+        if DungeonBots.GetTalkBotCycleInfo then
+            local curIdx, total, nextBot = DungeonBots:GetTalkBotCycleInfo(tf.currentBot)
+            if total >= 2 and nextBot then
+                local posLabel = (curIdx > 0) and (curIdx .. "/" .. total) or ("?/" .. total)
+                GameTooltip:AddLine("Recorre en orden los bots del grupo y consulta 'talk' con el siguiente.", 0.8, 0.9, 1.0, true)
+                GameTooltip:AddLine("Actual: " .. (tf.currentBot or "-") .. " (" .. posLabel .. ")", 0.75, 0.75, 0.8)
+                GameTooltip:AddLine("Siguiente: " .. nextBot, 0.25, 0.9, 0.45)
+            else
+                GameTooltip:AddLine("Se necesitan al menos 2 bots en el grupo para pasar al siguiente.", 0.8, 0.8, 0.8, true)
+            end
+        end
+        GameTooltip:Show()
+    end)
+    nextBotBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    tf.nextBotBtn = nextBotBtn
+
+    local botCycleLabel = tf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    botCycleLabel:SetPoint("LEFT", nextBotBtn, "RIGHT", 8, 0)
+    botCycleLabel:SetWidth(150)
+    botCycleLabel:SetJustifyH("LEFT")
+    botCycleLabel:SetWordWrap(false)
+    botCycleLabel:SetText("")
+    tf.botCycleLabel = botCycleLabel
 
     local questLogBtn = CreateFrame("Button", nil, tf, "UIPanelButtonTemplate")
     questLogBtn:SetSize(134, 24)
@@ -1538,6 +1568,22 @@ function DungeonBots:UpdateTalkDialog(botName)
         else
             tf.requeryBtn:Enable()
             tf.requeryBtn:SetText("Reconsultar")
+        end
+    end
+
+    if tf.nextBotBtn and DungeonBots.GetTalkBotCycleInfo then
+        local curIdx, total, nextBot = DungeonBots:GetTalkBotCycleInfo(targetBot)
+        if total >= 2 and nextBot then
+            tf.nextBotBtn:Enable()
+            if tf.botCycleLabel then
+                local posStr = (curIdx > 0) and ("(" .. curIdx .. "/" .. total .. ") ") or ""
+                tf.botCycleLabel:SetText("|cff888888" .. posStr .. "Sig:|r |cffffd200" .. nextBot .. "|r")
+            end
+        else
+            tf.nextBotBtn:Disable()
+            if tf.botCycleLabel then
+                tf.botCycleLabel:SetText(total == 1 and "|cff777777(1/1)|r" or "")
+            end
         end
     end
 

@@ -1231,6 +1231,34 @@ function DungeonBots:GetPartyBotsList()
     return bots
 end
 
+function DungeonBots:GetTalkBotCycleInfo(currentBot)
+    local bots = DungeonBots:GetPartyBotsList()
+    local total = #bots
+    if total == 0 then
+        return 0, 0, nil
+    end
+    local cleanCurrent = NormalizePlayerName(currentBot)
+    local curIdx = 0
+    if cleanCurrent then
+        for i, b in ipairs(bots) do
+            if b.name == cleanCurrent then
+                curIdx = i
+                break
+            end
+        end
+    end
+    local nextIdx = (curIdx % total) + 1
+    return curIdx, total, bots[nextIdx].name
+end
+
+function DungeonBots:CycleNextTalkBot(currentBot)
+    local _, total, nextBot = DungeonBots:GetTalkBotCycleInfo(currentBot)
+    if not nextBot or total < 2 then
+        return
+    end
+    DungeonBots:SendTalkCommand(nextBot, "talk")
+end
+
 function DungeonBots:FindDefaultTalkBot()
     if UnitExists("target") and UnitIsPlayer("target") then
         local targetName = NormalizePlayerName(UnitName("target"))
@@ -2597,6 +2625,9 @@ local function HandlePartyChanged(isEnteringWorld)
     end
     if DungeonBots.UpdatePartyUI then
         DungeonBots:UpdatePartyUI()
+    end
+    if DungeonBots.talkFrame and DungeonBots.talkFrame:IsShown() and DungeonBots.UpdateTalkDialog then
+        DungeonBots:UpdateTalkDialog()
     end
     if isEnteringWorld and DungeonBots.UpdateHUDVisibility then
         DungeonBots:UpdateHUDVisibility()
