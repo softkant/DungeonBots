@@ -40,6 +40,7 @@ local SPEC_NOISE_PREFIXES = {
 local function StripSpecNoisePrefix(text)
     if not text or text == "" then return "" end
     local s = StripWowFormatting(text)
+    s = string.gsub(s, "^%s*%d+%s*[%.%)%]:%-]+%s*", "")
     s = string.gsub(s, "^%s*(.-)%s*$", "%1")
     local colonPos = string.find(s, ":", 1, true)
     if colonPos then
@@ -114,6 +115,7 @@ local TREE_ALIASES = {
     ["arms"] = "arms", ["armas"] = "arms",
     ["fury"] = "fury", ["furia"] = "fury",
     ["blood"] = "blood", ["sangre"] = "blood",
+    ["double aura blood"] = "double aura blood", ["double aura"] = "double aura blood",
     ["unholy"] = "unholy", ["profano"] = "unholy",
 }
 
@@ -272,12 +274,19 @@ function DB_Internal.ParseTalentWhisper(cleanSender, message)
         if directActive then
             directActive = string.gsub(directActive, "[%.!]+$", "")
             local dt1, dt2, dt3 = string.match(directActive, "(%d+)%s*[-/]%s*(%d+)%s*[-/]%s*(%d+)")
+            local exactTripletSpec = nil
             if dt1 and dt2 and dt3 then
-                DungeonBots.lastDetectedTriplet[cleanSender] = dt1 .. "-" .. dt2 .. "-" .. dt3
+                local tripletKey = dt1 .. "-" .. dt2 .. "-" .. dt3
+                DungeonBots.lastDetectedTriplet[cleanSender] = tripletKey
+                if DungeonBots.botSpecTriplets and DungeonBots.botSpecTriplets[cleanSender] then
+                    exactTripletSpec = DungeonBots.botSpecTriplets[cleanSender][tripletKey]
+                end
             end
             local candidate = ExtractSpecCandidate(directActive) or DungeonBots:CleanSpecText(StripSpecNoisePrefix(directActive))
             candidate = DungeonBots:CleanSpecText(candidate)
-            if candidate and candidate ~= "" and string.match(candidate, "%a") then
+            if exactTripletSpec and exactTripletSpec ~= "" then
+                detectedActiveSpec = DungeonBots:CanonicalizeSpec(cleanSender, exactTripletSpec)
+            elseif candidate and candidate ~= "" and string.match(candidate, "%a") then
                 local normDirectTree = TREE_ALIASES[string.lower(candidate)]
                 if normDirectTree then
                     DungeonBots.lastDetectedTree[cleanSender] = normDirectTree

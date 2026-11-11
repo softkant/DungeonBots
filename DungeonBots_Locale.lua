@@ -58,9 +58,13 @@ end
 
 local ES_SPEC_TOKENS = {
     -- Nombres compuestos primero
-    { pat = "beast mastery",  es = "Bestias" },
-    { pat = "frost fire",     es = "Pirofrío" },
-    { pat = "death knight",   es = "C. de la Muerte" },
+    { pat = "double aura blood", es = "Sangre Doble Aura" },
+    { pat = "double aura",       es = "Doble Aura" },
+    { pat = "beast mastery",     es = "Bestias" },
+    { pat = "frost fire",        es = "Pirofrío" },
+    { pat = "death knight",      es = "C. de la Muerte" },
+    { pat = "double",            es = "Doble" },
+    { pat = "aura",              es = "Aura" },
 
     -- Ramas completas y abreviaturas de mod-playerbots
     { pat = "beastmastery",   es = "Bestias" },
