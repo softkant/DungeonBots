@@ -836,7 +836,7 @@ function DungeonBots:SetBotSpec(botName, specId)
     if DungeonBots.UpdateHistoryUI and DungeonBots.historyFrame and DungeonBots.historyFrame:IsShown() then
         DungeonBots:UpdateHistoryUI()
     end
-    DungeonBots:Print("Cambiando talentos de |cffffd200" .. botName .. "|r a |cff71d5ff" .. cleanSpec .. "|r...")
+    DungeonBots:Print("Talentos de |cffffd200" .. botName .. "|r fueron cambiados a |cff71d5ff" .. cleanSpec .. "|r.")
     DungeonBots:SendWhisperCommand(botName, "talents spec " .. cleanSpec)
 end
 
@@ -955,7 +955,7 @@ joinQueryFrame:SetScript("OnUpdate", function(self, elapsed)
     end
 end)
 
-local function StartTalentQuery(botName, announceText, atFront)
+local function StartTalentQuery(botName, atFront)
     if not botName or botName == "" then return end
     local prevSpec = (DungeonBotsDB and DungeonBotsDB.botActiveSpec and DungeonBotsDB.botActiveSpec[botName])
         or (DungeonBotsDB and DungeonBotsDB.botHistory and DungeonBotsDB.botHistory[botName] and DungeonBotsDB.botHistory[botName].spec)
@@ -984,7 +984,6 @@ local function StartTalentQuery(botName, announceText, atFront)
     }
     joinQueryFrame:Show()
 
-    DungeonBots:Print(announceText .. " |cffffd200" .. botName .. "|r...")
     if atFront then
         DungeonBots:QueueWhisperCommand(botName, "talents", true)
         DungeonBots:QueueWhisperCommand(botName, "talents spec list", true)
@@ -1001,7 +1000,7 @@ end
 function DungeonBots:QueryBotLiveInfo(botName)
     if not botName or botName == "" then return end
     if not DungeonBots:ShouldTreatAsBot(botName) then return end
-    StartTalentQuery(botName, "Consultando talentos en vivo de", false)
+    StartTalentQuery(botName, false)
 end
 
 function DungeonBots:CheckPartyForNewBots()
@@ -1038,7 +1037,7 @@ end
 -- Pedir lista de ramas y talentos activos al bot
 function DungeonBots:QueryBotSpecs(botName)
     if not botName or botName == "" then return end
-    StartTalentQuery(botName, "Consultando ramas disponibles de", true)
+    StartTalentQuery(botName, true)
 end
 
 -- Adaptar equipo (autogear match)
@@ -1155,6 +1154,7 @@ function DungeonBots:DropBotQuest(botName, questEntry, fromTalkDialog)
     end
 
     local qDisplay = questEntry.safeLink or questEntry.displayLink or ("|cffffff00[" .. (questEntry.title or target) .. "]|r")
+    PlaySound("igQuestFailed")
     DungeonBots:SendWhisperCommand(cleanBot, "drop " .. target)
     DungeonBots:Print("|cffffd200" .. cleanBot .. "|r abandonó la misión: " .. qDisplay)
 

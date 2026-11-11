@@ -1236,7 +1236,6 @@ function DungeonBots:UpdateQuestDialog(botName)
 
         row.dropBtn:Show()
         row.dropBtn:SetScript("OnClick", function()
-            PlaySound("igQuestLogAbandonQuest")
             DungeonBots:DropBotQuest(targetBot, q)
         end)
         row.dropBtn:SetScript("OnEnter", function(self)
@@ -1659,7 +1658,6 @@ function DungeonBots:UpdateTalkDialog(botName)
                     row.acceptBtn:Show()
                     row.acceptBtn:SetScript("OnClick", function()
                         if style.btnAction == "drop" then
-                            PlaySound("igQuestLogAbandonQuest")
                             DungeonBots:DropBotQuest(targetBot, act, true)
                         else
                             DungeonBots:SendTalkCommand(targetBot, act.acceptCmd)
