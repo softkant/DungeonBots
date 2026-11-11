@@ -6,11 +6,19 @@ This document defines the architecture, repository map, technical constraints, c
 
 ## 1. Repository Map
 
-- `DungeonBots.toc` — Addon manifest (`## Interface: 30300`, `SavedVariables: DungeonBotsDB`).
-- `DungeonBots.lua` — Core logic: bot identity/history persistence (`DungeonBotsDB`), party join tracking (`PARTY_MEMBERS_CHANGED`, `UNIT_NAME_UPDATE`), staggered whisper command queue (`whisperQueueFrame`, `joinQueryFrame`) with retries, live talent whisper parser (`ParseTalentWhisper`, `CanonicalizeSpec`), command dispatchers (`SendDotCommand`, `SendPartyCommand`, `SendWhisperCommand`), Dalaran timer, and slash commands (`/db`, `/dungeonbots`, `/bots`, `/playerbot`).
-- `DungeonBots_HUD.lua` — Floating 7-button Combat HUD (`InitHUD`, `UpdateHUDVisibility`, `ToggleHUD`, `/p` tactical commands).
-- `DungeonBots_UI.lua` — Main 3-tab window (`BuildTab1`, `BuildTab2`, `BuildTab3`), Bot History modal dialog (`BuildHistoryDialog`, `UpdateHistoryUI`), party member cards (`UpdatePartyUI` with dynamic spec dropdown, `Adaptar Equipo`, `Equipar Azul`, `Misiones` -> `quests all`, and `Despedir`), draggable minimap eye button (`InitMinimapButton`), and LFD frame hook (`HookEye`).
-- `README.md` — English user documentation describing all features, UI controls, and slash commands.
+- `DungeonBots.toc` — Addon manifest (`## Interface: 30300`, `SavedVariables: DungeonBotsDB`) loading modules in dependency order.
+- `DungeonBots.lua` — Core namespace initialization (`DungeonBots`, `DungeonBots.Internal`), default config, static data tables (`CLASSES`, `SPECS`, `DEFAULT_CLASS_SPECS`, `PRESETS`), runtime state, shared utilities (`NowTime`, `NormalizePlayerName`, `TrimText`, `StripChatFormatting`, `EscapeLuaPattern`, `ExtractSafeQuestLinkFromText`), `GetRaceIcon`, `GetClassDisplayInfo`, and chat output helpers (`Print`, `Warn`).
+- `DungeonBots_Locale.lua` — Client-language localization (`GetLocale()`): quest log lookup + hidden tooltip hyperlink scan (`DungeonBots_LocaleScanTooltip`) with async WDB retry queue (`localeResolveFrame`, `ApplyCachedLocaleToStoredDialogs`), `GetItemInfo` / `GetSpellInfo` resolution, visible `LocalizeSpecText` mapping (`esES`/`esMX`) while preserving canonical command strings, `GetLocalizedClassName`, and `LocalizeHyperlinksInText`.
+- `DungeonBots_Roster.lua` — Bot identity/persistence (`RegisterBot`, `IsBot`, `ShouldTreatAsBot`, `ToggleUnitBotStatus`), party join & summon tracking (`MarkPendingClassSummon`, `ResolvePendingPartyBots`), discreet party probing (`ScanPartyBots`), bot add/remove actions (`AddClass`, `AddBot`, `AddAllBots`, `RemoveBot`, `RemoveAllBots`), and Bot History persistence (`RecordBotHistory`, `SyncPartyToHistory`, `SummonAndInviteHistoryBot`).
+- `DungeonBots_Comms.lua` — Chat command dispatchers (`SendDotCommand`, `SendPartyCommand`, `SendWhisperCommand`), outgoing anti-echo whisper tracker, staggered whisper queue (`whisperQueueFrame`, `QueueWhisperCommand`), bot message detection, Blizzard chat filters (`SetupChatFilters` with link localization for non-suppressed bot messages), WIM compatibility (`SetupWIMCompatibility`, `CloseBotWIMWindows`), and `SendChatMessage` hook for `talk` (`HookSendChatForTalk`).
+- `DungeonBots_Talents.lua` — Spec normalization (`CleanSpecText`, `CanonicalizeSpec`), live talent whisper parser (`ParseTalentWhisper`), join/retry talent polling (`joinQueryFrame`, `QueryBotLiveInfo`, `QueryBotSpecs`), `SetBotSpec` (sends canonical English `talents spec <spec>` while printing localized spec names), `AutogearMatch`, and `AutogearBlue`.
+- `DungeonBots_Quests.lua` — Bot quest log commands & parser (`QueryQuests`, `DropBotQuest`, `ParseQuestCaptureWhisper`), NPC Talk commands & parser (`HasValidNpcTarget`, `IsTalkBusy`, sequential `CycleNextTalkBot`, `ArmTalkCapture`, `SendTalkCommand`, `ParseTalkCaptureWhisper` preferring `UnitName("target")` and localizing quest/item/spell links without altering `safeLink`/`rawTitle`/`acceptCmd`/`talkCmd`), `uiCaptureFrame`, and the Dalaran 60s timer & ICC helpers (`DalaranPrep`, `DungeonReenter`, `DungeonTurnInAndAccept`, `StartDalaranTimer`, `StopDalaranTimer`).
+- `DungeonBots_Events.lua` — Unified `eventFrame` (`ADDON_LOADED`, `PLAYER_LOGIN`, `CHAT_MSG_WHISPER`, `PARTY_MEMBERS_CHANGED`, `UNIT_NAME_UPDATE`, `PLAYER_ENTERING_WORLD`, `ZONE_CHANGED_NEW_AREA`, `PLAYER_TARGET_CHANGED`) and slash commands (`/db`, `/dungeonbots`, `/bots`, `/playerbot`).
+- `DungeonBots_HUD.lua` — Floating 7-button Combat HUD (`InitHUD`, `UpdateHUDVisibility`, `UpdateHUDTalkButtonState`, `ToggleHUD`, `/p` tactical actions, and NPC `talk` bot selector).
+- `DungeonBots_UI.lua` — Shared UI skin helpers (`ApplyDarkBackdrop`, `ApplyHeaderBackdrop`, `CreateRedIconButton`, `SafeShowLinkTooltip`), main 3-tab window (`InitUI`, `ToggleUI`, `SelectTab`, `BuildTab1`, `BuildTab2`, `UpdatePartyUI`, `BuildTab3`, `UpdateDalaranTimerUI`), draggable minimap button (`InitMinimapButton`), and LFD eye integration (`HookEye`).
+- `DungeonBots_Modals.lua` — Settings modal dialog (`BuildSettingsDialog`, `UpdateSettingsDialog`, `ToggleSettingsDialog`) and Bot History modal dialog (`BuildHistoryDialog`, `UpdateHistoryUI`, `ToggleHistoryDialog`).
+- `DungeonBots_QuestTalkUI.lua` — Interactive Bot Quest Log dialog (`BuildQuestDialog`, `UpdateQuestDialog`, `OpenQuestDialog`) and NPC Talk dialog (`BuildTalkDialog`, `UpdateTalkDialog`, `OpenTalkDialog`).
+- `README.md` — English user documentation describing all features, localization behavior, UI controls, and slash commands.
 
 ---
 
@@ -18,12 +26,13 @@ This document defines the architecture, repository map, technical constraints, c
 
 1. **Lua 5.1 & WotLK `30300` API Only:**
    - Never use Retail/Cataclysm+ APIs (`C_Timer`, `C_Map`, `C_Container`, `BackdropTemplate`, `GetSpecialization`, `strsplit` incompatibilities without checking WotLK availability).
-   - Use `OnUpdate` frames for delayed/staggered timers and `GetTime()` (`NowTime()`) as done in `DungeonBots.lua`.
+   - Use `OnUpdate` frames for delayed/staggered timers and `GetTime()` (`DB_Internal.NowTime()`) as used across modules.
 2. **Character Encoding (Latin-1 Safe in `.lua` Files):**
    - WoW 3.3.5a UI fonts / Lua strings in this addon must stay within **ASCII + Latin-1 (`<= U+00FF`)** (standard Spanish accents `á é í ó ú ñ ¿ ¡` are fine; **never** insert emojis or Unicode characters `> U+00FF` such as `U+2014`, `U+2022`, `U+2192` inside `.lua` files).
    - If you ever use `$` in markdown artifacts or prose, escape properly; in `.lua`, write plain ASCII punctuation like `--` instead of em-dashes.
-3. **In-Game UI Text Language:**
-   - User-facing UI labels, tooltips, and chat notifications inside the `.lua` files are in **Spanish** unless the user specifically asks otherwise.
+3. **In-Game UI Text Language & Command Safety:**
+   - User-facing UI labels, tooltips, and chat notifications inside the `.lua` files are in **Spanish** unless the user specifically asks otherwise, while quests, items, spells, classes, specs, and targeted NPCs localize automatically via `DungeonBots_Locale.lua`.
+   - Never alter canonical command strings sent to `mod-playerbots` (`safeLink`, `rawTitle`, `acceptCmd`, `talkCmd`, `talents spec <cleanSpec>`). Plain-text NPC gossip without hyperlinks/IDs has no client-side translation key in 3.3.5a and must remain unmodified.
 4. **Documentation & Commit Language:**
    - **`README.md`, `AGENTS.md`, and ALL Git commit messages must be written in English.**
 
@@ -33,7 +42,7 @@ This document defines the architecture, repository map, technical constraints, c
 
 - **Only edit files inside `DungeonBots/`** unless the user explicitly asks to inspect or modify another folder. Never modify or delete other addons in `Interface/AddOns/` (such as `WIM`, `KkthnxUI`, `WoWAI`, `Carbonite`, etc.).
 - **Preserve bot vs. real player safety:** Never bypass `ShouldTreatAsBot` / `IsBot(name) == false` / `CanInviteToParty()` guards. Human party members must remain safe from automatic whispers, spec/gear commands, or dismiss actions.
-- **No external SavedVariables pollution:** Never write to another addon's `SavedVariables` (for example, do not mutate `WIM3_Filters`, `WIM3_Data`, or `WIM3_History` if integrating WIM compatibility).
+- **No external SavedVariables pollution:** Never write to another addon's `SavedVariables` (for example, do not mutate `WIM3_Filters`, `WIM3_Data`, or `WIM3_History` when integrating WIM compatibility).
 - **Reload reminder:** Because WoW 3.3.5a compiles `.lua` files only at load time and persists `DungeonBotsDB` across reloads, remind the user to run `/reload` in-game to test code changes.
 
 ---
@@ -42,7 +51,7 @@ This document defines the architecture, repository map, technical constraints, c
 
 Since there is no live WoW client or `luac` binary in the agent shell environment, always run static checks after final `.lua` edits (from `d:\world of warcraft 3.3.5a hd\interface\addons` or inside `DungeonBots/`):
 
-1. **Check Lua syntax / block balance** across all addon `.lua` files (verify every `function`/`if`/`for`/`while`/`repeat`/`do` matches `end`/`until` cleanly and quotes/brackets balance).
+1. **Check Lua syntax / block balance** across all `DungeonBots/*.lua` files and confirm `DungeonBots.toc` lists every `.lua` file cleanly.
 2. **Verify Latin-1 compliance (`<= U+00FF`) in all `.lua` files:**
    ```powershell
    python -c "import glob; bad=[(f,i+1,hex(ord(c))) for f in sorted(glob.glob('DungeonBots/*.lua')) for i,c in enumerate(open(f,encoding='utf-8').read()) if ord(c)>255]; print('non_latin1:', len(bad), bad[:20])"

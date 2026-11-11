@@ -1,8 +1,11 @@
 -- =========================================================================
--- DungeonBots_UI.lua: Interfaz Visual Principal, Pestañas y Botón de Minimapa
+-- DungeonBots_UI.lua: Marco Principal, Pestañas 1/2/3, Minimapa y Ojo LFD
 -- =========================================================================
 
 DungeonBots = DungeonBots or {}
+DungeonBots.Internal = DungeonBots.Internal or {}
+
+local DB_Internal = DungeonBots.Internal
 
 local mainFrame = nil
 local activeTab = 1
@@ -10,7 +13,7 @@ local tabFrames = {}
 local botCards = {}
 
 -- =========================================================================
--- Utilidades de Estilo y Fondos
+-- Utilidades de Estilo, Fondos e Hipervínculos (Compartidas con Modales)
 -- =========================================================================
 local function ApplyDarkBackdrop(frame, edgeSize)
     edgeSize = edgeSize or 12
@@ -23,6 +26,7 @@ local function ApplyDarkBackdrop(frame, edgeSize)
     frame:SetBackdropColor(0.07, 0.08, 0.11, 0.95)
     frame:SetBackdropBorderColor(0.68, 0.62, 0.44, 1.0)
 end
+DB_Internal.ApplyDarkBackdrop = ApplyDarkBackdrop
 
 local function ApplyHeaderBackdrop(frame)
     frame:SetBackdrop({
@@ -34,6 +38,7 @@ local function ApplyHeaderBackdrop(frame)
     frame:SetBackdropColor(0.12, 0.14, 0.18, 0.95)
     frame:SetBackdropBorderColor(0.35, 0.38, 0.45, 0.8)
 end
+DB_Internal.ApplyHeaderBackdrop = ApplyHeaderBackdrop
 
 local function CreateRedIconButton(parent, width, height, text, iconPath, centerIcon)
     local btn = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
@@ -90,6 +95,31 @@ local function CreateRedIconButton(parent, width, height, text, iconPath, center
     end)
     return btn
 end
+DB_Internal.CreateRedIconButton = CreateRedIconButton
+
+local function SafeShowLinkTooltip(owner, linkRef, displayLink, title, rawLine)
+    local shownDisplay = (displayLink and DungeonBots.LocalizeHyperlinksInText)
+        and DungeonBots:LocalizeHyperlinksInText(displayLink)
+        or displayLink
+    if linkRef and linkRef ~= "" and SetItemRef then
+        local ok = pcall(SetItemRef, linkRef, shownDisplay or title or linkRef, "LeftButton")
+        if ok and ItemRefTooltip and ItemRefTooltip:IsShown() then
+            return
+        end
+    end
+    if owner then
+        GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(title or "Detalle", 1, 0.85, 0.2, true)
+        if rawLine and rawLine ~= "" then
+            local localizedRaw = DungeonBots.LocalizeHyperlinksInText
+                and DungeonBots:LocalizeHyperlinksInText(rawLine)
+                or rawLine
+            GameTooltip:AddLine(DungeonBots:StripChatFormatting(localizedRaw), 0.85, 0.90, 1.0, true)
+        end
+        GameTooltip:Show()
+    end
+end
+DB_Internal.SafeShowLinkTooltip = SafeShowLinkTooltip
 
 -- =========================================================================
 -- Creación de la Ventana Principal
@@ -310,7 +340,9 @@ function DungeonBots:BuildTab1(parent)
     end)
     viewHistoryBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-    DungeonBots:UpdateHistorySummary()
+    if DungeonBots.UpdateHistorySummary then
+        DungeonBots:UpdateHistorySummary()
+    end
 
     -- Caja 2: Invocador por Clase
     local classBox = CreateFrame("Frame", nil, parent)
@@ -333,6 +365,7 @@ function DungeonBots:BuildTab1(parent)
     for i, cls in ipairs(DungeonBots.CLASSES) do
         local col = ((i - 1) % 5)
         local row = math.floor((i - 1) / 5)
+        local classDisplay = DungeonBots:GetClassDisplayInfo(cls.class, true) or cls.name
 
         local cBtn = CreateFrame("Button", "DungeonBots_ClassBtn_" .. cls.id, classBox)
         cBtn:SetSize(btnW, btnH)
@@ -350,7 +383,7 @@ function DungeonBots:BuildTab1(parent)
 
         local cText = cBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         cText:SetPoint("BOTTOM", 0, 6)
-        cText:SetText(cls.name)
+        cText:SetText(classDisplay)
         cText:SetTextColor(cColor.r, cColor.g, cColor.b)
 
         cBtn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
@@ -362,7 +395,7 @@ function DungeonBots:BuildTab1(parent)
 
         cBtn:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:AddLine("Invocar " .. cls.name, cColor.r, cColor.g, cColor.b)
+            GameTooltip:AddLine("Invocar " .. classDisplay, cColor.r, cColor.g, cColor.b)
             GameTooltip:AddLine("Ejecuta: |cffffd200.playerbots bot addclass " .. cls.id .. "|r", 0.7, 0.8, 1.0)
             GameTooltip:AddLine("\n|cff34c759Si el bot te susurra al aparecer, el addon lo invitará automáticamente al grupo.|r", 0.8, 0.8, 0.8, true)
             GameTooltip:Show()
@@ -381,18 +414,15 @@ function DungeonBots:BuildTab1(parent)
     actionTitle:SetPoint("TOPLEFT", 10, -8)
     actionTitle:SetText("|cffffd200Control General del Grupo de Bots|r")
 
-    -- Subtítulo de acciones rápidas
     local quickActionsLabel = actionBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     quickActionsLabel:SetPoint("TOPLEFT", 12, -32)
     quickActionsLabel:SetText("|cffaaaaaaAcciones rápidas de grupo:|r")
 
-    -- Fila única compacta con los 4 botones rojos clásicos e icono por función
     local addAllBtn = CreateRedIconButton(
         actionBox, 134, 24, "Reinvocar Grupo",
         "Interface\\Icons\\Spell_Nature_AstralRecalGroup"
     )
     addAllBtn:SetPoint("TOPLEFT", 11, -50)
-
     addAllBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
         DungeonBots:AddAllBots()
@@ -462,1257 +492,9 @@ function DungeonBots:BuildTab1(parent)
 end
 
 -- =========================================================================
--- VENTANA DE DIÁLOGO: CONFIGURACIÓN (engranaje)
--- =========================================================================
-local function CreateSettingsCheckbox(parent, name, labelText, tipTitle, tipBody)
-    local cb = CreateFrame("CheckButton", name, parent, "UICheckButtonTemplate")
-    cb:SetSize(24, 24)
-    local fs = cb:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    fs:SetPoint("LEFT", cb, "RIGHT", 4, 0)
-    fs:SetText(labelText)
-    cb.label = fs
-    if tipTitle then
-        cb:SetScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:AddLine(tipTitle, 1, 1, 1)
-            GameTooltip:AddLine(tipBody or "", 0.75, 0.85, 1.0, true)
-            GameTooltip:Show()
-        end)
-        cb:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    end
-    return cb
-end
-
-function DungeonBots:UpdateSettingsDialog()
-    local sf = DungeonBots.settingsFrame
-    if not sf then return end
-
-    local hudShow = (not DungeonBotsDB) or (DungeonBotsDB.hudVisible ~= false)
-    local hudDungeonOnly = (not DungeonBotsDB) or (DungeonBotsDB.hudOnlyInDungeon ~= false)
-    local muteShow = (not DungeonBotsDB) or (DungeonBotsDB.whisperMuteMode ~= "off")
-    local muteGroup = (DungeonBotsDB and DungeonBotsDB.muteBotGroupChat) and true or false
-
-    sf.hudVisibleCheck:SetChecked(hudShow)
-    sf.hudDungeonCheck:SetChecked(hudDungeonOnly)
-    sf.muteWhispersCheck:SetChecked(muteShow)
-    sf.muteGroupCheck:SetChecked(muteGroup)
-
-    sf.muteWhispersCheck:ClearAllPoints()
-    if hudShow then
-        sf.hudDungeonCheck:Show()
-        sf.muteWhispersCheck:SetPoint("TOPLEFT", sf.hudDungeonCheck, "BOTTOMLEFT", -18, -10)
-    else
-        sf.hudDungeonCheck:Hide()
-        sf.muteWhispersCheck:SetPoint("TOPLEFT", sf.hudVisibleCheck, "BOTTOMLEFT", 0, -10)
-    end
-
-    if muteShow then
-        sf.muteGroupCheck:Show()
-    else
-        sf.muteGroupCheck:Hide()
-    end
-
-    local totalH = 152 + (hudShow and 26 or 0) + (muteShow and 26 or 0)
-    sf:SetHeight(totalH)
-end
-
-function DungeonBots:BuildSettingsDialog()
-    if DungeonBots.settingsFrame then return end
-
-    local sf = CreateFrame("Frame", "DungeonBots_SettingsFrame", UIParent)
-    sf:SetSize(540, 204)
-    sf:SetPoint("CENTER", UIParent, "CENTER", 0, 40)
-    sf:SetFrameStrata("DIALOG")
-    sf:SetFrameLevel(22)
-    sf:SetToplevel(true)
-    sf:SetMovable(true)
-    sf:EnableMouse(true)
-    sf:SetClampedToScreen(true)
-    sf:RegisterForDrag("LeftButton")
-    sf:SetScript("OnDragStart", sf.StartMoving)
-    sf:SetScript("OnDragStop", sf.StopMovingOrSizing)
-    sf:Hide()
-    ApplyDarkBackdrop(sf, 14)
-    sf:SetBackdropColor(0.04, 0.05, 0.08, 1.0)
-
-    local solidBg = sf:CreateTexture(nil, "BACKGROUND")
-    solidBg:SetPoint("TOPLEFT", sf, "TOPLEFT", 4, -4)
-    solidBg:SetPoint("BOTTOMRIGHT", sf, "BOTTOMRIGHT", -4, 4)
-    solidBg:SetTexture(0.04, 0.05, 0.08, 1.0)
-
-    tinsert(UISpecialFrames, "DungeonBots_SettingsFrame")
-
-    local header = CreateFrame("Frame", nil, sf)
-    header:SetPoint("TOPLEFT", sf, "TOPLEFT", 6, -6)
-    header:SetPoint("TOPRIGHT", sf, "TOPRIGHT", -6, -6)
-    header:SetHeight(30)
-    ApplyHeaderBackdrop(header)
-    header:SetBackdropColor(0.10, 0.12, 0.16, 1.0)
-
-    local headerSolidBg = header:CreateTexture(nil, "BACKGROUND")
-    headerSolidBg:SetPoint("TOPLEFT", header, "TOPLEFT", 2, -2)
-    headerSolidBg:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -2, 2)
-    headerSolidBg:SetTexture(0.10, 0.12, 0.16, 1.0)
-
-    local hIcon = header:CreateTexture(nil, "ARTWORK")
-    hIcon:SetSize(16, 16)
-    hIcon:SetPoint("LEFT", 10, 0)
-    hIcon:SetTexture("Interface\\Icons\\Trade_Engineering")
-    hIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-
-    local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("LEFT", hIcon, "RIGHT", 6, 0)
-    title:SetText("|cff00ccffConfiguración|r |cff888888DungeonBots|r")
-
-    local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
-    closeBtn:SetPoint("RIGHT", header, "RIGHT", -2, 0)
-    closeBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOff")
-        sf:Hide()
-    end)
-
-    -- Opcion 1: Mostrar/Ocultar HUD Tactico
-    local hudVisibleCheck = CreateSettingsCheckbox(
-        sf, "DungeonBots_HudVisibleCheck",
-        "Mostrar Barra Táctica flotante (HUD)",
-        "Barra Táctica Flotante (HUD)",
-        "Muestra la barra rápida flotante de comandos de combate y Hablar PNJ.\n\nDesmarca esta opción para ocultar la barra por completo."
-    )
-    hudVisibleCheck:SetPoint("TOPLEFT", sf, "TOPLEFT", 16, -46)
-    sf.hudVisibleCheck = hudVisibleCheck
-
-    -- Opcion 1b (dependiente): Solo en mazmorras de 5 jugadores
-    local hudDungeonCheck = CreateSettingsCheckbox(
-        sf, "DungeonBots_HudDungeonCheck",
-        "Mostrar barra táctica solo dentro de mazmorras de 5 jugadores",
-        "Solo en Mazmorras de 5 Jugadores",
-        "Cuando está activa, la barra táctica se oculta fuera de mazmorras de 5 jugadores y aparece automáticamente al entrar."
-    )
-    hudDungeonCheck:SetPoint("TOPLEFT", hudVisibleCheck, "BOTTOMLEFT", 18, -2)
-    sf.hudDungeonCheck = hudDungeonCheck
-
-    -- Opcion 2: Ocultar susurros de bots
-    local muteWhispersCheck = CreateSettingsCheckbox(
-        sf, "DungeonBots_MuteWhispersCheck",
-        "Ocultar susurros de bots en el chat",
-        "Ocultar Susurros de Bots",
-        "Oculta todos los susurros entrantes y salientes con cualquier personaje identificado como bot.\n\nLos jugadores humanos reales ([JUGADOR] o desconocidos) NUNCA se ocultan."
-    )
-    sf.muteWhispersCheck = muteWhispersCheck
-
-    -- Opcion 2b (dependiente): Ocultar mensajes de bots en Grupo/Grito/Decir
-    local muteGroupCheck = CreateSettingsCheckbox(
-        sf, "DungeonBots_MuteGroupChatCheck",
-        "Ocultar también mensajes de bots en Grupo (/p), Grito (/y) y Decir (/s)",
-        "Ocultar Chat de Grupo/Decir de Bots",
-        "También filtra los mensajes públicos de bots en canales de Grupo (/p), Grito (/y) y Decir (/s)."
-    )
-    muteGroupCheck:SetPoint("TOPLEFT", muteWhispersCheck, "BOTTOMLEFT", 18, -2)
-    sf.muteGroupCheck = muteGroupCheck
-
-    hudVisibleCheck:SetScript("OnClick", function(self)
-        local val = self:GetChecked() and true or false
-        if DungeonBotsDB then DungeonBotsDB.hudVisible = val end
-        PlaySound(val and "igMainMenuOptionCheckBoxOn" or "igMainMenuOptionCheckBoxOff")
-        if val and DungeonBots.InitHUD and not DungeonBots.hudFrame then
-            DungeonBots:InitHUD()
-        elseif DungeonBots.UpdateHUDVisibility then
-            DungeonBots:UpdateHUDVisibility()
-        end
-        DungeonBots:UpdateSettingsDialog()
-        DungeonBots:Print("Barra táctica (HUD): " .. (val and "|cff34c759Activada|r" or "|cffff3b30Oculta|r"))
-    end)
-
-    hudDungeonCheck:SetScript("OnClick", function(self)
-        local val = self:GetChecked() and true or false
-        if DungeonBotsDB then DungeonBotsDB.hudOnlyInDungeon = val end
-        PlaySound(val and "igMainMenuOptionCheckBoxOn" or "igMainMenuOptionCheckBoxOff")
-        if DungeonBots.UpdateHUDVisibility then
-            DungeonBots:UpdateHUDVisibility()
-        end
-        DungeonBots:Print("Barra táctica solo en mazmorra (5j): " .. (val and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
-    end)
-
-    muteWhispersCheck:SetScript("OnClick", function(self)
-        local val = self:GetChecked() and true or false
-        if DungeonBotsDB then
-            DungeonBotsDB.whisperMuteMode = val and "all" or "off"
-        end
-        PlaySound(val and "igMainMenuOptionCheckBoxOn" or "igMainMenuOptionCheckBoxOff")
-        if val and DungeonBots.CloseBotWIMWindows then
-            DungeonBots:CloseBotWIMWindows()
-        end
-        DungeonBots:UpdateSettingsDialog()
-        DungeonBots:Print("Ocultar susurros de bots: " .. (val and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
-    end)
-
-    muteGroupCheck:SetScript("OnClick", function(self)
-        local val = self:GetChecked() and true or false
-        if DungeonBotsDB then DungeonBotsDB.muteBotGroupChat = val end
-        PlaySound(val and "igMainMenuOptionCheckBoxOn" or "igMainMenuOptionCheckBoxOff")
-        DungeonBots:Print("Ocultar chat de bots en Grupo/Decir: " .. (val and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
-    end)
-
-    local closeFooterBtn = CreateFrame("Button", nil, sf, "UIPanelButtonTemplate")
-    closeFooterBtn:SetSize(90, 24)
-    closeFooterBtn:SetPoint("BOTTOMRIGHT", sf, "BOTTOMRIGHT", -14, 12)
-    closeFooterBtn:SetText("Cerrar")
-    closeFooterBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOff")
-        sf:Hide()
-    end)
-
-    DungeonBots.settingsFrame = sf
-    DungeonBots:UpdateSettingsDialog()
-end
-
-function DungeonBots:ToggleSettingsDialog()
-    if not DungeonBots.settingsFrame then
-        DungeonBots:BuildSettingsDialog()
-    end
-    local sf = DungeonBots.settingsFrame
-    if sf:IsShown() then
-        PlaySound("igMainMenuOptionCheckBoxOff")
-        sf:Hide()
-    else
-        DungeonBots:UpdateSettingsDialog()
-        sf:Show()
-        if sf.Raise then
-            pcall(sf.Raise, sf)
-        end
-    end
-end
-
--- =========================================================================
--- VENTANA DE DIÁLOGO: HISTORIAL DE BOTS
--- =========================================================================
-local historyRows = {}
-
-StaticPopupDialogs["DUNGEONBOTS_CLEAR_HISTORY"] = {
-    text = "¿Seguro que quieres borrar todo el historial de bots guardados?",
-    button1 = "Sí, limpiar",
-    button2 = "Cancelar",
-    OnAccept = function()
-        DungeonBots:ClearBotHistory()
-    end,
-    timeout = 0,
-    whileDead = 1,
-    hideOnEscape = 1,
-}
-
-function DungeonBots:UpdateHistorySummary()
-    if not DungeonBots.historySummaryLabel then return end
-    local count = DungeonBots.GetBotHistoryCount and DungeonBots:GetBotHistoryCount() or 0
-    DungeonBots.historySummaryLabel:SetText(
-        "Lista de bots invitados anteriormente: |cffffd200" .. count .. "|r"
-    )
-end
-
-local function CreateHistoryRow(parent, idx)
-    local row = CreateFrame("Frame", nil, parent)
-    row:SetSize(480, 50)
-    ApplyDarkBackdrop(row, 8)
-    row:SetBackdropColor(0.10, 0.12, 0.17, 1.0)
-    row:SetBackdropBorderColor(0.35, 0.40, 0.50, 0.95)
-
-    local rowSolidBg = row:CreateTexture(nil, "BACKGROUND")
-    rowSolidBg:SetPoint("TOPLEFT", row, "TOPLEFT", 3, -3)
-    rowSolidBg:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -3, 3)
-    rowSolidBg:SetTexture(0.10, 0.12, 0.17, 1.0)
-
-    local iconFrame = CreateFrame("Frame", nil, row)
-    iconFrame:SetSize(34, 34)
-    iconFrame:SetPoint("LEFT", row, "LEFT", 8, 0)
-    ApplyDarkBackdrop(iconFrame, 6)
-    iconFrame:SetBackdropColor(0, 0, 0, 1)
-
-    row.icon = iconFrame:CreateTexture(nil, "ARTWORK")
-    row.icon:SetPoint("TOPLEFT", iconFrame, "TOPLEFT", 2, -2)
-    row.icon:SetPoint("BOTTOMRIGHT", iconFrame, "BOTTOMRIGHT", -2, 2)
-    row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-
-    row.removeBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-    row.removeBtn:SetSize(24, 24)
-    row.removeBtn:SetPoint("RIGHT", row, "RIGHT", -8, 0)
-    row.removeBtn:SetText("X")
-    row.removeBtn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Eliminar del historial", 1, 0.3, 0.3)
-        GameTooltip:AddLine("Borra este bot de la lista guardada.", 0.8, 0.8, 0.8)
-        GameTooltip:Show()
-    end)
-    row.removeBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
-    row.inviteBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-    row.inviteBtn:SetSize(112, 24)
-    row.inviteBtn:SetPoint("RIGHT", row.removeBtn, "LEFT", -6, 0)
-
-    row.nameText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    row.nameText:SetPoint("TOPLEFT", iconFrame, "TOPRIGHT", 10, -2)
-    row.nameText:SetPoint("RIGHT", row.inviteBtn, "LEFT", -8, 0)
-    row.nameText:SetJustifyH("LEFT")
-
-    row.detailText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.detailText:SetPoint("TOPLEFT", row.nameText, "BOTTOMLEFT", 0, -4)
-    row.detailText:SetPoint("RIGHT", row.inviteBtn, "LEFT", -8, 0)
-    row.detailText:SetJustifyH("LEFT")
-
-    historyRows[idx] = row
-    return row
-end
-
-function DungeonBots:BuildHistoryDialog()
-    if DungeonBots.historyFrame then return end
-
-    local hf = CreateFrame("Frame", "DungeonBots_HistoryFrame", UIParent)
-    hf:SetSize(540, 420)
-    hf:SetPoint("CENTER", UIParent, "CENTER", 0, 20)
-    hf:SetFrameStrata("DIALOG")
-    hf:SetFrameLevel(20)
-    hf:SetMovable(true)
-    hf:EnableMouse(true)
-    hf:RegisterForDrag("LeftButton")
-    hf:SetScript("OnDragStart", hf.StartMoving)
-    hf:SetScript("OnDragStop", hf.StopMovingOrSizing)
-    hf:SetScript("OnHide", function()
-        if DungeonBots.reopenMainAfterHistory and mainFrame and not mainFrame:IsShown() then
-            DungeonBots.reopenMainAfterHistory = false
-            DungeonBots:UpdatePartyUI()
-            mainFrame:Show()
-        end
-    end)
-    hf:Hide()
-    ApplyDarkBackdrop(hf, 14)
-    hf:SetBackdropColor(0.04, 0.05, 0.08, 1.0)
-
-    local solidBg = hf:CreateTexture(nil, "BACKGROUND")
-    solidBg:SetPoint("TOPLEFT", hf, "TOPLEFT", 4, -4)
-    solidBg:SetPoint("BOTTOMRIGHT", hf, "BOTTOMRIGHT", -4, 4)
-    solidBg:SetTexture(0.04, 0.05, 0.08, 1.0)
-
-    table.insert(UISpecialFrames, "DungeonBots_HistoryFrame")
-
-    -- Barra de título
-    local header = CreateFrame("Frame", nil, hf)
-    header:SetPoint("TOPLEFT", hf, "TOPLEFT", 6, -6)
-    header:SetPoint("TOPRIGHT", hf, "TOPRIGHT", -6, -6)
-    header:SetHeight(30)
-    ApplyHeaderBackdrop(header)
-    header:SetBackdropColor(0.10, 0.12, 0.16, 1.0)
-
-    local headerSolidBg = header:CreateTexture(nil, "BACKGROUND")
-    headerSolidBg:SetPoint("TOPLEFT", header, "TOPLEFT", 2, -2)
-    headerSolidBg:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -2, 2)
-    headerSolidBg:SetTexture(0.10, 0.12, 0.16, 1.0)
-
-    local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("LEFT", 10, 0)
-    title:SetText("|cff00ccffHistorial de|r |cffffd200bots|r")
-
-    local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
-    closeBtn:SetPoint("RIGHT", header, "RIGHT", -2, 0)
-    closeBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOff")
-        hf:Hide()
-    end)
-
-    -- Barra superior con contador y acciones
-    local countLabel = hf:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    countLabel:SetPoint("TOPLEFT", 14, -44)
-    countLabel:SetText("Total guardados: |cffffd2000|r")
-    hf.countLabel = countLabel
-
-    local clearBtn = CreateFrame("Button", nil, hf, "UIPanelButtonTemplate")
-    clearBtn:SetSize(105, 22)
-    clearBtn:SetPoint("TOPRIGHT", hf, "TOPRIGHT", -14, -40)
-    clearBtn:SetText("Limpiar Todo")
-    clearBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOff")
-        StaticPopup_Show("DUNGEONBOTS_CLEAR_HISTORY")
-    end)
-
-    -- Contenedor con ScrollFrame
-    local scrollBg = CreateFrame("Frame", nil, hf)
-    scrollBg:SetPoint("TOPLEFT", hf, "TOPLEFT", 10, -68)
-    scrollBg:SetPoint("BOTTOMRIGHT", hf, "BOTTOMRIGHT", -10, 40)
-    ApplyDarkBackdrop(scrollBg, 10)
-    scrollBg:SetBackdropColor(0.02, 0.03, 0.05, 1.0)
-    scrollBg:SetBackdropBorderColor(0.30, 0.34, 0.42, 1.0)
-
-    local scrollSolidBg = scrollBg:CreateTexture(nil, "BACKGROUND")
-    scrollSolidBg:SetPoint("TOPLEFT", scrollBg, "TOPLEFT", 3, -3)
-    scrollSolidBg:SetPoint("BOTTOMRIGHT", scrollBg, "BOTTOMRIGHT", -3, 3)
-    scrollSolidBg:SetTexture(0.02, 0.03, 0.05, 1.0)
-
-    local scrollFrame = CreateFrame("ScrollFrame", "DungeonBots_HistoryScrollFrame", scrollBg, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", scrollBg, "TOPLEFT", 6, -6)
-    scrollFrame:SetPoint("BOTTOMRIGHT", scrollBg, "BOTTOMRIGHT", -26, 6)
-
-    local scrollChild = CreateFrame("Frame", "DungeonBots_HistoryScrollChild", scrollFrame)
-    scrollChild:SetSize(486, 1)
-    scrollFrame:SetScrollChild(scrollChild)
-    hf.scrollChild = scrollChild
-
-    local emptyLabel = scrollBg:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    emptyLabel:SetPoint("CENTER", scrollBg, "CENTER", -8, 0)
-    emptyLabel:SetWidth(420)
-    emptyLabel:SetText("Aún no tienes bots registrados en el historial.\n\nInvoca bots con 'Armar Grupo' y cambia sus talentos en 'Bots en el grupo' para verlos guardados aquí.")
-    hf.emptyLabel = emptyLabel
-
-    -- Pie del diálogo
-    local footerHint = hf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    footerHint:SetPoint("BOTTOMLEFT", 14, 15)
-    footerHint:SetText("|cffaaaaaaLos talentos mostrados corresponden a la última rama asignada.|r")
-
-    local closeFooterBtn = CreateFrame("Button", nil, hf, "UIPanelButtonTemplate")
-    closeFooterBtn:SetSize(90, 24)
-    closeFooterBtn:SetPoint("BOTTOMRIGHT", hf, "BOTTOMRIGHT", -12, 10)
-    closeFooterBtn:SetText("Cerrar")
-    closeFooterBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOff")
-        hf:Hide()
-    end)
-
-    DungeonBots.historyFrame = hf
-end
-
-function DungeonBots:UpdateHistoryUI()
-    local hf = DungeonBots.historyFrame
-    if not hf then return end
-
-    local list = DungeonBots:GetSortedBotHistory()
-    hf.countLabel:SetText("Total guardados: |cffffd200" .. #list .. "|r")
-
-    for _, row in ipairs(historyRows) do
-        row:Hide()
-    end
-
-    if #list == 0 then
-        hf.emptyLabel:Show()
-        hf.scrollChild:SetHeight(1)
-        return
-    end
-
-    hf.emptyLabel:Hide()
-
-    local defaultQuestionIcon = "Interface\\Icons\\INV_Misc_QuestionMark"
-    for idx, entry in ipairs(list) do
-        local row = historyRows[idx] or CreateHistoryRow(hf.scrollChild, idx)
-        row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", hf.scrollChild, "TOPLEFT", 2, -((idx - 1) * 54) - 2)
-        row:Show()
-
-        local className, classColor, classIcon = DungeonBots:GetClassDisplayInfo(entry.class)
-        local displayIcon = entry.raceIcon
-        if not displayIcon or displayIcon == "" or displayIcon == defaultQuestionIcon then
-            displayIcon = classIcon
-        end
-        row.icon:SetTexture(displayIcon)
-
-        local botName = entry.name
-        local inParty = (DungeonBots:FindPartyUnitByName(botName) ~= nil)
-        if inParty then
-            row.nameText:SetText(botName .. "  |cff34c759[En Grupo]|r")
-        else
-            row.nameText:SetText(botName)
-        end
-        row.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
-
-        local cleanSpec = DungeonBots.CleanSpecText and DungeonBots:CleanSpecText(entry.spec) or (entry.spec or "")
-        local specText = (cleanSpec ~= "") and ("|cff71d5ff" .. cleanSpec .. "|r") or "|cff999999Talentos por defecto|r"
-        row.detailText:SetText(className .. " - " .. specText)
-
-        if inParty then
-            row.inviteBtn:SetText("En Grupo")
-            row.inviteBtn:Disable()
-            row.inviteBtn:SetScript("OnClick", nil)
-            row.inviteBtn:SetScript("OnEnter", function(self)
-                GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                GameTooltip:AddLine("Ya está en tu grupo", 0.3, 1.0, 0.5)
-                GameTooltip:AddLine(botName .. " ya se encuentra unido al grupo actual.", 0.8, 0.8, 0.8)
-                GameTooltip:Show()
-            end)
-        else
-            row.inviteBtn:SetText("Invitar")
-            row.inviteBtn:Enable()
-            row.inviteBtn:SetScript("OnClick", function()
-                PlaySound("igMainMenuOptionCheckBoxOn")
-                DungeonBots:SummonAndInviteHistoryBot(botName)
-            end)
-            row.inviteBtn:SetScript("OnEnter", function(self)
-                GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                GameTooltip:AddLine("Invitar a " .. botName, 1, 1, 1)
-                GameTooltip:AddLine("Ejecuta |cffffd200.playerbots bot add " .. botName .. "|r y lo invita a tu grupo automáticamente.", 0.7, 0.8, 1.0, true)
-                GameTooltip:Show()
-            end)
-        end
-        row.inviteBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
-        row.removeBtn:SetScript("OnClick", function()
-            PlaySound("igMainMenuOptionCheckBoxOff")
-            DungeonBots:RemoveFromHistory(botName)
-        end)
-    end
-
-    hf.scrollChild:SetHeight(math.max(1, (#list * 54) + 6))
-end
-
-function DungeonBots:ToggleHistoryDialog()
-    if not DungeonBots.historyFrame then
-        DungeonBots:BuildHistoryDialog()
-    end
-    DungeonBots:SyncPartyToHistory()
-    DungeonBots:UpdateHistoryUI()
-
-    if DungeonBots.historyFrame:IsShown() then
-        PlaySound("igMainMenuOptionCheckBoxOff")
-        DungeonBots.historyFrame:Hide()
-    else
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        if mainFrame and mainFrame:IsShown() then
-            DungeonBots.reopenMainAfterHistory = true
-            mainFrame:Hide()
-        else
-            DungeonBots.reopenMainAfterHistory = false
-        end
-        DungeonBots.historyFrame:Show()
-    end
-end
-
--- =========================================================================
--- UTILIDAD COMPARTIDA PARA HIPERVINCULOS (Misiones / Objetos / Hechizos)
--- =========================================================================
-local function SafeShowLinkTooltip(owner, linkRef, displayLink, title, rawLine)
-    if linkRef and linkRef ~= "" and SetItemRef then
-        local ok = pcall(SetItemRef, linkRef, displayLink or title or linkRef, "LeftButton")
-        if ok and ItemRefTooltip and ItemRefTooltip:IsShown() then
-            return
-        end
-    end
-    if owner then
-        GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
-        GameTooltip:AddLine(title or "Detalle", 1, 0.85, 0.2, true)
-        if rawLine and rawLine ~= "" then
-            GameTooltip:AddLine(DungeonBots:StripChatFormatting(rawLine), 0.85, 0.90, 1.0, true)
-        end
-        GameTooltip:Show()
-    end
-end
-
--- =========================================================================
--- VENTANA DE DIÁLOGO: MISIONES DEL BOT (quests all / drop)
--- =========================================================================
-local questRows = {}
-
-local function CreateQuestRow(parent, idx)
-    local row = CreateFrame("Frame", nil, parent)
-    row:SetSize(486, 36)
-    row:SetPoint("TOPLEFT", 0, -((idx - 1) * 40))
-    ApplyDarkBackdrop(row, 8)
-    row:SetBackdropColor(0.08, 0.10, 0.14, 0.95)
-    row:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.85)
-
-    local icon = row:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(20, 20)
-    icon:SetPoint("LEFT", 8, 0)
-    icon:SetTexture("Interface\\Icons\\INV_Misc_Note_01")
-    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    row.icon = icon
-
-    local titleBtn = CreateFrame("Button", nil, row)
-    titleBtn:SetPoint("TOPLEFT", row, "TOPLEFT", 32, -2)
-    titleBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -116, 2)
-    row.titleBtn = titleBtn
-
-    local titleText = titleBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    titleText:SetPoint("TOPLEFT", 2, -4)
-    titleText:SetPoint("TOPRIGHT", -2, -4)
-    titleText:SetJustifyH("LEFT")
-    titleText:SetWordWrap(false)
-    row.titleText = titleText
-
-    local subText = titleBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    subText:SetPoint("TOPLEFT", titleText, "BOTTOMLEFT", 0, -2)
-    subText:SetPoint("TOPRIGHT", titleText, "BOTTOMRIGHT", 0, -2)
-    subText:SetJustifyH("LEFT")
-    subText:SetWordWrap(false)
-    row.subText = subText
-
-    local dropBtn = CreateRedIconButton(row, 104, 22, "Abandonar", "Interface\\Icons\\Spell_ChargeNegative")
-    dropBtn:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-    row.dropBtn = dropBtn
-
-    questRows[idx] = row
-    return row
-end
-
-function DungeonBots:BuildQuestDialog()
-    if DungeonBots.questFrame then return end
-
-    local qf = CreateFrame("Frame", "DungeonBots_QuestFrame", UIParent)
-    qf:SetSize(540, 420)
-    qf:SetPoint("CENTER", UIParent, "CENTER", 0, 20)
-    qf:SetFrameStrata("DIALOG")
-    qf:SetFrameLevel(28)
-    qf:SetToplevel(true)
-    qf:SetMovable(true)
-    qf:EnableMouse(true)
-    qf:SetClampedToScreen(true)
-    qf:RegisterForDrag("LeftButton")
-    qf:SetScript("OnDragStart", qf.StartMoving)
-    qf:SetScript("OnDragStop", qf.StopMovingOrSizing)
-    qf:Hide()
-    ApplyDarkBackdrop(qf, 14)
-    qf:SetBackdropColor(0.04, 0.05, 0.08, 1.0)
-
-    local solidBg = qf:CreateTexture(nil, "BACKGROUND")
-    solidBg:SetPoint("TOPLEFT", qf, "TOPLEFT", 4, -4)
-    solidBg:SetPoint("BOTTOMRIGHT", qf, "BOTTOMRIGHT", -4, 4)
-    solidBg:SetTexture(0.04, 0.05, 0.08, 1.0)
-
-    table.insert(UISpecialFrames, "DungeonBots_QuestFrame")
-
-    local header = CreateFrame("Frame", nil, qf)
-    header:SetPoint("TOPLEFT", qf, "TOPLEFT", 6, -6)
-    header:SetPoint("TOPRIGHT", qf, "TOPRIGHT", -6, -6)
-    header:SetHeight(30)
-    ApplyHeaderBackdrop(header)
-    header:SetBackdropColor(0.10, 0.12, 0.16, 1.0)
-
-    local headerSolidBg = header:CreateTexture(nil, "BACKGROUND")
-    headerSolidBg:SetPoint("TOPLEFT", header, "TOPLEFT", 2, -2)
-    headerSolidBg:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -2, 2)
-    headerSolidBg:SetTexture(0.10, 0.12, 0.16, 1.0)
-
-    local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("LEFT", 10, 0)
-    title:SetText("|cff00ccffMisiones del|r |cffffd200Bot|r")
-    qf.title = title
-
-    local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
-    closeBtn:SetPoint("RIGHT", header, "RIGHT", -2, 0)
-    closeBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOff")
-        qf:Hide()
-    end)
-
-    local statusLabel = qf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    statusLabel:SetPoint("TOPLEFT", 14, -44)
-    statusLabel:SetText("Misiones activas: |cffffd2000|r")
-    qf.statusLabel = statusLabel
-
-    local refreshBtn = CreateFrame("Button", nil, qf, "UIPanelButtonTemplate")
-    refreshBtn:SetSize(96, 22)
-    refreshBtn:SetPoint("TOPRIGHT", qf, "TOPRIGHT", -14, -40)
-    refreshBtn:SetText("Actualizar")
-    refreshBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        if qf.currentBot then
-            DungeonBots:QueryQuests(qf.currentBot, true)
-        end
-    end)
-
-    local scrollBg = CreateFrame("Frame", nil, qf)
-    scrollBg:SetPoint("TOPLEFT", qf, "TOPLEFT", 10, -68)
-    scrollBg:SetPoint("BOTTOMRIGHT", qf, "BOTTOMRIGHT", -10, 40)
-    ApplyDarkBackdrop(scrollBg, 10)
-    scrollBg:SetBackdropColor(0.02, 0.03, 0.05, 1.0)
-    scrollBg:SetBackdropBorderColor(0.30, 0.34, 0.42, 1.0)
-
-    local scrollSolidBg = scrollBg:CreateTexture(nil, "BACKGROUND")
-    scrollSolidBg:SetPoint("TOPLEFT", scrollBg, "TOPLEFT", 3, -3)
-    scrollSolidBg:SetPoint("BOTTOMRIGHT", scrollBg, "BOTTOMRIGHT", -3, 3)
-    scrollSolidBg:SetTexture(0.02, 0.03, 0.05, 1.0)
-
-    local scrollFrame = CreateFrame("ScrollFrame", "DungeonBots_QuestScrollFrame", scrollBg, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", scrollBg, "TOPLEFT", 6, -6)
-    scrollFrame:SetPoint("BOTTOMRIGHT", scrollBg, "BOTTOMRIGHT", -26, 6)
-
-    local scrollChild = CreateFrame("Frame", "DungeonBots_QuestScrollChild", scrollFrame)
-    scrollChild:SetSize(486, 1)
-    scrollFrame:SetScrollChild(scrollChild)
-    qf.scrollChild = scrollChild
-
-    local emptyLabel = scrollBg:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    emptyLabel:SetPoint("CENTER", scrollBg, "CENTER", -8, 0)
-    emptyLabel:SetWidth(420)
-    emptyLabel:SetText("Este bot no tiene misiones activas.")
-    qf.emptyLabel = emptyLabel
-
-    local footerHint = qf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    footerHint:SetPoint("BOTTOMLEFT", 14, 15)
-    footerHint:SetText("|cffaaaaaaHaz clic en una misión para ver detalles o pulsa 'Abandonar'.|r")
-
-    local closeFooterBtn = CreateFrame("Button", nil, qf, "UIPanelButtonTemplate")
-    closeFooterBtn:SetSize(90, 24)
-    closeFooterBtn:SetPoint("BOTTOMRIGHT", qf, "BOTTOMRIGHT", -12, 10)
-    closeFooterBtn:SetText("Cerrar")
-    closeFooterBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOff")
-        qf:Hide()
-    end)
-
-    DungeonBots.questFrame = qf
-end
-
-function DungeonBots:UpdateQuestDialog(botName)
-    if not DungeonBots.questFrame then return end
-    local qf = DungeonBots.questFrame
-    local targetBot = botName or qf.currentBot
-    if not targetBot then return end
-    if qf.currentBot and botName and qf.currentBot ~= botName then
-        return
-    end
-    qf.currentBot = targetBot
-    qf.title:SetText("|cff00ccffMisiones de|r |cffffd200" .. targetBot .. "|r")
-
-    local data = DungeonBots.questDialogData and DungeonBots.questDialogData[targetBot]
-    local quests = (data and data.quests) or {}
-
-    if data and data.loading and #quests == 0 then
-        qf.statusLabel:SetText("|cff71d5ffConsultando misiones activas...|r")
-        qf.emptyLabel:SetText("|cff71d5ffConsultando misiones de " .. targetBot .. "...|r\n\n|cff888888Espera un instante mientras responde.|r")
-        qf.emptyLabel:Show()
-    elseif #quests == 0 then
-        qf.statusLabel:SetText("Misiones activas: |cffffd2000|r")
-        if data and data.emptyHint and data.emptyHint ~= "" then
-            qf.emptyLabel:SetText("Este bot no tiene misiones activas.\n\n|cff888888(" .. data.emptyHint .. ")|r")
-        else
-            qf.emptyLabel:SetText("Este bot no tiene misiones activas.")
-        end
-        qf.emptyLabel:Show()
-    else
-        qf.statusLabel:SetText("Misiones activas: |cffffd200" .. #quests .. "|r  |cff888888(clic para ver detalles)|r")
-        qf.emptyLabel:Hide()
-    end
-
-    for _, row in ipairs(questRows) do
-        row:Hide()
-    end
-
-    for i, q in ipairs(quests) do
-        local row = questRows[i] or CreateQuestRow(qf.scrollChild, i)
-        row:Show()
-
-        local lvlPrefix = (q.questLevel and q.questLevel ~= "") and ("|cff88aacc[" .. q.questLevel .. "]|r ") or ""
-        row.titleText:SetText(lvlPrefix .. "|cffffff00" .. (q.title or "Misión") .. "|r")
-
-        local subStr = ""
-        if q.statusText and q.statusText ~= "" then
-            local lowerSt = string.lower(q.statusText)
-            if (string.find(lowerSt, "complete") or string.find(lowerSt, "completa")) and not string.find(lowerSt, "incomplete") then
-                subStr = "|cff34c759" .. q.statusText .. "|r"
-            else
-                subStr = "|cff9aa5b5" .. q.statusText .. "|r"
-            end
-        elseif q.questId then
-            subStr = "|cff777777ID: " .. q.questId .. " (clic para inspeccionar)|r"
-        else
-            subStr = "|cff777777Clic para ver detalle|r"
-        end
-        row.subText:SetText(subStr)
-
-        row.titleBtn:SetScript("OnClick", function(self)
-            PlaySound("igMainMenuOptionCheckBoxOn")
-            local linkRef = q.questId and ("quest:" .. q.questId .. ":" .. (q.questLevel or "80")) or nil
-            SafeShowLinkTooltip(self, linkRef, q.displayLink, q.title, q.rawLine)
-        end)
-        row.titleBtn:SetScript("OnEnter", function(self)
-            row:SetBackdropBorderColor(0.25, 0.78, 1.0, 1.0)
-            GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:AddLine(q.title or "Misión", 1, 0.85, 0.2)
-            if q.statusText and q.statusText ~= "" then
-                GameTooltip:AddLine("Estado: " .. q.statusText, 0.8, 0.9, 1.0, true)
-            end
-            if q.questId then
-                GameTooltip:AddLine("Haz clic para abrir el detalle de la misión.", 0.3, 0.9, 0.5)
-            end
-            GameTooltip:Show()
-        end)
-        row.titleBtn:SetScript("OnLeave", function()
-            row:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.85)
-            GameTooltip:Hide()
-        end)
-
-        row.dropBtn:Show()
-        row.dropBtn:SetScript("OnClick", function()
-            DungeonBots:DropBotQuest(targetBot, q)
-        end)
-        row.dropBtn:SetScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:AddLine("Abandonar Misión", 1, 0.35, 0.35)
-            GameTooltip:AddLine("Ordena a " .. targetBot .. " abandonar '" .. (q.title or "") .. "' y recarga la lista.", 0.8, 0.85, 0.95, true)
-            GameTooltip:Show()
-        end)
-        row.dropBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    end
-
-    qf.scrollChild:SetHeight(math.max(1, (#quests * 40) + 4))
-end
-
-function DungeonBots:OpenQuestDialog(botName)
-    if not DungeonBots.questFrame then
-        DungeonBots:BuildQuestDialog()
-    end
-    DungeonBots.questFrame.currentBot = botName
-    DungeonBots:UpdateQuestDialog(botName)
-    DungeonBots.questFrame:Show()
-    if DungeonBots.questFrame.Raise then
-        pcall(DungeonBots.questFrame.Raise, DungeonBots.questFrame)
-    end
-end
-
--- =========================================================================
--- VENTANA DE DIÁLOGO: INTERACCIÓN CON PNJ (talk)
--- =========================================================================
-local talkActionRows = {}
-
-local function CreateTalkActionRow(parent, idx)
-    local row = CreateFrame("Frame", nil, parent)
-    row:SetSize(486, 26)
-    row:SetPoint("TOPLEFT", 0, -((idx - 1) * 30))
-    ApplyDarkBackdrop(row, 6)
-    row:SetBackdropColor(0.08, 0.10, 0.15, 0.95)
-    row:SetBackdropBorderColor(0.28, 0.34, 0.44, 0.85)
-
-    local mainBtn = CreateFrame("Button", nil, row)
-    mainBtn:SetPoint("TOPLEFT", row, "TOPLEFT", 4, -2)
-    mainBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -4, 2)
-    row.mainBtn = mainBtn
-
-    local label = mainBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    label:SetPoint("LEFT", 4, 0)
-    label:SetPoint("RIGHT", -4, 0)
-    label:SetJustifyH("LEFT")
-    label:SetWordWrap(false)
-    row.label = label
-
-    local acceptBtn = CreateRedIconButton(row, 104, 20, "Aceptar", "Interface\\Icons\\INV_Misc_Book_09")
-    acceptBtn:SetPoint("RIGHT", row, "RIGHT", -4, 0)
-    acceptBtn:Hide()
-    row.acceptBtn = acceptBtn
-
-    local statusTag = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    statusTag:SetPoint("RIGHT", row, "RIGHT", -10, 0)
-    statusTag:SetWidth(90)
-    statusTag:SetJustifyH("RIGHT")
-    statusTag:SetWordWrap(false)
-    statusTag:Hide()
-    row.statusTag = statusTag
-
-    talkActionRows[idx] = row
-    return row
-end
-
-function DungeonBots:BuildTalkDialog()
-    if DungeonBots.talkFrame then return end
-
-    local tf = CreateFrame("Frame", "DungeonBots_TalkFrame", UIParent)
-    tf:SetSize(540, 360)
-    tf:SetPoint("CENTER", UIParent, "CENTER", 0, 20)
-    tf:SetFrameStrata("DIALOG")
-    tf:SetFrameLevel(25)
-    tf:SetToplevel(true)
-    tf:SetMovable(true)
-    tf:EnableMouse(true)
-    tf:SetClampedToScreen(true)
-    tf:RegisterForDrag("LeftButton")
-    tf:SetScript("OnDragStart", tf.StartMoving)
-    tf:SetScript("OnDragStop", tf.StopMovingOrSizing)
-    tf:Hide()
-    ApplyDarkBackdrop(tf, 14)
-    tf:SetBackdropColor(0.04, 0.05, 0.08, 1.0)
-
-    local solidBg = tf:CreateTexture(nil, "BACKGROUND")
-    solidBg:SetPoint("TOPLEFT", tf, "TOPLEFT", 4, -4)
-    solidBg:SetPoint("BOTTOMRIGHT", tf, "BOTTOMRIGHT", -4, 4)
-    solidBg:SetTexture(0.04, 0.05, 0.08, 1.0)
-
-    table.insert(UISpecialFrames, "DungeonBots_TalkFrame")
-
-    local header = CreateFrame("Frame", nil, tf)
-    header:SetPoint("TOPLEFT", tf, "TOPLEFT", 6, -6)
-    header:SetPoint("TOPRIGHT", tf, "TOPRIGHT", -6, -6)
-    header:SetHeight(30)
-    ApplyHeaderBackdrop(header)
-    header:SetBackdropColor(0.10, 0.12, 0.16, 1.0)
-
-    local headerSolidBg = header:CreateTexture(nil, "BACKGROUND")
-    headerSolidBg:SetPoint("TOPLEFT", header, "TOPLEFT", 2, -2)
-    headerSolidBg:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -2, 2)
-    headerSolidBg:SetTexture(0.10, 0.12, 0.16, 1.0)
-
-    local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("LEFT", 10, 0)
-    title:SetText("|cff00ccffDiálogo PNJ:|r |cffffd200Bot|r")
-    tf.title = title
-
-    local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
-    closeBtn:SetPoint("RIGHT", header, "RIGHT", -2, 0)
-    closeBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOff")
-        tf:Hide()
-    end)
-
-    local requeryBtn = CreateFrame("Button", nil, tf, "UIPanelButtonTemplate")
-    requeryBtn:SetSize(106, 22)
-    requeryBtn:SetPoint("TOPRIGHT", tf, "TOPRIGHT", -12, -40)
-    requeryBtn:SetText("Reconsultar")
-    requeryBtn:SetScript("OnClick", function()
-        if not tf.currentBot then return end
-        if DungeonBots.IsTalkBusy and DungeonBots:IsTalkBusy(tf.currentBot) then
-            return
-        end
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        DungeonBots:SendTalkCommand(tf.currentBot, "talk")
-    end)
-    tf.requeryBtn = requeryBtn
-
-    local npcLabel = tf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    npcLabel:SetPoint("TOPLEFT", 14, -44)
-    npcLabel:SetPoint("RIGHT", requeryBtn, "LEFT", -8, 0)
-    npcLabel:SetJustifyH("LEFT")
-    npcLabel:SetWordWrap(false)
-    npcLabel:SetText("PNJ: |cffffd200Objetivo actual|r")
-    tf.npcLabel = npcLabel
-
-    -- Lista principal de opciones y misiones detectadas (1 clic)
-    local optTitle = tf:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    optTitle:SetPoint("TOPLEFT", tf, "TOPLEFT", 14, -68)
-    optTitle:SetText("|cffffd200Opciones y Misiones del PNJ:|r")
-
-    local optBg = CreateFrame("Frame", nil, tf)
-    optBg:SetPoint("TOPLEFT", tf, "TOPLEFT", 10, -84)
-    optBg:SetPoint("BOTTOMRIGHT", tf, "BOTTOMRIGHT", -10, 40)
-    ApplyDarkBackdrop(optBg, 10)
-    optBg:SetBackdropColor(0.02, 0.03, 0.05, 1.0)
-    optBg:SetBackdropBorderColor(0.28, 0.32, 0.40, 1.0)
-
-    local optSolidBg = optBg:CreateTexture(nil, "BACKGROUND")
-    optSolidBg:SetPoint("TOPLEFT", optBg, "TOPLEFT", 3, -3)
-    optSolidBg:SetPoint("BOTTOMRIGHT", optBg, "BOTTOMRIGHT", -3, 3)
-    optSolidBg:SetTexture(0.02, 0.03, 0.05, 1.0)
-
-    local optScroll = CreateFrame("ScrollFrame", "DungeonBots_TalkOptScroll", optBg, "UIPanelScrollFrameTemplate")
-    optScroll:SetPoint("TOPLEFT", optBg, "TOPLEFT", 6, -6)
-    optScroll:SetPoint("BOTTOMRIGHT", optBg, "BOTTOMRIGHT", -26, 6)
-
-    local optChild = CreateFrame("Frame", "DungeonBots_TalkOptChild", optScroll)
-    optChild:SetSize(486, 1)
-    optScroll:SetScrollChild(optChild)
-    tf.optChild = optChild
-
-    local emptyOptLabel = optBg:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    emptyOptLabel:SetPoint("CENTER", optBg, "CENTER", -8, 0)
-    emptyOptLabel:SetWidth(430)
-    emptyOptLabel:SetText("Esperando respuesta del PNJ...")
-    tf.emptyOptLabel = emptyOptLabel
-
-    -- Zona inferior: Siguiente Bot + acceso a Registro Misiones + Cerrar
-    local nextBotBtn = CreateFrame("Button", nil, tf, "UIPanelButtonTemplate")
-    nextBotBtn:SetSize(122, 24)
-    nextBotBtn:SetPoint("BOTTOMLEFT", tf, "BOTTOMLEFT", 12, 10)
-    nextBotBtn:SetText("Siguiente Bot")
-    nextBotBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        if DungeonBots.CycleNextTalkBot then
-            DungeonBots:CycleNextTalkBot(tf.currentBot)
-        end
-    end)
-    nextBotBtn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Siguiente Bot (talk)", 1, 0.85, 0.2)
-        if DungeonBots.GetTalkBotCycleInfo then
-            local curIdx, total = DungeonBots:GetTalkBotCycleInfo(tf.currentBot)
-            if total >= 2 then
-                local posLabel = (curIdx > 0) and (curIdx .. "/" .. total) or ("0/" .. total)
-                GameTooltip:AddLine("Cambia en orden por los bots del grupo y consulta 'talk' con el siguiente (" .. posLabel .. ").", 0.8, 0.9, 1.0, true)
-            else
-                GameTooltip:AddLine("Se necesitan al menos 2 bots en el grupo para pasar al siguiente.", 0.8, 0.8, 0.8, true)
-            end
-        end
-        GameTooltip:Show()
-    end)
-    nextBotBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    tf.nextBotBtn = nextBotBtn
-
-    local botCycleLabel = tf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    botCycleLabel:SetPoint("LEFT", nextBotBtn, "RIGHT", 8, 0)
-    botCycleLabel:SetWidth(60)
-    botCycleLabel:SetJustifyH("LEFT")
-    botCycleLabel:SetWordWrap(false)
-    botCycleLabel:SetText("")
-    tf.botCycleLabel = botCycleLabel
-
-    local questLogBtn = CreateFrame("Button", nil, tf, "UIPanelButtonTemplate")
-    questLogBtn:SetSize(134, 24)
-    questLogBtn:SetPoint("BOTTOMRIGHT", tf, "BOTTOMRIGHT", -108, 10)
-    questLogBtn:SetText("Registro Misiones")
-    questLogBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        if tf.currentBot then
-            DungeonBots:QueryQuests(tf.currentBot)
-        end
-    end)
-    questLogBtn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Registro de Misiones del Bot", 1, 0.85, 0.2)
-        if tf.currentBot then
-            GameTooltip:AddLine("Abre la ventana de misiones activas de " .. tf.currentBot .. " (quests all).", 0.8, 0.9, 1.0, true)
-        else
-            GameTooltip:AddLine("Abre las misiones activas del bot seleccionado.", 0.8, 0.9, 1.0, true)
-        end
-        GameTooltip:Show()
-    end)
-    questLogBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
-    local closeFooterBtn = CreateFrame("Button", nil, tf, "UIPanelButtonTemplate")
-    closeFooterBtn:SetSize(90, 24)
-    closeFooterBtn:SetPoint("BOTTOMRIGHT", tf, "BOTTOMRIGHT", -12, 10)
-    closeFooterBtn:SetText("Cerrar")
-    closeFooterBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOff")
-        tf:Hide()
-    end)
-
-    DungeonBots.talkFrame = tf
-end
-
-local TALK_QUEST_STYLE = {
-    available = {
-        prefix = "|cff34c759[Disponible]|r ",
-        showBtn = true,
-        btnText = "Aceptar",
-        btnIcon = "Interface\\Icons\\INV_Misc_Book_09",
-        btnAction = "accept",
-        rightBadge = nil,
-        border = { 0.25, 0.85, 0.45, 1.0 },
-        tipStatus = "Disponible",
-        tipColor = { 0.2, 0.9, 0.45 },
-        tipHint = "El bot puede tomar esta misión. Pulsa 'Aceptar' o haz clic para inspeccionarla.",
-    },
-    incompleted = {
-        prefix = "|cffff9f0a[En curso]|r ",
-        showBtn = true,
-        btnText = "Abandonar",
-        btnIcon = "Interface\\Icons\\Spell_ChargeNegative",
-        btnAction = "drop",
-        rightBadge = nil,
-        border = { 1.0, 0.55, 0.25, 1.0 },
-        tipStatus = "En curso",
-        tipColor = { 1.0, 0.62, 0.15 },
-        tipHint = "El bot ya lleva esta misión. Clic en el nombre para ver detalles, o pulsa 'Abandonar'.",
-    },
-    completed = {
-        prefix = "|cff00ccff[Completa]|r ",
-        showBtn = true,
-        btnText = "Entregar",
-        btnIcon = "Interface\\Icons\\INV_Misc_Book_09",
-        btnAction = "accept",
-        rightBadge = nil,
-        border = { 0.25, 0.85, 1.0, 1.0 },
-        tipStatus = "Completa (Lista para entregar)",
-        tipColor = { 0.2, 0.85, 1.0 },
-        tipHint = "Objetivos completos. Pulsa 'Entregar' o haz clic para ver detalles.",
-    },
-    unavailable = {
-        prefix = "|cff888888[No disponible]|r ",
-        showBtn = false,
-        btnText = nil,
-        btnIcon = nil,
-        btnAction = nil,
-        rightBadge = "|cff888888Bloqueada|r",
-        border = { 0.5, 0.5, 0.55, 1.0 },
-        tipStatus = "No disponible",
-        tipColor = { 0.65, 0.65, 0.7 },
-        tipHint = "El bot aún no puede tomar esta misión. Clic para ver detalles.",
-    },
-    unknown = {
-        prefix = "|cffffd200[Misión]|r ",
-        showBtn = true,
-        btnText = "Aceptar",
-        btnIcon = "Interface\\Icons\\INV_Misc_Book_09",
-        btnAction = "accept",
-        rightBadge = nil,
-        border = { 1.0, 0.82, 0.25, 1.0 },
-        tipStatus = nil,
-        tipColor = { 1, 0.85, 0.2 },
-        tipHint = "Clic para ver la descripción de la misión.",
-    },
-}
-
-function DungeonBots:UpdateTalkDialog(botName)
-    if not DungeonBots.talkFrame then return end
-    local tf = DungeonBots.talkFrame
-    local targetBot = botName or tf.currentBot
-    if not targetBot then return end
-    if tf:IsShown() and tf.currentBot and botName and tf.currentBot ~= botName then
-        return
-    end
-    tf.currentBot = targetBot
-    tf.title:SetText("|cff00ccffDiálogo PNJ:|r |cffffd200" .. targetBot .. "|r")
-
-    local data = DungeonBots.talkDialogData and DungeonBots.talkDialogData[targetBot]
-    local isBusy = (DungeonBots.IsTalkBusy and DungeonBots:IsTalkBusy(targetBot)) and true or false
-    local npcTitle = (data and data.npcName and data.npcName ~= "") and data.npcName or "PNJ seleccionado"
-    local statusTag = isBusy and "|cff71d5ff[Consultando...]|r" or "|cff34c759[Listo]|r"
-    tf.npcLabel:SetText("PNJ: |cffffd200" .. npcTitle .. "|r  " .. statusTag)
-
-    if tf.requeryBtn then
-        if isBusy then
-            tf.requeryBtn:Disable()
-            tf.requeryBtn:SetText("Consultando...")
-        else
-            tf.requeryBtn:Enable()
-            tf.requeryBtn:SetText("Reconsultar")
-        end
-    end
-
-    if tf.nextBotBtn and DungeonBots.GetTalkBotCycleInfo then
-        local curIdx, total = DungeonBots:GetTalkBotCycleInfo(targetBot)
-        if total >= 2 then
-            tf.nextBotBtn:Enable()
-            if tf.botCycleLabel then
-                local posStr = (curIdx > 0) and (curIdx .. "/" .. total) or ("0/" .. total)
-                tf.botCycleLabel:SetText("|cffaaaaaa(" .. posStr .. ")|r")
-            end
-        else
-            tf.nextBotBtn:Disable()
-            if tf.botCycleLabel then
-                tf.botCycleLabel:SetText(total == 1 and "|cff777777(1/1)|r" or "")
-            end
-        end
-    end
-
-    local lines = (data and data.lines) or {}
-    local actions = (data and data.actions) or {}
-
-    for _, row in ipairs(talkActionRows) do
-        row:Hide()
-    end
-
-    if #actions == 0 then
-        if data and (data.loading or isBusy) then
-            if data.isAcceptCmd then
-                tf.emptyOptLabel:SetText("|cff71d5ffAceptando misión con " .. targetBot .. "...|r")
-            else
-                tf.emptyOptLabel:SetText("|cff71d5ffConsultando opciones y misiones del PNJ con " .. targetBot .. "...|r")
-            end
-        elseif data and data.isAcceptCmd and not data.acceptError then
-            if #lines > 0 then
-                local cleanFallback = DungeonBots:StripChatFormatting(lines[#lines])
-                tf.emptyOptLabel:SetText("|cff34c759" .. cleanFallback .. "|r")
-            else
-                tf.emptyOptLabel:SetText("|cff34c759Misión aceptada.|r Actualizando diálogo del PNJ...")
-            end
-        elseif data and data.acceptError and #lines > 0 then
-            local cleanFallback = DungeonBots:StripChatFormatting(lines[#lines])
-            tf.emptyOptLabel:SetText("|cffff5544No se pudo aceptar la misión:|r\n\n|cffffaaaa" .. cleanFallback .. "|r")
-        elseif #lines > 0 then
-            local cleanFallback = DungeonBots:StripChatFormatting(lines[#lines])
-            tf.emptyOptLabel:SetText("No se detectaron opciones ni misiones disponibles.\n\n|cffaaaaaa(" .. cleanFallback .. ")|r")
-        else
-            tf.emptyOptLabel:SetText("No se detectaron opciones ni misiones disponibles.\nAsegúrate de tener seleccionado un PNJ cerca de " .. targetBot .. " y pulsa 'Reconsultar'.")
-        end
-        tf.emptyOptLabel:Show()
-    else
-        tf.emptyOptLabel:Hide()
-        for i, act in ipairs(actions) do
-            local row = talkActionRows[i] or CreateTalkActionRow(tf.optChild, i)
-            row:Show()
-
-            if act.kind == "quest" then
-                local style = TALK_QUEST_STYLE[act.questState or "unknown"] or TALK_QUEST_STYLE.unknown
-                row.mainBtn:ClearAllPoints()
-                row.mainBtn:SetPoint("TOPLEFT", row, "TOPLEFT", 4, -2)
-                row.mainBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -112, 2)
-                row.label:SetText(style.prefix .. (act.displayLink or act.title or "Misión"))
-                row.mainBtn:SetScript("OnClick", function(self)
-                    PlaySound("igMainMenuOptionCheckBoxOn")
-                    local linkRef = act.questId and ("quest:" .. act.questId .. ":" .. (act.questLevel or "80")) or nil
-                    SafeShowLinkTooltip(self, linkRef, act.displayLink, act.title, act.label)
-                end)
-                row.mainBtn:SetScript("OnEnter", function(self)
-                    local b = style.border
-                    row:SetBackdropBorderColor(b[1], b[2], b[3], b[4])
-                    GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                    GameTooltip:AddLine(act.title or "Misión", 1, 0.85, 0.2)
-                    if style.tipStatus then
-                        local c = style.tipColor
-                        GameTooltip:AddLine("Estado: " .. style.tipStatus, c[1], c[2], c[3])
-                    end
-                    GameTooltip:AddLine(style.tipHint, 0.75, 0.85, 1.0, true)
-                    GameTooltip:Show()
-                end)
-                row.mainBtn:SetScript("OnLeave", function()
-                    row:SetBackdropBorderColor(0.28, 0.34, 0.44, 0.85)
-                    GameTooltip:Hide()
-                end)
-
-                if style.showBtn then
-                    row.statusTag:Hide()
-                    if row.acceptBtn.icon then
-                        row.acceptBtn.icon:SetTexture(style.btnIcon or "Interface\\Icons\\INV_Misc_Book_09")
-                    end
-                    row.acceptBtn:SetText(style.btnText or "Aceptar")
-                    row.acceptBtn:Show()
-                    row.acceptBtn:SetScript("OnClick", function()
-                        if style.btnAction == "drop" then
-                            DungeonBots:DropBotQuest(targetBot, act, true)
-                        else
-                            DungeonBots:SendTalkCommand(targetBot, act.acceptCmd)
-                        end
-                    end)
-                else
-                    row.acceptBtn:Hide()
-                    row.statusTag:SetText(style.rightBadge or "")
-                    row.statusTag:Show()
-                end
-            else
-                row.acceptBtn:Hide()
-                row.statusTag:Hide()
-                row.mainBtn:ClearAllPoints()
-                row.mainBtn:SetPoint("TOPLEFT", row, "TOPLEFT", 4, -2)
-                row.mainBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -4, 2)
-                row.label:SetText("|cff00ccff>|r |cffffe599" .. (act.label or act.cmd or "Opción") .. "|r")
-                row.mainBtn:SetScript("OnClick", function()
-                    PlaySound("igMainMenuOptionCheckBoxOn")
-                    DungeonBots:SendTalkCommand(targetBot, act.cmd)
-                end)
-                row.mainBtn:SetScript("OnEnter", function(self)
-                    row:SetBackdropBorderColor(0.25, 0.78, 1.0, 1.0)
-                    GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                    GameTooltip:AddLine("Enviar: " .. (act.cmd or ""), 0.45, 0.85, 1.0)
-                    GameTooltip:Show()
-                end)
-                row.mainBtn:SetScript("OnLeave", function()
-                    row:SetBackdropBorderColor(0.28, 0.34, 0.44, 0.85)
-                    GameTooltip:Hide()
-                end)
-            end
-        end
-    end
-
-    tf.optChild:SetHeight(math.max(1, (#actions * 30) + 4))
-end
-
-function DungeonBots:OpenTalkDialog(botName)
-    if not DungeonBots.talkFrame then
-        DungeonBots:BuildTalkDialog()
-    end
-    DungeonBots.talkFrame.currentBot = botName
-    DungeonBots:UpdateTalkDialog(botName)
-    DungeonBots.talkFrame:Show()
-    if DungeonBots.talkFrame.Raise then
-        pcall(DungeonBots.talkFrame.Raise, DungeonBots.talkFrame)
-    end
-end
-
--- =========================================================================
 -- PESTAÑA 2: TALENTOS Y EQUIPO (Bot Manager)
 -- =========================================================================
 function DungeonBots:BuildTab2(parent)
-    -- Barra superior de herramientas: Escanear grupo y ayuda
     local topBar = CreateFrame("Frame", nil, parent)
     topBar:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -4)
     topBar:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -4)
@@ -1759,7 +541,6 @@ function DungeonBots:BuildTab2(parent)
         ApplyDarkBackdrop(card, 10)
         card:SetBackdropColor(0.10, 0.12, 0.16, 0.90)
 
-        -- Icono de raza y género
         local cIcon = card:CreateTexture(nil, "ARTWORK")
         cIcon:SetSize(38, 38)
         cIcon:SetPoint("LEFT", 10, 0)
@@ -1767,19 +548,16 @@ function DungeonBots:BuildTab2(parent)
         cIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         card.classIcon = cIcon
 
-        -- Nombre del bot
         local nameText = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         nameText:SetPoint("TOPLEFT", cIcon, "TOPRIGHT", 10, 8)
         nameText:SetText("Bot " .. i)
         card.nameText = nameText
 
-        -- Información de rol / nivel
         local infoText = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         infoText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -4)
         infoText:SetText("Nivel 80")
         card.infoText = infoText
 
-        -- Etiqueta interactiva BOT / JUGADOR
         local botBadge = CreateFrame("Button", nil, card)
         botBadge:SetSize(86, 18)
         botBadge:SetPoint("TOPLEFT", infoText, "BOTTOMLEFT", 0, -6)
@@ -1790,7 +568,6 @@ function DungeonBots:BuildTab2(parent)
         botBadge.text = badgeText
         card.botBadge = botBadge
 
-        -- Aviso para Jugador Humano Real
         local humanNotice = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         humanNotice:SetPoint("LEFT", card, "LEFT", 195, 0)
         humanNotice:SetPoint("RIGHT", card, "RIGHT", -15, 0)
@@ -1799,14 +576,12 @@ function DungeonBots:BuildTab2(parent)
         humanNotice:Hide()
         card.humanNotice = humanNotice
 
-        -- DropDown de Especializaciones Dinámicas (Specs)
         local specDropDown = CreateFrame("Frame", "DungeonBots_SpecDropDown_" .. i, card, "UIDropDownMenuTemplate")
         specDropDown:SetPoint("TOPLEFT", card, "TOPLEFT", 175, -10)
         UIDropDownMenu_SetWidth(specDropDown, 185)
         UIDropDownMenu_JustifyText(specDropDown, "LEFT")
         card.specDropDown = specDropDown
 
-        -- Botones de Equipo debajo del DropDown
         local matchGearBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
         matchGearBtn:SetSize(118, 22)
         matchGearBtn:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 193, 12)
@@ -1819,14 +594,12 @@ function DungeonBots:BuildTab2(parent)
         blueGearBtn:SetText("Equipar Azul")
         card.blueGearBtn = blueGearBtn
 
-        -- Botón Misiones (quests all) arriba de Despedir
         local questsBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
         questsBtn:SetSize(120, 24)
         questsBtn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -16)
         questsBtn:SetText("Misiones")
         card.questsBtn = questsBtn
 
-        -- Botón Despedir bot individual
         local kickBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
         kickBtn:SetSize(120, 24)
         kickBtn:SetPoint("TOP", questsBtn, "BOTTOM", 0, -6)
@@ -1879,15 +652,14 @@ function DungeonBots:UpdatePartyUI()
                 local level = UnitLevel(unit)
 
                 local classColor = (classToken and RAID_CLASS_COLORS[classToken]) or { r = 1, g = 1, b = 1 }
+                local classDisplay = classToken and DungeonBots:GetClassDisplayInfo(classToken, true) or "Clase"
 
                 card.nameText:SetText(name)
                 card.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
-                card.infoText:SetText("Nivel " .. (level > 0 and level or 80) .. " (" .. (classToken or "Clase") .. ")")
+                card.infoText:SetText("Nivel " .. (level > 0 and level or 80) .. " (" .. classDisplay .. ")")
 
-                -- Identificación de Bot vs Jugador Humano (solo bot si fue agregado recientemente, está en historial o fue confirmado)
                 local isBot = DungeonBots:ShouldTreatAsBot(name)
 
-                -- Icono oficial de Raza y Género
                 local raceIcon = DungeonBots:GetRaceIcon(unit)
                 card.classIcon:SetTexture(raceIcon)
                 card.classIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
@@ -1934,15 +706,11 @@ function DungeonBots:UpdatePartyUI()
                 end)
                 card.botBadge:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-                -- Configurar DropDown dinámico de ramas oficiales (según servidor)
+                -- Configurar DropDown dinámico de ramas oficiales (con etiqueta localizada y valor canónico)
                 local currentBotName = name
                 local activeSpec = DungeonBotsDB and DungeonBotsDB.botActiveSpec and DungeonBotsDB.botActiveSpec[currentBotName]
                 if activeSpec and activeSpec ~= "" and DungeonBots.CanonicalizeSpec then
                     activeSpec = DungeonBots:CanonicalizeSpec(currentBotName, activeSpec)
-                end
-                local resolvedSpecs = (DungeonBots.botSpecs and DungeonBots.botSpecs[currentBotName])
-                if (not resolvedSpecs or #resolvedSpecs == 0) and classToken and DungeonBots.DEFAULT_CLASS_SPECS then
-                    resolvedSpecs = DungeonBots.DEFAULT_CLASS_SPECS[classToken]
                 end
 
                 UIDropDownMenu_Initialize(card.specDropDown, function(self, level)
@@ -1986,12 +754,15 @@ function DungeonBots:UpdatePartyUI()
 
                     for _, specName in ipairs(optionList) do
                         local info = UIDropDownMenu_CreateInfo()
-                        info.text = specName
+                        local displaySpec = DungeonBots.LocalizeSpecText
+                            and DungeonBots:LocalizeSpecText(specName)
+                            or specName
+                        info.text = displaySpec
                         info.value = specName
                         info.checked = (currentActive and string.lower(specName) == string.lower(currentActive)) or false
                         info.func = function()
                             UIDropDownMenu_SetSelectedValue(card.specDropDown, specName)
-                            UIDropDownMenu_SetText(card.specDropDown, specName)
+                            UIDropDownMenu_SetText(card.specDropDown, displaySpec)
                             if DungeonBotsDB then
                                 DungeonBotsDB.botActiveSpec = DungeonBotsDB.botActiveSpec or {}
                                 DungeonBotsDB.botActiveSpec[currentBotName] = specName
@@ -2003,8 +774,11 @@ function DungeonBots:UpdatePartyUI()
                 end)
 
                 if activeSpec and activeSpec ~= "" then
+                    local activeDisplay = DungeonBots.LocalizeSpecText
+                        and DungeonBots:LocalizeSpecText(activeSpec)
+                        or activeSpec
                     UIDropDownMenu_SetSelectedValue(card.specDropDown, activeSpec)
-                    UIDropDownMenu_SetText(card.specDropDown, activeSpec)
+                    UIDropDownMenu_SetText(card.specDropDown, activeDisplay)
                 elseif DungeonBots.pendingSpecReset and DungeonBots.pendingSpecReset[currentBotName] then
                     UIDropDownMenu_SetSelectedValue(card.specDropDown, nil)
                     UIDropDownMenu_SetText(card.specDropDown, "Consultando talentos...")
@@ -2013,7 +787,6 @@ function DungeonBots:UpdatePartyUI()
                     UIDropDownMenu_SetText(card.specDropDown, "Sin detectar")
                 end
 
-                -- Botón Misiones (quests all)
                 card.questsBtn:SetScript("OnClick", function()
                     PlaySound("igMainMenuOptionCheckBoxOn")
                     DungeonBots:QueryQuests(name)
@@ -2026,7 +799,6 @@ function DungeonBots:UpdatePartyUI()
                 end)
                 card.questsBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-                -- Botón Adaptar Equipo
                 card.matchGearBtn:SetScript("OnClick", function()
                     PlaySound("igMainMenuOptionCheckBoxOn")
                     DungeonBots:AutogearMatch(name)
@@ -2040,7 +812,6 @@ function DungeonBots:UpdatePartyUI()
                 end)
                 card.matchGearBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-                -- Botón Equipar Azul
                 card.blueGearBtn:SetScript("OnClick", function()
                     PlaySound("igMainMenuOptionCheckBoxOn")
                     DungeonBots:AutogearBlue(name)
@@ -2053,7 +824,6 @@ function DungeonBots:UpdatePartyUI()
                 end)
                 card.blueGearBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-                -- Botón Despedir
                 card.kickBtn:SetScript("OnClick", function()
                     PlaySound("igMainMenuOptionCheckBoxOff")
                     DungeonBots:RemoveBot(name)
@@ -2076,7 +846,6 @@ end
 -- PESTAÑA 3: FORJA / FOSO / CÁMARAS (ICC 5-Man Wizard)
 -- =========================================================================
 function DungeonBots:BuildTab3(parent)
-    -- Caja de Información y Advertencia
     local infoBox = CreateFrame("Frame", nil, parent)
     infoBox:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -4)
     infoBox:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -4)
@@ -2095,7 +864,6 @@ function DungeonBots:BuildTab3(parent)
     infoDesc:SetJustifyH("LEFT")
     infoDesc:SetText("Para que los bots puedan entrar a Foso de Saron y Cámaras de Reflexión, es obligatorio que completen la cadena que inicia en Dalaran.\n|cffff3b30REGLA DEL SERVIDOR:|r Los bots fuera de mazmorra |cffff3b30desaparecen exactamente en 1 minuto (60s)|r.")
 
-    -- Barra de Cuenta Regresiva de Dalaran
     local timerBar = CreateFrame("StatusBar", "DungeonBots_DalaranTimerBar", parent)
     timerBar:SetPoint("TOPLEFT", infoBox, "BOTTOMLEFT", 0, -8)
     timerBar:SetPoint("TOPRIGHT", infoBox, "BOTTOMRIGHT", 0, -8)
@@ -2116,7 +884,6 @@ function DungeonBots:BuildTab3(parent)
     timerBar.text = timerText
     DungeonBots.dalaranTimerBar = timerBar
 
-    -- =================== PASO 1 ===================
     local step1Box = CreateFrame("Frame", nil, parent)
     step1Box:SetPoint("TOPLEFT", timerBar, "BOTTOMLEFT", 0, -8)
     step1Box:SetPoint("TOPRIGHT", timerBar, "BOTTOMRIGHT", 0, -8)
@@ -2141,7 +908,6 @@ function DungeonBots:BuildTab3(parent)
         DungeonBots:DalaranPrep()
     end)
 
-    -- =================== PASO 2 ===================
     local step2Box = CreateFrame("Frame", nil, parent)
     step2Box:SetPoint("TOPLEFT", step1Box, "BOTTOMLEFT", 0, -8)
     step2Box:SetPoint("TOPRIGHT", step1Box, "BOTTOMRIGHT", 0, -8)
@@ -2166,7 +932,6 @@ function DungeonBots:BuildTab3(parent)
         DungeonBots:DungeonReenter()
     end)
 
-    -- =================== PASO 3 ===================
     local step3Box = CreateFrame("Frame", nil, parent)
     step3Box:SetPoint("TOPLEFT", step2Box, "BOTTOMLEFT", 0, -8)
     step3Box:SetPoint("TOPRIGHT", step2Box, "BOTTOMRIGHT", 0, -8)
@@ -2208,11 +973,11 @@ function DungeonBots:UpdateDalaranTimerUI(seconds)
     if seconds > 0 then
         bar.text:SetText("Tiempo restante en Dalaran: |cffffffff" .. seconds .. "s|r")
         if seconds > 30 then
-            bar:SetStatusBarColor(0.2, 0.8, 0.2) -- Verde
+            bar:SetStatusBarColor(0.2, 0.8, 0.2)
         elseif seconds > 15 then
-            bar:SetStatusBarColor(1.0, 0.8, 0.2) -- Amarillo
+            bar:SetStatusBarColor(1.0, 0.8, 0.2)
         else
-            bar:SetStatusBarColor(1.0, 0.2, 0.2) -- Rojo alerta
+            bar:SetStatusBarColor(1.0, 0.2, 0.2)
         end
     else
         bar.text:SetText("Temporizador de Dalaran: Inactivo / Expirado")
@@ -2221,7 +986,7 @@ function DungeonBots:UpdateDalaranTimerUI(seconds)
 end
 
 -- =========================================================================
--- Botón de Minimapa Arrastrable (El Ojo de Mazmorras)
+-- Botón de Minimapa Arrastrable y Gancho en El Ojo de Mazmorras (LFD)
 -- =========================================================================
 function DungeonBots:InitMinimapButton()
     if DungeonBots.minimapBtn then return end
@@ -2236,7 +1001,6 @@ function DungeonBots:InitMinimapButton()
     local icon = btn:CreateTexture(nil, "BACKGROUND")
     icon:SetSize(20, 20)
     icon:SetPoint("CENTER", 0, 0)
-    -- Textura del Ojo Místico de Mazmorras
     icon:SetTexture("Interface\\Icons\\INV_Misc_Eye_02")
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
@@ -2298,11 +1062,7 @@ function DungeonBots:InitMinimapButton()
     DungeonBots.minimapBtn = btn
 end
 
--- =========================================================================
--- Integración con El Ojo de Mazmorras (LFDMicroButton y LFDParentFrame)
--- =========================================================================
 function DungeonBots:HookEye()
-    -- 1. Hook al Ojo del Micro-Menú inferior (LFDMicroButton)
     if LFDMicroButton then
         LFDMicroButton:HookScript("OnMouseUp", function(self, button)
             if button == "RightButton" then
@@ -2312,7 +1072,6 @@ function DungeonBots:HookEye()
         end)
     end
 
-    -- 2. Integrar botón directo dentro de la ventana del Buscador de Mazmorras (LFDParentFrame)
     local function AddLFDButton()
         if not LFDParentFrame or LFDParentFrame.dungeonBotsBtn then return end
 
@@ -2351,5 +1110,3 @@ function DungeonBots:HookEye()
         end)
     end
 end
-
-

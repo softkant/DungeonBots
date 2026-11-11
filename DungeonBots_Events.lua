@@ -1,0 +1,347 @@
+-- =========================================================================
+-- DungeonBots_Events.lua: Eventos WoW y Comandos Slash
+-- =========================================================================
+
+DungeonBots = DungeonBots or {}
+DungeonBots.Internal = DungeonBots.Internal or {}
+
+local DB_Internal = DungeonBots.Internal
+
+local function NowTime()
+    return DB_Internal.NowTime()
+end
+
+local function NormalizePlayerName(name)
+    return DB_Internal.NormalizePlayerName(name)
+end
+
+local function TrimText(str)
+    return DB_Internal.TrimText(str)
+end
+
+-- =========================================================================
+-- Registro y Manejo de Eventos
+-- =========================================================================
+local eventFrame = CreateFrame("Frame", "DungeonBots_EventFrame")
+eventFrame:RegisterEvent("ADDON_LOADED")
+eventFrame:RegisterEvent("PLAYER_LOGIN")
+eventFrame:RegisterEvent("CHAT_MSG_WHISPER")
+eventFrame:RegisterEvent("PARTY_MEMBERS_CHANGED")
+eventFrame:RegisterEvent("UNIT_NAME_UPDATE")
+eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+eventFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+eventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
+
+local function HandlePartyChanged(isEnteringWorld)
+    DungeonBots:ResolvePendingPartyBots()
+    DungeonBots:SyncPartyToHistory()
+    if DungeonBots.CheckPartyForNewBots then
+        DungeonBots:CheckPartyForNewBots()
+    end
+    if DungeonBots.UpdatePartyUI then
+        DungeonBots:UpdatePartyUI()
+    end
+    if DungeonBots.talkFrame and DungeonBots.talkFrame:IsShown() and DungeonBots.UpdateTalkDialog then
+        DungeonBots:UpdateTalkDialog()
+    end
+    if isEnteringWorld and DungeonBots.UpdateHUDVisibility then
+        DungeonBots:UpdateHUDVisibility()
+    end
+    if isEnteringWorld and DungeonBots.UpdateHUDTalkButtonState then
+        DungeonBots:UpdateHUDTalkButtonState()
+    end
+end
+
+eventFrame:SetScript("OnEvent", function(self, event, ...)
+    local DEFAULT_CONFIG = DB_Internal.DEFAULT_CONFIG or {}
+    if event == "ADDON_LOADED" then
+        local addonName = ...
+        if addonName == "DungeonBots" then
+            DungeonBotsDB = DungeonBotsDB or {}
+            for k, v in pairs(DEFAULT_CONFIG) do
+                if DungeonBotsDB[k] == nil then
+                    DungeonBotsDB[k] = v
+                end
+            end
+            DungeonBotsDB.autoInvite = true
+            if DungeonBotsDB.whisperMuteMode == "auto" then
+                DungeonBotsDB.whisperMuteMode = "all"
+            end
+        elseif addonName == "WIM" then
+            if DungeonBots.SetupWIMCompatibility then
+                DungeonBots:SetupWIMCompatibility()
+            end
+        end
+
+    elseif event == "PLAYER_LOGIN" then
+        DungeonBotsDB = DungeonBotsDB or {}
+        for k, v in pairs(DEFAULT_CONFIG) do
+            if DungeonBotsDB[k] == nil then
+                if type(v) == "table" then
+                    DungeonBotsDB[k] = {}
+                    for tk, tv in pairs(v) do
+                        DungeonBotsDB[k][tk] = tv
+                    end
+                else
+                    DungeonBotsDB[k] = v
+                end
+            end
+        end
+        DungeonBotsDB.autoInvite = true
+
+        DungeonBotsDB.botHistory = DungeonBotsDB.botHistory or {}
+        for _, entry in pairs(DungeonBotsDB.botHistory) do
+            if entry and entry.spec and entry.spec ~= "" then
+                entry.spec = DungeonBots:CleanSpecText(entry.spec)
+            end
+        end
+        if DungeonBotsDB.botActiveSpec then
+            for name, activeSpec in pairs(DungeonBotsDB.botActiveSpec) do
+                if activeSpec and activeSpec ~= "" then
+                    DungeonBotsDB.botActiveSpec[name] = DungeonBots:CleanSpecText(activeSpec)
+                end
+            end
+        end
+        if DungeonBotsDB.botSpecs then
+            for _, specList in pairs(DungeonBotsDB.botSpecs) do
+                if type(specList) == "table" then
+                    for idx, specVal in ipairs(specList) do
+                        if type(specVal) == "string" and specVal ~= "" then
+                            specList[idx] = DungeonBots:CleanSpecText(specVal)
+                        end
+                    end
+                end
+            end
+        end
+        DungeonBots.botSpecs = DungeonBotsDB.botSpecs or {}
+        if DungeonBotsDB.whisperMuteMode == "auto" then
+            DungeonBotsDB.whisperMuteMode = "all"
+        end
+
+        DungeonBotsDB.historyMigrated = true
+
+        DungeonBots:SetupChatFilters()
+        DungeonBots:SetupWIMCompatibility()
+        DungeonBots:HookSendChatForTalk()
+
+        DungeonBots:Print("v" .. DungeonBots.VERSION .. " cargado. Escribe |cffffd200/db|r o |cffffd200/bots|r, o pulsa en |cff71d5ffEl Ojo|r del Buscador de Mazmorras.")
+        if DungeonBots.InitUI then
+            DungeonBots:InitUI()
+        end
+        if DungeonBots.InitHUD then
+            DungeonBots:InitHUD()
+        end
+        DungeonBots:SyncPartyToHistory()
+
+    elseif event == "CHAT_MSG_WHISPER" then
+        local message, sender = ...
+        if not sender then return end
+        local cleanSender = NormalizePlayerName(sender)
+        local playerName = UnitName and UnitName("player")
+        if not cleanSender or cleanSender == "" or cleanSender == playerName then
+            return
+        end
+
+        local evalResult = DungeonBots:EvaluateWhisperSender(cleanSender, message, true)
+        if not evalResult or not evalResult.isBot then
+            if DungeonBots.OnWhisperReceived then
+                DungeonBots:OnWhisperReceived(cleanSender, message)
+            end
+            return
+        end
+
+        local inParty = evalResult.inParty
+        local isKnownOrHistory = evalResult.isKnownOrHistory
+        local isBotText = evalResult.isBotText
+
+        if DB_Internal.ParseQuestCaptureWhisper then
+            DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
+        end
+        if DB_Internal.ParseTalkCaptureWhisper then
+            DB_Internal.ParseTalkCaptureWhisper(cleanSender, message)
+        end
+
+        -- Parser dinámico de ramas de talentos y especialización activa en vivo
+        local foundAnySpec, detectedActiveSpec = false, nil
+        if DB_Internal.ParseTalentWhisper then
+            foundAnySpec, detectedActiveSpec = DB_Internal.ParseTalentWhisper(cleanSender, message)
+        end
+        local queryStates = DB_Internal.queryStates
+        local qState = queryStates and queryStates[cleanSender]
+
+        if foundAnySpec and DungeonBotsDB then
+            DungeonBotsDB.botSpecs = DungeonBotsDB.botSpecs or {}
+            DungeonBotsDB.botSpecs[cleanSender] = DungeonBots.botSpecs[cleanSender]
+            if qState then
+                qState.gotSpecList = true
+            end
+            DungeonBots:RegisterBot(cleanSender, true)
+            DungeonBots:RecordBotHistory(cleanSender)
+
+            -- Si 'talents' llegó antes que 'talents spec list', refinar con las ramas reales recién recibidas
+            if not detectedActiveSpec then
+                local refined = nil
+                local lastTriplet = DungeonBots.lastDetectedTriplet and DungeonBots.lastDetectedTriplet[cleanSender]
+                if lastTriplet and DungeonBots.botSpecTriplets[cleanSender] then
+                    refined = DungeonBots.botSpecTriplets[cleanSender][lastTriplet]
+                end
+                if not refined then
+                    local lastTree = DungeonBots.lastDetectedTree and DungeonBots.lastDetectedTree[cleanSender]
+                    if lastTree and DB_Internal.ResolveTreeToSpec then
+                        local candidateRefined = DB_Internal.ResolveTreeToSpec(cleanSender, lastTree)
+                        if candidateRefined and candidateRefined ~= "" and string.lower(candidateRefined) ~= string.lower(lastTree) then
+                            refined = candidateRefined
+                        end
+                    end
+                end
+                if not refined and DungeonBotsDB.botActiveSpec and DungeonBotsDB.botActiveSpec[cleanSender] then
+                    refined = DungeonBots:CanonicalizeSpec(cleanSender, DungeonBotsDB.botActiveSpec[cleanSender])
+                end
+                if refined and refined ~= "" then
+                    detectedActiveSpec = refined
+                end
+            end
+
+            if DungeonBots.UpdatePartyUI then
+                DungeonBots:UpdatePartyUI()
+            end
+        end
+
+        if detectedActiveSpec and detectedActiveSpec ~= "" then
+            detectedActiveSpec = DungeonBots:CanonicalizeSpec(cleanSender, detectedActiveSpec)
+            if DungeonBotsDB then
+                DungeonBotsDB.botActiveSpec = DungeonBotsDB.botActiveSpec or {}
+                DungeonBotsDB.botActiveSpec[cleanSender] = detectedActiveSpec
+            end
+            if qState then
+                qState.gotActiveSpec = true
+            end
+            DungeonBots.pendingSpecReset[cleanSender] = nil
+            DungeonBots:RegisterBot(cleanSender, true)
+            DungeonBots:RecordBotHistory(cleanSender, nil, detectedActiveSpec, nil)
+            if DungeonBots.UpdatePartyUI then
+                DungeonBots:UpdatePartyUI()
+            end
+        end
+
+        local isBotResponse = (foundAnySpec or detectedActiveSpec or isBotText) and true or false
+        if isBotResponse then
+            DungeonBots.confirmedBots[cleanSender] = true
+            DungeonBots:RegisterBot(cleanSender, true)
+            DungeonBots:RecordBotHistory(cleanSender)
+            if DungeonBots:HasPendingScan(cleanSender) then
+                DungeonBots.pendingScan[cleanSender] = nil
+                DungeonBots:Print("Bot confirmado: |cff00e5ff" .. cleanSender .. "|r (respondió automáticamente como bot).")
+            end
+            if DungeonBots.UpdatePartyUI then
+                DungeonBots:UpdatePartyUI()
+            end
+        end
+
+        -- Auto-invite solo para bots recién invocados o bots del historial con respuesta de bot, si hay cupo (< 5 en grupo)
+        local shouldAutoInvite = DungeonBots:IsRecentBot(cleanSender) or (isKnownOrHistory and isBotResponse)
+        if shouldAutoInvite and not inParty and DungeonBots:CanInviteToParty() then
+            if (DungeonBots.recentInvites[cleanSender] or 0) <= NowTime() then
+                DungeonBots.recentInvites[cleanSender] = NowTime() + 3
+                DungeonBots:RecordBotHistory(cleanSender)
+                InviteUnit(cleanSender)
+                DungeonBots:Print("Auto-invitando bot detectado: |cffffd200" .. cleanSender .. "|r")
+            end
+        end
+
+        -- Guardar log de último susurro para la pestaña de bots
+        if DungeonBots.OnWhisperReceived then
+            DungeonBots:OnWhisperReceived(cleanSender, message)
+        end
+
+    elseif event == "PARTY_MEMBERS_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
+        HandlePartyChanged(event == "PLAYER_ENTERING_WORLD")
+
+    elseif event == "UNIT_NAME_UPDATE" then
+        local unit = ...
+        if unit and string.match(unit, "^party%d$") then
+            HandlePartyChanged(false)
+        end
+
+    elseif event == "ZONE_CHANGED_NEW_AREA" then
+        if DungeonBots.UpdateHUDVisibility then
+            DungeonBots:UpdateHUDVisibility()
+        end
+
+    elseif event == "PLAYER_TARGET_CHANGED" then
+        if DungeonBots.UpdateHUDTalkButtonState then
+            DungeonBots:UpdateHUDTalkButtonState()
+        end
+    end
+end)
+
+-- =========================================================================
+-- Comandos Slash (/db, /dungeonbots, /bots, /playerbot)
+-- =========================================================================
+local function CleanMsg(str)
+    if not str then return "" end
+    str = string.gsub(str, "^%s*(.-)%s*$", "%1")
+    return string.lower(str)
+end
+
+SLASH_DUNGEONBOTS1 = "/db"
+SLASH_DUNGEONBOTS2 = "/dungeonbots"
+SLASH_DUNGEONBOTS3 = "/bots"
+SLASH_DUNGEONBOTS4 = "/playerbot"
+
+SlashCmdList["DUNGEONBOTS"] = function(rawMsg)
+    local trimmed = TrimText(rawMsg or "")
+    local msg = CleanMsg(trimmed)
+    if msg == "hud" then
+        if DungeonBots.ToggleHUD then
+            DungeonBots:ToggleHUD()
+        end
+    elseif msg == "talk" or string.match(msg, "^talk%s+") then
+        local botArg = TrimText(string.sub(trimmed, 5))
+        local resolvedBot = nil
+        if botArg ~= "" then
+            local lowerArg = string.lower(botArg)
+            for i = 1, 4 do
+                local pName = UnitName("party" .. i)
+                if pName and string.lower(pName) == lowerArg then
+                    resolvedBot = pName
+                    break
+                end
+            end
+            if not resolvedBot and DungeonBotsDB and DungeonBotsDB.botHistory then
+                for hName in pairs(DungeonBotsDB.botHistory) do
+                    if string.lower(hName) == lowerArg then
+                        resolvedBot = hName
+                        break
+                    end
+                end
+            end
+            resolvedBot = resolvedBot or botArg
+        end
+        DungeonBots:SendTalkCommand(resolvedBot, "talk")
+    elseif msg == "dalaran" then
+        DungeonBots:DalaranPrep()
+    elseif msg == "addall" then
+        DungeonBots:AddAllBots()
+    elseif msg == "dismiss" or msg == "removeall" then
+        DungeonBots:RemoveAllBots()
+    elseif msg == "reset" then
+        if DungeonBotsDB then
+            DungeonBotsDB.hudPosition = { point = "BOTTOM", x = 0, y = 140 }
+            if DungeonBots.hudFrame then
+                DungeonBots.hudFrame:ClearAllPoints()
+                DungeonBots.hudFrame:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 140)
+            end
+            DungeonBots:Print("Posición del HUD restaurada.")
+        end
+    else
+        if DungeonBots.ToggleUI then
+            DungeonBots:ToggleUI()
+        elseif DungeonBots.InitUI then
+            DungeonBots:InitUI()
+            if DungeonBots.ToggleUI then
+                DungeonBots:ToggleUI()
+            end
+        end
+    end
+end

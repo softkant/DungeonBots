@@ -1,27 +1,33 @@
 # DungeonBots — Tactical Dungeon Bot Assistant (WoW 3.3.5a)
 
-**DungeonBots** is a lightweight World of Warcraft 3.3.5a (`Interface: 30300`) addon designed for players using `mod-playerbots` / Playerbots in 5-player dungeons. It provides a visual interface to summon, invite, configure, inspect, gear, and direct party bots without typing chat commands manually.
+**DungeonBots** is a lightweight World of Warcraft 3.3.5a (`Interface: 30300`) addon designed for players using `mod-playerbots` / Playerbots in 5-player dungeons. It provides a modular, visual interface to summon, invite, configure, inspect, gear, and direct party bots without typing chat commands manually.
 
 ---
 
 ## Key Features
 
-### 1. Party Builder (`Armar Grupo` — Tab 1)
+### 1. Client-Language Localization (`GetLocale()`)
+* **Automatic Hyperlink Localization:** Quest titles (`|Hquest:...|h`), item links (`|Hitem:...|h`), and spells (`|Hspell:...|h`) returned by bots in Quest Log, NPC Talk dialogs, tooltips, chat notifications, and visible bot whispers automatically resolve in your WoW client's configured language (`esES`, `esMX`, etc.). Uncached quests and items automatically trigger client WDB queries and update open dialogs in place once cached.
+* **Localized Classes, Specs & Targets:** Party cards, spec dropdowns, and Bot History display localized class names (`_G.LOCALIZED_CLASS_NAMES_MALE`) and localized talent spec names (`esES`/`esMX`) while keeping canonical command tokens (`talents spec`, `accept`, `drop`, `talk`) untouched so bot commands always execute cleanly. When targeting an NPC, the client's localized `UnitName("target")` is preferred over English server whisper headers. *(Plain-text NPC gossip without IDs/links remains unmodified due to WoW 3.3.5a client limitations.)*
+
+---
+
+### 2. Party Builder (`Armar Grupo` — Tab 1)
 * **Bot History (`Historial de bots` / `Ver Historial de bots`):** Automatically records bots you group with (name, class, race/gender portrait, and last known talent spec). Open the history window to individually summon & invite previous bots (`Invitar`, runs `.playerbots bot add <name>` + party invite), remove individual entries, or clear the list.
 * **Summon by Class (`Invocar Bot por Clase Individual`):** 10 class buttons that run `.playerbots bot addclass <class>`.
 * **Smart Auto-Invite & Human Safety:** Newly summoned bots that whisper on creation (within the summon window, when party size < 5) are invited automatically. Real players are never treated as bots unless explicitly confirmed or toggled.
-* **Global Group Controls & Chat Hiding:**
-  * Toggle auto-invite for newly summoned bots.
-  * Toggle whether the floating Combat HUD appears only inside 5-player dungeons (`IsInInstance()` == `"party"`).
-  * **Bot Whisper Hiding (Checkbox):** Toggle hiding all incoming and outgoing whispers with known bots (compatible with Blizzard chat and WIM without touching WIM's SavedVariables); when enabled, reveals an additional checkbox to also hide bot messages in `/p`, `/y`, and `/s`. Real human players (`[JUGADOR]` or unknown players) are never filtered.
-  * **`Reinvocar Grupo`:** Runs `.playerbots bot add *` to recall absent bots that are still in your party.
+* **Settings Modal (Header Gear Icon):**
+  * Show/hide the floating Combat HUD and toggle displaying it only inside 5-player dungeons (`IsInInstance() == "party"`, enabled by default).
+  * **Bot Whisper Hiding:** Toggle hiding all incoming and outgoing whispers with known bots (compatible with Blizzard chat and WIM without touching WIM's SavedVariables); when enabled, reveals an additional option to also hide bot messages in `/p`, `/y`, and `/s`. Real human players (`[JUGADOR]` or unknown players) are never filtered.
+* **Global Group Controls:**
+  * **`Reinvocar Grupo`:** Runs `.playerbots bot add *` + `/p summon` to recall absent bots that are still in your party.
   * **`Despedir a Todos`:** Runs `.playerbots bot remove *` and removes confirmed bots from the party while preserving human players.
   * **`Reparar Equipo`:** Sends `/p repair`.
   * **`Liberar alma`:** Sends `/p release` (note: bots release spirit at the graveyard).
 
 ---
 
-### 2. Party Bot Manager (`Bots en el grupo` — Tab 2)
+### 3. Party Bot Manager (`Bots en el grupo` — Tab 2)
 Displays one tactical card per party slot (`party1` to `party4`):
 * **Bot vs. Human Identification (`¿Quién es bot?`):** Probes unverified party members via discreet `follow info` whispers or lets you click the `[ BOT ]` / `[ JUGADOR ]` badge directly to toggle protection for human friends.
 * **Race & Gender Portraits:** Displays matching character icons per race and sex.
@@ -32,14 +38,14 @@ Displays one tactical card per party slot (`party1` to `party4`):
   * **`Adaptar Equipo`:** Whispers `autogear match` to adapt gear to the active talent spec (includes an item level warning tooltip).
   * **`Equipar Azul`:** Whispers `autogear blue` to equip rare quality gear.
 * **Quests & Dismiss (Right Column):**
-  * **`Misiones`:** Silently queries `quests all` and opens the interactive **Quest Dialog** showing all active quests (or an empty notice when none are active). Click any quest to inspect its details, or click `Abandonar` to send `drop` and automatically refresh the list.
+  * **`Misiones`:** Silently queries `quests all` and opens the interactive **Quest Dialog** showing all active quests (or an empty notice when none are active). Click any quest to inspect its details, or click `Abandonar` to send `drop`, play `igQuestFailed`, and automatically refresh the list.
   * **`Despedir`:** Dismisses the bot (`.playerbots bot remove <name>`) and uninvites it from the party if needed.
 * **NPC Talk Dialog (`talk`):**
-  * Selecting an NPC and whispering `talk` to a bot (`/w <bot> talk`, `/p talk`, `/s talk`, or `/db talk [bot]`) captures the bot's reply cleanly out of chat/WIM and opens an interactive **NPC Dialog** window listing clickable gossip options (`talk 0` / `talk #n`), quest links and accept/turn-in buttons (`accept` / `accept *`) with native quest-accept sound feedback, and a **`Registro Misiones`** button to open the chosen bot's active Quest Log dialog.
+  * Selecting an NPC and querying `talk` (via HUD **Hablar PNJ**, `/w <bot> talk`, `/p talk`, `/s talk`, or `/db talk [bot]`) captures the reply out of chat/WIM and opens an interactive **NPC Dialog** window with clickable gossip options (`talk 0` / `talk #n`), quest accept/turn-in/abandon buttons (`Aceptar`, `Entregar`, `Abandonar`), sequential party bot cycling (**`Siguiente Bot`** with `(index/total)` indicator), **`Reconsultar`**, and **`Registro Misiones`**.
 
 ---
 
-### 3. ICC 5-Man Quest Assistant (`Forja / Foso / Cámaras` — Tab 3)
+### 4. ICC 5-Man Quest Assistant (`Forja / Foso / Cámaras` — Tab 3)
 Automates the Forge of Souls -> Pit of Saron -> Halls of Reflection quest chain under the 60-second out-of-dungeon bot timer:
 1. **60s Dalaran Countdown Bar:** Color-coded progress bar (`green -> yellow -> red`) with a sound warning at 15 seconds remaining.
 2. **Step 1 (`Dalaran`):** Target the quest NPC and press the Step 1 button (`/p summon` + `/p accept *` + starts the 60s timer).
@@ -48,7 +54,7 @@ Automates the Forge of Souls -> Pit of Saron -> Halls of Reflection quest chain 
 
 ---
 
-### 4. Floating Tactical Bar (`Combat HUD`)
+### 5. Floating Tactical Bar (`Combat HUD`)
 Compact, draggable, and lockable floating bar (shown only inside 5-player dungeons by default) with 7 combat actions sent to `/p`:
 1. **Focus Target:** `do attack my target`
 2. **Pull con Tanque:** `pull my target`
@@ -56,7 +62,24 @@ Compact, draggable, and lockable floating bar (shown only inside 5-player dungeo
 4. **Seguir:** `follow`
 5. **Summon:** `summon`
 6. **¡Huir!:** `flee`
-7. **Hablar PNJ:** `talk` (opens a bot selector dropdown if 2+ party bots are present, or queries the single bot directly and opens the interactive NPC Talk dialog)
+7. **Hablar PNJ:** `talk` (opens a bot selector dropdown if 2+ party bots are present, or queries the single bot directly and opens the interactive NPC Talk dialog; disabled when no living non-player NPC is targeted)
+
+---
+
+## Architecture (Modular Files)
+
+- `DungeonBots.toc` — Module manifest (`30300`)
+- `DungeonBots.lua` — Core namespace, defaults, data tables, shared helpers
+- `DungeonBots_Locale.lua` — Client-language localization and async WDB resolution
+- `DungeonBots_Roster.lua` — Bot detection, summoning, dismissing, and Bot History
+- `DungeonBots_Comms.lua` — Chat command dispatch, staggered queue, filters, and WIM hooks
+- `DungeonBots_Talents.lua` — Talent parsing, live queries, spec switching, and autogear
+- `DungeonBots_Quests.lua` — Quest Log & Talk capture engine plus Dalaran timer helpers
+- `DungeonBots_Events.lua` — WoW event dispatcher and slash commands
+- `DungeonBots_HUD.lua` — Floating Combat HUD
+- `DungeonBots_UI.lua` — Main 3-tab UI frame, minimap icon, and LFD eye hooks
+- `DungeonBots_Modals.lua` — Settings and Bot History modal windows
+- `DungeonBots_QuestTalkUI.lua` — Quest Log and NPC Talk modal windows
 
 ---
 
