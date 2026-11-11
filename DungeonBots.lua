@@ -12,6 +12,9 @@ local DEFAULT_CONFIG = {
     hudScale = 1.0,
     hudVisible = true,
     hudOnlyInDungeon = true,
+    whisperMuteMode = "auto",
+    muteBotGroupChat = false,
+    closeWimBotWindows = true,
     hudPosition = { point = "BOTTOM", x = 0, y = 140 },
     minimapAngle = 195,
     lastWhisperLog = {},
@@ -160,6 +163,17 @@ DungeonBots.liveTreePoints = {}
 DungeonBots.botSpecTriplets = {}
 DungeonBots.dalaranTimeRemaining = 0
 DungeonBots.isDalaranTimerRunning = false
+DungeonBots.recentOutgoingAddonWhispers = {}
+DungeonBots.lastAddonCommandAt = {}
+DungeonBots.lastPartyAddonCommandAt = 0
+DungeonBots.justPromotedBotWhisper = {}
+DungeonBots.pendingQuestCapture = {}
+DungeonBots.questDialogData = {}
+DungeonBots.pendingQuestRefresh = {}
+DungeonBots.pendingTalkCapture = {}
+DungeonBots.talkDialogData = {}
+DungeonBots.pendingPartyTalkUntil = 0
+DungeonBots.lastTalkBot = nil
 
 local CLASS_TOKEN_BY_ID = {}
 for _, cls in ipairs(DungeonBots.CLASSES) do
@@ -405,7 +419,12 @@ function DungeonBots:ScanPartyBots()
     if #checkedNames == 0 then
         DungeonBots:Print("Todos los bots actuales del grupo ya respondieron y están confirmados.")
     else
-        DungeonBots:Print("Comprobando quién es bot en: |cffffd200" .. table.concat(checkedNames, ", ") .. "|r (los bots responderán automáticamente en el chat).")
+        local muteMode = (DungeonBotsDB and DungeonBotsDB.whisperMuteMode) or "auto"
+        if muteMode ~= "off" then
+            DungeonBots:Print("Comprobación silenciosa de bots en: |cffffd200" .. table.concat(checkedNames, ", ") .. "|r...")
+        else
+            DungeonBots:Print("Comprobando quién es bot en: |cffffd200" .. table.concat(checkedNames, ", ") .. "|r (los bots responderán automáticamente en el chat).")
+        end
     end
 end
 
@@ -424,6 +443,71 @@ end
 -- Despachador de Comandos
 -- =========================================================================
 
+local isSendingAddonWhisper = false
+
+local function NormalizePlayerName(name)
+    if not name or name == "" then return nil end
+    return string.match(name, "([^-]+)") or name
+end
+
+local function TrimText(str)
+    if not str then return "" end
+    return string.gsub(str, "^%s*(.-)%s*$", "%1")
+end
+
+function DungeonBots:StripChatFormatting(text)
+    if not text or text == "" then return "" end
+    local clean = string.gsub(text, "|c%x%x%x%x%x%x%x%x", "")
+    clean = string.gsub(clean, "|r", "")
+    clean = string.gsub(clean, "|H[^|]*|h(.-)|h", "%1")
+    return clean
+end
+
+local function PruneOutgoingWhispers(list, now)
+    if not list then return end
+    for i = #list, 1, -1 do
+        if not list[i] or (list[i].expiresAt or 0) <= now then
+            table.remove(list, i)
+        end
+    end
+end
+
+function DungeonBots:MarkAddonOutgoingWhisper(botName, cmd, ttlSeconds)
+    local cleanBot = NormalizePlayerName(botName)
+    if not cleanBot or not cmd or cmd == "" then return end
+    local now = NowTime()
+    DungeonBots.recentOutgoingAddonWhispers = DungeonBots.recentOutgoingAddonWhispers or {}
+    local list = DungeonBots.recentOutgoingAddonWhispers[cleanBot]
+    if not list then
+        list = {}
+        DungeonBots.recentOutgoingAddonWhispers[cleanBot] = list
+    end
+    PruneOutgoingWhispers(list, now)
+    table.insert(list, {
+        cmd = string.lower(TrimText(cmd)),
+        expiresAt = now + (ttlSeconds or 4.0),
+    })
+    DungeonBots.lastAddonCommandAt = DungeonBots.lastAddonCommandAt or {}
+    DungeonBots.lastAddonCommandAt[cleanBot] = now + 4.5
+end
+
+function DungeonBots:IsRecentAddonOutgoingWhisper(botName, message)
+    local cleanBot = NormalizePlayerName(botName)
+    if not cleanBot or not DungeonBots.recentOutgoingAddonWhispers then return false end
+    local list = DungeonBots.recentOutgoingAddonWhispers[cleanBot]
+    if not list or #list == 0 then return false end
+    local now = NowTime()
+    PruneOutgoingWhispers(list, now)
+    if #list == 0 then return false end
+    local lowerMsg = string.lower(TrimText(message or ""))
+    for _, entry in ipairs(list) do
+        if entry.cmd == lowerMsg then
+            return true
+        end
+    end
+    return false
+end
+
 -- Comandos con punto (.playerbots bot ...)
 function DungeonBots:SendDotCommand(cmd)
     if not cmd or cmd == "" then return end
@@ -433,6 +517,7 @@ end
 -- Comandos de grupo (/p follow, /p summon, /p accept *, etc.)
 function DungeonBots:SendPartyCommand(cmd)
     if not cmd or cmd == "" then return end
+    DungeonBots.lastPartyAddonCommandAt = NowTime() + 4.5
     if GetNumPartyMembers() > 0 then
         SendChatMessage(cmd, "PARTY")
     else
@@ -444,7 +529,10 @@ end
 -- Comandos por susurro a un bot (/w BotName talents spec ...)
 function DungeonBots:SendWhisperCommand(botName, cmd)
     if not botName or botName == "" or not cmd or cmd == "" then return end
+    DungeonBots:MarkAddonOutgoingWhisper(botName, cmd, 4.0)
+    isSendingAddonWhisper = true
     SendChatMessage(cmd, "WHISPER", nil, botName)
+    isSendingAddonWhisper = false
 end
 
 -- =========================================================================
@@ -970,11 +1058,152 @@ function DungeonBots:AutogearBlue(botName)
     DungeonBots:SendWhisperCommand(botName, "autogear blue")
 end
 
--- Ver misiones del bot
-function DungeonBots:QueryQuests(botName)
-    if not botName then return end
-    DungeonBots:Print("Consultando misiones de |cffffd200" .. botName .. "|r...")
-    DungeonBots:SendWhisperCommand(botName, "quests all")
+local function ExtractSafeQuestLinkFromText(line)
+    if not line or line == "" then return nil end
+    local hStart, hEnd = string.find(line, "|Hquest:[^|]+|h%[[^%]]+%]|h")
+    if not hStart then return nil end
+    if hStart > 10 then
+        local colorPrefix = string.sub(line, hStart - 10, hStart - 1)
+        local colorSuffix = string.sub(line, hEnd + 1, hEnd + 2)
+        if string.match(colorPrefix, "^|c%x%x%x%x%x%x%x%x$") and colorSuffix == "|r" then
+            return string.sub(line, hStart - 10, hEnd + 2), hStart - 10, hEnd + 2, string.sub(line, hStart, hEnd)
+        end
+    end
+    return nil, hStart, hEnd, string.sub(line, hStart, hEnd)
+end
+
+-- Ver misiones del bot (y mostrar en ventana interactiva)
+function DungeonBots:QueryQuests(botName, isSilent)
+    local cleanBot = NormalizePlayerName(botName)
+    if not cleanBot then return end
+    local now = NowTime()
+    DungeonBots.pendingQuestCapture[cleanBot] = {
+        startedAt = now,
+        expiresAt = now + 2.6,
+        finalizeAt = now + 1.8,
+        gotAnyLine = false,
+    }
+    DungeonBots.questDialogData[cleanBot] = {
+        botName = cleanBot,
+        loading = true,
+        done = false,
+        captureSection = "active",
+        quests = {},
+        seenKeys = {},
+        rawLines = {},
+        emptyHint = nil,
+        updatedAt = now,
+    }
+    if DungeonBots.uiCaptureFrame then
+        DungeonBots.uiCaptureFrame:Show()
+    end
+    if DungeonBots.OpenQuestDialog then
+        DungeonBots:OpenQuestDialog(cleanBot)
+    end
+    if not isSilent then
+        local muteMode = (DungeonBotsDB and DungeonBotsDB.whisperMuteMode) or "auto"
+        if muteMode == "off" then
+            DungeonBots:Print("Consultando misiones de |cffffd200" .. cleanBot .. "|r...")
+        end
+    end
+    DungeonBots:SendWhisperCommand(cleanBot, "quests all")
+end
+
+-- Abandonar una misión de un bot y refrescar la lista
+function DungeonBots:DropBotQuest(botName, questEntry)
+    local cleanBot = NormalizePlayerName(botName)
+    if not cleanBot or not questEntry then return end
+    local target = questEntry.safeLink or questEntry.title
+    if not target or target == "" then return end
+    local now = NowTime()
+    DungeonBots.lastAddonCommandAt[cleanBot] = now + 4.5
+    DungeonBots:SendWhisperCommand(cleanBot, "drop " .. target)
+    DungeonBots.pendingQuestRefresh[cleanBot] = now + 0.55
+    if DungeonBots.uiCaptureFrame then
+        DungeonBots.uiCaptureFrame:Show()
+    end
+end
+
+function DungeonBots:FindDefaultTalkBot()
+    if UnitExists("target") and UnitIsPlayer("target") then
+        local targetName = NormalizePlayerName(UnitName("target"))
+        if targetName and DungeonBots:ShouldTreatAsBot(targetName) then
+            return targetName
+        end
+    end
+    if DungeonBots.lastTalkBot and DungeonBots:FindPartyUnitByName(DungeonBots.lastTalkBot) then
+        return DungeonBots.lastTalkBot
+    end
+    for i = 1, 4 do
+        local unit = "party" .. i
+        if UnitExists(unit) then
+            local name = NormalizePlayerName(UnitName(unit))
+            if name and DungeonBots:ShouldTreatAsBot(name) then
+                return name
+            end
+        end
+    end
+    return DungeonBots.lastTalkBot
+end
+
+function DungeonBots:ArmTalkCapture(botName, cmd, resetLines)
+    local cleanBot = NormalizePlayerName(botName)
+    if not cleanBot then return end
+    local now = NowTime()
+    DungeonBots.lastTalkBot = cleanBot
+    local data = DungeonBots.talkDialogData[cleanBot]
+    if resetLines or not data then
+        data = {
+            botName = cleanBot,
+            npcName = (UnitExists("target") and not UnitIsPlayer("target")) and UnitName("target") or (data and data.npcName) or nil,
+            lastCmd = cmd or "talk",
+            loading = true,
+            done = false,
+            lines = {},
+            actions = {},
+            seenActions = {},
+            updatedAt = now,
+        }
+        DungeonBots.talkDialogData[cleanBot] = data
+    else
+        data.loading = true
+        data.done = false
+        data.lastCmd = cmd or data.lastCmd or "talk"
+        if UnitExists("target") and not UnitIsPlayer("target") then
+            data.npcName = UnitName("target")
+        end
+    end
+    DungeonBots.pendingTalkCapture[cleanBot] = {
+        startedAt = now,
+        expiresAt = now + 3.2,
+        finalizeAt = now + 2.0,
+        gotAnyLine = false,
+    }
+    if DungeonBots.uiCaptureFrame then
+        DungeonBots.uiCaptureFrame:Show()
+    end
+    if DungeonBots.OpenTalkDialog then
+        DungeonBots:OpenTalkDialog(cleanBot)
+    end
+end
+
+function DungeonBots:ArmPartyTalkCapture(cmd)
+    local now = NowTime()
+    DungeonBots.pendingPartyTalkUntil = now + 3.0
+    DungeonBots.pendingPartyTalkCmd = cmd or "talk"
+    DungeonBots.pendingPartyTalkNpc = (UnitExists("target") and not UnitIsPlayer("target")) and UnitName("target") or nil
+end
+
+function DungeonBots:SendTalkCommand(botName, cmd)
+    local cleanBot = NormalizePlayerName(botName) or DungeonBots:FindDefaultTalkBot()
+    if not cleanBot then
+        DungeonBots:Warn("No hay ningún bot en el grupo para hablar con el PNJ.")
+        return
+    end
+    local cleanCmd = TrimText(cmd or "talk")
+    if cleanCmd == "" then cleanCmd = "talk" end
+    DungeonBots:ArmTalkCapture(cleanBot, cleanCmd, true)
+    DungeonBots:SendWhisperCommand(cleanBot, cleanCmd)
 end
 
 -- =========================================================================
@@ -1112,11 +1341,7 @@ local CLASS_TREE_BY_TAB = {
 }
 
 local function StripWowFormatting(text)
-    if not text or text == "" then return "" end
-    local clean = string.gsub(text, "|c%x%x%x%x%x%x%x%x", "")
-    clean = string.gsub(clean, "|r", "")
-    clean = string.gsub(clean, "|H[^|]*|h(.-)|h", "%1")
-    return clean
+    return DungeonBots:StripChatFormatting(text)
 end
 
 local function EscapeLuaPattern(str)
@@ -1454,6 +1679,665 @@ local function ParseTalentWhisper(cleanSender, message)
     return foundAnySpec, detectedActiveSpec
 end
 
+-- =========================================================================
+-- Ocultamiento de Mensajes de Bots (Blizzard Chat + WIM) y Capturas UI
+-- =========================================================================
+local chatFiltersRegistered = false
+local sendChatHooked = false
+local wimWrappedMethods = {}
+
+local function HasActiveAddonReplyWindow(cleanName)
+    local now = NowTime()
+    if cleanName and DungeonBots.lastAddonCommandAt and (DungeonBots.lastAddonCommandAt[cleanName] or 0) > now then
+        return true
+    end
+    if (DungeonBots.lastPartyAddonCommandAt or 0) > now then
+        return true
+    end
+    if cleanName and queryStates and queryStates[cleanName] ~= nil then
+        return true
+    end
+    if cleanName and DungeonBots.pendingQuestCapture and DungeonBots.pendingQuestCapture[cleanName] ~= nil then
+        return true
+    end
+    if cleanName and DungeonBots.pendingTalkCapture and DungeonBots.pendingTalkCapture[cleanName] ~= nil then
+        return true
+    end
+    return false
+end
+
+local function IsPureTalentResponse(message)
+    local lowerMsg = string.lower(TrimText(StripWowFormatting(message or "")))
+    if lowerMsg == "" then return false end
+    if string.find(string.lower(message or ""), "|hquest:") then
+        return false
+    end
+    if string.find(lowerMsg, "^available specs")
+        or string.find(lowerMsg, "^talents")
+        or (string.find(lowerMsg, "talents") and string.find(lowerMsg, "%d+/%d+/%d+")) then
+        return true
+    end
+    return false
+end
+
+local function IsBotDetectionText(message)
+    local lowerMsg = string.lower(message or "")
+    return (string.find(lowerMsg, "follow distance")
+        or string.find(lowerMsg, "following")
+        or string.find(lowerMsg, "staying")
+        or string.find(lowerMsg, "strategies:")
+        or string.find(lowerMsg, "available specs")
+        or string.find(lowerMsg, "talents")
+        or string.find(lowerMsg, "co %+")
+        or string.find(lowerMsg, "nc %+")
+        or string.find(lowerMsg, "fleeing")
+        or string.find(lowerMsg, "stats:")
+        or string.find(lowerMsg, "money:")
+        or string.find(lowerMsg, "greetings")
+        or string.find(lowerMsg, "ready")
+        or string.find(lowerMsg, "active quests")
+        or string.find(lowerMsg, "completed quests")
+        or string.find(lowerMsg, "no active quests")
+        or string.find(lowerMsg, "no quests")
+        or string.find(lowerMsg, "|hquest:")
+        or string.find(lowerMsg, "autogear")
+        or string.find(lowerMsg, "nothing to say")
+        or string.find(lowerMsg, "no npc")
+        or string.match(lowerMsg, "%d+[-/]%d+[-/]%d+")) and true or false
+end
+
+local function IsTechnicalBotMessage(message)
+    local lowerMsg = string.lower(message or "")
+    return (string.find(lowerMsg, "follow distance")
+        or string.find(lowerMsg, "following")
+        or string.find(lowerMsg, "staying")
+        or string.find(lowerMsg, "strategies:")
+        or string.find(lowerMsg, "available specs")
+        or string.find(lowerMsg, "talents")
+        or string.find(lowerMsg, "co %+")
+        or string.find(lowerMsg, "nc %+")
+        or string.find(lowerMsg, "fleeing")
+        or string.find(lowerMsg, "stats:")
+        or string.find(lowerMsg, "money:")
+        or string.find(lowerMsg, "active quests")
+        or string.find(lowerMsg, "completed quests")
+        or string.find(lowerMsg, "quest log")
+        or string.find(lowerMsg, "no active quests")
+        or string.find(lowerMsg, "no completed quests")
+        or string.find(lowerMsg, "no quests")
+        or string.find(lowerMsg, "summary:")
+        or string.find(lowerMsg, "quest dropped")
+        or string.find(lowerMsg, "abandoned")
+        or string.find(lowerMsg, "accepting")
+        or string.find(lowerMsg, "accepted")
+        or string.find(lowerMsg, "turned in")
+        or string.find(lowerMsg, "|hquest:")
+        or string.find(lowerMsg, "autogear")
+        or string.find(lowerMsg, "equipped")
+        or string.find(lowerMsg, "equipping")
+        or string.find(lowerMsg, "item level")
+        or string.find(lowerMsg, "avg ilvl")
+        or string.find(lowerMsg, "nothing to say")
+        or string.find(lowerMsg, "no npc")
+        or string.find(lowerMsg, "no target")
+        or string.find(lowerMsg, "gossip")
+        or string.match(lowerMsg, "%d+[-/]%d+[-/]%d+")) and true or false
+end
+
+function DungeonBots:EvaluateWhisperSender(cleanSender, message, allowPromote)
+    if not cleanSender or cleanSender == "" then
+        return { isBot = false }
+    end
+    if DungeonBots:IsBot(cleanSender) == false then
+        return { isBot = false, explicitHuman = true }
+    end
+
+    local inParty = (DungeonBots:FindPartyUnitByName(cleanSender) ~= nil)
+    local isKnownOrHistory = DungeonBots:ShouldTreatAsBot(cleanSender)
+    local hasPendingScan = DungeonBots:HasPendingScan(cleanSender)
+    local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
+    local inRaid = (GetNumRaidMembers and GetNumRaidMembers() > 0)
+    local canConsumeClassSummon = (not isKnownOrHistory)
+        and (not hasPendingScan)
+        and (not inParty)
+        and (not inRaid)
+        and (numParty < 4)
+        and DungeonBots:HasPendingClassSummon()
+
+    local isBotText = IsBotDetectionText(message)
+    local justPromoted = ((DungeonBots.justPromotedBotWhisper[cleanSender] or 0) > NowTime())
+
+    if not isKnownOrHistory and not hasPendingScan and not canConsumeClassSummon then
+        return {
+            isBot = false,
+            isKnownOrHistory = false,
+            inParty = inParty,
+            isBotText = isBotText,
+            justPromoted = justPromoted,
+        }
+    end
+
+    if allowPromote then
+        if hasPendingScan and not isKnownOrHistory then
+            if not isBotText then
+                DungeonBots.pendingScan[cleanSender] = nil
+                return {
+                    isBot = false,
+                    isKnownOrHistory = false,
+                    inParty = inParty,
+                    rejectedScan = true,
+                }
+            end
+            DungeonBots.pendingScan[cleanSender] = nil
+            DungeonBots.confirmedBots[cleanSender] = true
+            DungeonBots:MarkRecentBot(cleanSender, 120)
+            DungeonBots:RegisterBot(cleanSender, true)
+            DungeonBots:RecordBotHistory(cleanSender)
+            DungeonBots.justPromotedBotWhisper[cleanSender] = NowTime() + 1.0
+            DungeonBots:Print("Bot confirmado: |cff00e5ff" .. cleanSender .. "|r (respondió automáticamente como bot).")
+            if DungeonBots.UpdatePartyUI then
+                DungeonBots:UpdatePartyUI()
+            end
+            isKnownOrHistory = true
+            justPromoted = true
+        end
+
+        if canConsumeClassSummon and not isKnownOrHistory then
+            if DungeonBots:ConsumePendingClassSummon() then
+                DungeonBots:MarkRecentBot(cleanSender, 120)
+                DungeonBots:RegisterBot(cleanSender, true)
+                DungeonBots:RecordBotHistory(cleanSender)
+                DungeonBots.justPromotedBotWhisper[cleanSender] = NowTime() + 1.0
+                isKnownOrHistory = true
+                justPromoted = true
+            end
+        end
+    end
+
+    return {
+        isBot = isKnownOrHistory,
+        isKnownOrHistory = isKnownOrHistory,
+        inParty = inParty,
+        hasPendingScan = hasPendingScan,
+        canConsumeClassSummon = canConsumeClassSummon,
+        isBotText = isBotText,
+        justPromoted = justPromoted,
+    }
+end
+
+function DungeonBots:ShouldSuppressChatEvent(event, message, sender)
+    if not DungeonBotsDB or not sender or sender == "" then
+        return false
+    end
+
+    local cleanName = NormalizePlayerName(sender)
+    if not cleanName or cleanName == "" then
+        return false
+    end
+
+    local playerName = UnitName and UnitName("player")
+    if event ~= "CHAT_MSG_WHISPER_INFORM" and cleanName == playerName then
+        return false
+    end
+
+    -- Nunca ocultar a jugadores marcados explícitamente como humanos
+    if DungeonBots:IsBot(cleanName) == false then
+        return false
+    end
+
+    local whisperMode = DungeonBotsDB.whisperMuteMode or "auto"
+    local muteGroup = DungeonBotsDB.muteBotGroupChat and true or false
+
+    if event == "CHAT_MSG_WHISPER_INFORM" then
+        if whisperMode == "off" then
+            return false
+        end
+        if DungeonBots:IsRecentAddonOutgoingWhisper(cleanName, message) then
+            return true
+        end
+        if whisperMode == "all" and DungeonBots:ShouldTreatAsBot(cleanName) then
+            return true
+        end
+        return false
+
+    elseif event == "CHAT_MSG_WHISPER" then
+        if whisperMode == "off" then
+            return false
+        end
+        local eval = DungeonBots:EvaluateWhisperSender(cleanName, message, true)
+        if not eval or not eval.isBot then
+            return false
+        end
+        if whisperMode == "all" then
+            return true
+        end
+        -- Modo "auto": ocultar respuestas técnicas, capturas UI, saludos de invocación/escaneo y ventanas recientes del addon
+        if eval.justPromoted or ((DungeonBots.justPromotedBotWhisper[cleanName] or 0) > NowTime()) then
+            return true
+        end
+        if HasActiveAddonReplyWindow(cleanName) then
+            return true
+        end
+        if IsTechnicalBotMessage(message) then
+            return true
+        end
+        return false
+
+    elseif event == "CHAT_MSG_AFK" or event == "CHAT_MSG_DND" then
+        if whisperMode == "off" or not DungeonBots:ShouldTreatAsBot(cleanName) then
+            return false
+        end
+        if whisperMode == "all" then
+            return true
+        end
+        return HasActiveAddonReplyWindow(cleanName)
+
+    elseif event == "CHAT_MSG_PARTY"
+        or event == "CHAT_MSG_PARTY_LEADER"
+        or event == "CHAT_MSG_SAY"
+        or event == "CHAT_MSG_YELL" then
+        if not muteGroup then
+            return false
+        end
+        return DungeonBots:ShouldTreatAsBot(cleanName)
+    end
+
+    return false
+end
+
+local function ChatEventFilterFunc(self, event, message, sender, ...)
+    if DungeonBots:ShouldSuppressChatEvent(event, message, sender) then
+        return true
+    end
+    return false
+end
+
+function DungeonBots:SetupChatFilters()
+    if chatFiltersRegistered or not ChatFrame_AddMessageEventFilter then return end
+    chatFiltersRegistered = true
+    local events = {
+        "CHAT_MSG_WHISPER",
+        "CHAT_MSG_WHISPER_INFORM",
+        "CHAT_MSG_AFK",
+        "CHAT_MSG_DND",
+        "CHAT_MSG_PARTY",
+        "CHAT_MSG_PARTY_LEADER",
+        "CHAT_MSG_SAY",
+        "CHAT_MSG_YELL",
+    }
+    for _, ev in ipairs(events) do
+        ChatFrame_AddMessageEventFilter(ev, ChatEventFilterFunc)
+    end
+end
+
+function DungeonBots:CloseBotWIMWindows()
+    local wim = _G.WIM
+    if not wim or not wim.windows or not wim.windows.active or not wim.windows.active.whisper then
+        return
+    end
+    for winName, win in pairs(wim.windows.active.whisper) do
+        local clean = NormalizePlayerName(winName)
+        if clean and DungeonBots:ShouldTreatAsBot(clean) and win then
+            if type(win) == "table" then
+                if win.unreadCount ~= nil then
+                    win.unreadCount = 0
+                end
+                if type(win.Hide) == "function" then
+                    win:Hide()
+                end
+            end
+        end
+    end
+end
+
+local function WrapWIMController(modName, mod, methodName, blockItem)
+    if not mod or type(mod[methodName]) ~= "function" then return end
+    local key = modName .. ":" .. methodName
+    if wimWrappedMethods[key] then return end
+    wimWrappedMethods[key] = true
+
+    local orig = mod[methodName]
+    mod[methodName] = function(self, firstArg, ...)
+        if type(firstArg) == "table" and type(firstArg.GetArgs) == "function" and type(firstArg.GetEvent) == "function" then
+            local ev = firstArg:GetEvent()
+            local msg, sender = firstArg:GetArgs()
+            if DungeonBots:ShouldSuppressChatEvent(ev, msg, sender) then
+                if blockItem and type(firstArg.Block) == "function" then
+                    firstArg:Block()
+                end
+                return
+            end
+        end
+        return orig(self, firstArg, ...)
+    end
+end
+
+function DungeonBots:SetupWIMCompatibility()
+    local wim = _G.WIM
+    if not wim or not wim.modules then return end
+
+    if wim.modules.Filters then
+        WrapWIMController("Filters", wim.modules.Filters, "CHAT_MSG_WHISPER_CONTROLLER", true)
+        WrapWIMController("Filters", wim.modules.Filters, "CHAT_MSG_WHISPER_INFORM_CONTROLLER", true)
+    end
+    if wim.modules.ChatFilters then
+        WrapWIMController("ChatFilters", wim.modules.ChatFilters, "CHAT_MSG_PARTY_CONTROLLER", true)
+        WrapWIMController("ChatFilters", wim.modules.ChatFilters, "CHAT_MSG_PARTY_LEADER_CONTROLLER", true)
+        WrapWIMController("ChatFilters", wim.modules.ChatFilters, "CHAT_MSG_SAY_CONTROLLER", true)
+    end
+    if wim.modules.WhisperEngine then
+        WrapWIMController("WhisperEngine", wim.modules.WhisperEngine, "CHAT_MSG_AFK", true)
+        WrapWIMController("WhisperEngine", wim.modules.WhisperEngine, "CHAT_MSG_DND", true)
+    end
+end
+
+function DungeonBots:HookSendChatForTalk()
+    if sendChatHooked or not hooksecurefunc then return end
+    sendChatHooked = true
+    hooksecurefunc("SendChatMessage", function(msg, chatType, language, channel)
+        if isSendingAddonWhisper or not msg or msg == "" then return end
+        local cleanMsg = TrimText(msg)
+        local lowerMsg = string.lower(cleanMsg)
+        local isTalkCmd = (lowerMsg == "talk") or (string.match(lowerMsg, "^talk%s+.+$") ~= nil)
+        local isAcceptFollowup = (DungeonBots.talkFrame and DungeonBots.talkFrame:IsShown())
+            and (lowerMsg == "accept *" or (string.match(lowerMsg, "^accept%s+.+$") ~= nil))
+
+        if not isTalkCmd and not isAcceptFollowup then
+            return
+        end
+
+        if chatType == "WHISPER" and channel then
+            local cleanTarget = NormalizePlayerName(channel)
+            if cleanTarget and DungeonBots:ShouldTreatAsBot(cleanTarget) then
+                DungeonBots:MarkAddonOutgoingWhisper(cleanTarget, msg, 4.0)
+                DungeonBots:ArmTalkCapture(cleanTarget, cleanMsg, isTalkCmd or isAcceptFollowup)
+            end
+        elseif (chatType == "PARTY" or chatType == "SAY") and isTalkCmd then
+            DungeonBots:ArmPartyTalkCapture(cleanMsg)
+        end
+    end)
+end
+
+local uiCaptureFrame = CreateFrame("Frame")
+uiCaptureFrame:Hide()
+DungeonBots.uiCaptureFrame = uiCaptureFrame
+
+uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
+    local now = NowTime()
+    local hasAny = false
+
+    for botName, refreshAt in pairs(DungeonBots.pendingQuestRefresh) do
+        if now >= refreshAt then
+            DungeonBots.pendingQuestRefresh[botName] = nil
+            DungeonBots:QueryQuests(botName, true)
+        else
+            hasAny = true
+        end
+    end
+
+    for botName, cap in pairs(DungeonBots.pendingQuestCapture) do
+        if now >= (cap.finalizeAt or cap.expiresAt or 0) or now >= (cap.expiresAt or 0) then
+            DungeonBots.pendingQuestCapture[botName] = nil
+            local data = DungeonBots.questDialogData[botName]
+            if data then
+                data.loading = false
+                data.done = true
+                if DungeonBots.UpdateQuestDialog then
+                    DungeonBots:UpdateQuestDialog(botName)
+                end
+            end
+        else
+            hasAny = true
+        end
+    end
+
+    for botName, cap in pairs(DungeonBots.pendingTalkCapture) do
+        if now >= (cap.finalizeAt or cap.expiresAt or 0) or now >= (cap.expiresAt or 0) then
+            DungeonBots.pendingTalkCapture[botName] = nil
+            local data = DungeonBots.talkDialogData[botName]
+            if data then
+                data.loading = false
+                data.done = true
+                if DungeonBots.UpdateTalkDialog then
+                    DungeonBots:UpdateTalkDialog(botName)
+                end
+            end
+        else
+            hasAny = true
+        end
+    end
+
+    if not hasAny then
+        self:Hide()
+    end
+end)
+
+local function ParseQuestCaptureWhisper(cleanSender, message)
+    local cap = DungeonBots.pendingQuestCapture[cleanSender]
+    if not cap then return false end
+
+    local now = NowTime()
+    if now > (cap.expiresAt or 0) then
+        DungeonBots.pendingQuestCapture[cleanSender] = nil
+        return false
+    end
+
+    local data = DungeonBots.questDialogData[cleanSender]
+    if not data then return false end
+
+    local fullCleanLower = string.lower(TrimText(StripWowFormatting(message or "")))
+    if IsPureTalentResponse(message) then
+        return false
+    end
+
+    cap.gotAnyLine = true
+    cap.finalizeAt = math.min(cap.expiresAt, now + 0.45)
+    data.loading = false
+    data.updatedAt = now
+
+    for rawLine in string.gmatch(message or "", "[^\r\n]+") do
+        local line = TrimText(rawLine)
+        local cleanLine = TrimText(StripWowFormatting(line))
+        local lowerClean = string.lower(cleanLine)
+
+        if cleanLine ~= "" then
+            table.insert(data.rawLines, line)
+
+            if string.find(lowerClean, "completed quests") or string.find(lowerClean, "^%-*%s*completed") then
+                data.captureSection = "completed"
+            elseif string.find(lowerClean, "active quests") or string.find(lowerClean, "^%-*%s*active") then
+                data.captureSection = "active"
+            elseif string.find(lowerClean, "no active quests")
+                or string.find(lowerClean, "0 active quests")
+                or lowerClean == "no quests"
+                or lowerClean == "none" then
+                data.emptyHint = cleanLine
+                cap.finalizeAt = math.min(cap.finalizeAt, now + 0.25)
+            elseif string.find(lowerClean, "^[-=]+$")
+                or string.find(lowerClean, "^summary:")
+                or string.find(lowerClean, "^total:")
+                or string.find(lowerClean, "no completed quests")
+                or string.find(lowerClean, "quest dropped")
+                or string.find(lowerClean, "abandoned") then
+                -- Encabezado o resumen informativo; no agregar como fila de misión
+            else
+                local scanPos = 1
+                local foundLinkInLine = false
+                while true do
+                    local subLine = string.sub(line, scanPos)
+                    local safeLink, sOff, eOff, plainH = ExtractSafeQuestLinkFromText(subLine)
+                    if not plainH then break end
+
+                    foundLinkInLine = true
+                    local qId, qLevel, qTitle = string.match(plainH, "^|Hquest:(%d+):(-?%d*)|h%[([^%]]+)%]|h$")
+                    qTitle = qTitle or StripWowFormatting(plainH)
+                    local dedupKey = qId and ("id_" .. qId) or ("t_" .. string.lower(qTitle))
+
+                    if not data.seenKeys[dedupKey] then
+                        data.seenKeys[dedupKey] = true
+                        local extraText = ""
+                        if scanPos == 1 and not string.find(string.sub(subLine, eOff + 1), "|Hquest:") then
+                            local beforeTxt = TrimText(StripWowFormatting(string.sub(subLine, 1, sOff - 1)))
+                            beforeTxt = TrimText(string.gsub(beforeTxt, "^[%d#%[%]%.%):%-]+%s*", ""))
+                            local afterTxt = TrimText(StripWowFormatting(string.sub(subLine, eOff + 1)))
+                            extraText = TrimText(beforeTxt .. " " .. afterTxt)
+                        end
+                        table.insert(data.quests, {
+                            questId = qId,
+                            questLevel = (qLevel and qLevel ~= "") and qLevel or "80",
+                            title = qTitle,
+                            safeLink = safeLink,
+                            displayLink = safeLink or ("|cffffff00" .. plainH .. "|r"),
+                            statusText = extraText,
+                            canDrop = (data.captureSection ~= "completed"),
+                            rawLine = line,
+                        })
+                    end
+
+                    scanPos = scanPos + eOff
+                    if scanPos > #line then break end
+                end
+
+                if not foundLinkInLine and data.captureSection ~= "completed" then
+                    local fallbackTitle = TrimText(string.gsub(cleanLine, "^[%d#]+[%.)%]:%-]+%s*", ""))
+                    if fallbackTitle ~= "" and #fallbackTitle > 2 then
+                        local dedupKey = "t_" .. string.lower(fallbackTitle)
+                        if not data.seenKeys[dedupKey] then
+                            data.seenKeys[dedupKey] = true
+                            table.insert(data.quests, {
+                                questId = nil,
+                                questLevel = nil,
+                                title = fallbackTitle,
+                                safeLink = nil,
+                                displayLink = nil,
+                                statusText = "",
+                                canDrop = true,
+                                rawLine = line,
+                            })
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if DungeonBots.UpdateQuestDialog then
+        DungeonBots:UpdateQuestDialog(cleanSender)
+    end
+    return true
+end
+
+local function AddTalkAction(data, key, actionObj)
+    if not data or not key or data.seenActions[key] then return end
+    data.seenActions[key] = true
+    table.insert(data.actions, actionObj)
+end
+
+local function ParseTalkCaptureWhisper(cleanSender, message)
+    local cap = DungeonBots.pendingTalkCapture[cleanSender]
+    if not cap then
+        if (DungeonBots.pendingPartyTalkUntil or 0) > NowTime()
+            and DungeonBots:FindPartyUnitByName(cleanSender)
+            and not IsPureTalentResponse(message) then
+            DungeonBots.pendingPartyTalkUntil = 0
+            DungeonBots:ArmTalkCapture(cleanSender, DungeonBots.pendingPartyTalkCmd or "talk", true)
+            local reclaimed = DungeonBots.talkDialogData[cleanSender]
+            if reclaimed and DungeonBots.pendingPartyTalkNpc and not reclaimed.npcName then
+                reclaimed.npcName = DungeonBots.pendingPartyTalkNpc
+            end
+            cap = DungeonBots.pendingTalkCapture[cleanSender]
+        end
+    end
+    if not cap then return false end
+
+    local now = NowTime()
+    if now > (cap.expiresAt or 0) then
+        DungeonBots.pendingTalkCapture[cleanSender] = nil
+        return false
+    end
+
+    if IsPureTalentResponse(message) then
+        return false
+    end
+
+    local data = DungeonBots.talkDialogData[cleanSender]
+    if not data then return false end
+
+    cap.gotAnyLine = true
+    cap.finalizeAt = math.min((cap.startedAt or now) + 5.0, now + 0.50)
+    cap.expiresAt = math.min((cap.startedAt or now) + 5.5, math.max(cap.expiresAt, now + 1.5))
+    data.loading = false
+    data.updatedAt = now
+
+    for rawLine in string.gmatch(message or "", "[^\r\n]+") do
+        local line = TrimText(rawLine)
+        if line ~= "" then
+            table.insert(data.lines, line)
+
+            local cleanLine = TrimText(StripWowFormatting(line))
+            local headerNpc = string.match(cleanLine, "^%-%-+%s*(.-)%s*%-%-+$")
+                or string.match(cleanLine, "^Talking to%s+([^:]+):?$")
+            if headerNpc and headerNpc ~= "" and not string.find(string.lower(headerNpc), "quest") then
+                data.npcName = headerNpc
+            end
+
+            -- Opciones numeradas de gossip (#1: ..., [#1] ..., 1. ...)
+            local optNum, optBody = string.match(line, "^%s*%[#?(%d+)%]%s*[:%.%-]*%s*(.+)$")
+            if not optNum then
+                optNum, optBody = string.match(line, "^%s*#(%d+)%s*[:%.%-%)]*%s*(.+)$")
+            end
+            if not optNum then
+                optNum, optBody = string.match(line, "^%s*(%d+)[%.%):]%s+(.+)$")
+            end
+
+            local parsedNum = optNum and tonumber(optNum) or nil
+            if parsedNum and parsedNum >= 1 and parsedNum <= 30 and optBody then
+                local cleanOpt = TrimText(StripWowFormatting(optBody))
+                if cleanOpt ~= "" then
+                    AddTalkAction(data, "gossip_" .. optNum, {
+                        kind = "gossip",
+                        cmd = "talk #" .. optNum,
+                        label = "#" .. optNum .. " - " .. cleanOpt,
+                        rawText = line,
+                    })
+                end
+            end
+
+            -- Enlaces de misión dentro del diálogo del PNJ
+            local scanPos = 1
+            while true do
+                local subLine = string.sub(line, scanPos)
+                local safeLink, sOff, eOff, plainH = ExtractSafeQuestLinkFromText(subLine)
+                if not plainH then break end
+
+                local qId, qLevel, qTitle = string.match(plainH, "^|Hquest:(%d+):(-?%d*)|h%[([^%]]+)%]|h$")
+                qTitle = qTitle or StripWowFormatting(plainH)
+                local actionTarget = safeLink or qTitle
+                AddTalkAction(data, "quest_" .. (qId or string.lower(qTitle)), {
+                    kind = "quest",
+                    questId = qId,
+                    questLevel = (qLevel and qLevel ~= "") and qLevel or "80",
+                    title = qTitle,
+                    safeLink = safeLink,
+                    displayLink = safeLink or ("|cffffff00" .. plainH .. "|r"),
+                    acceptCmd = "accept " .. actionTarget,
+                    talkCmd = "talk " .. actionTarget,
+                    label = qTitle,
+                })
+
+                scanPos = scanPos + eOff
+                if scanPos > #line then break end
+            end
+        end
+    end
+
+    if DungeonBots.UpdateTalkDialog then
+        DungeonBots:UpdateTalkDialog(cleanSender)
+    end
+    return true
+end
+
+-- =========================================================================
 -- Registro y Manejo de Eventos
 -- =========================================================================
 local eventFrame = CreateFrame("Frame", "DungeonBots_EventFrame")
@@ -1488,6 +2372,10 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                 if DungeonBotsDB[k] == nil then
                     DungeonBotsDB[k] = v
                 end
+            end
+        elseif addonName == "WIM" then
+            if DungeonBots.SetupWIMCompatibility then
+                DungeonBots:SetupWIMCompatibility()
             end
         end
 
@@ -1534,6 +2422,10 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
 
         DungeonBotsDB.historyMigrated = true
 
+        DungeonBots:SetupChatFilters()
+        DungeonBots:SetupWIMCompatibility()
+        DungeonBots:HookSendChatForTalk()
+
         DungeonBots:Print("v" .. DungeonBots.VERSION .. " cargado. Escribe |cffffd200/db|r o |cffffd200/bots|r, o pulsa en |cff71d5ffEl Ojo|r del Buscador de Mazmorras.")
         if DungeonBots.InitUI then
             DungeonBots:InitUI()
@@ -1546,83 +2438,26 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     elseif event == "CHAT_MSG_WHISPER" then
         local message, sender = ...
         if not sender then return end
-        local cleanSender = string.match(sender, "([^-]+)") or sender
+        local cleanSender = NormalizePlayerName(sender)
         local playerName = UnitName and UnitName("player")
         if not cleanSender or cleanSender == "" or cleanSender == playerName then
             return
         end
 
-        -- Si está marcado explícitamente como jugador humano, tratar siempre como jugador
-        if DungeonBots:IsBot(cleanSender) == false then
+        local evalResult = DungeonBots:EvaluateWhisperSender(cleanSender, message, true)
+        if not evalResult or not evalResult.isBot then
             if DungeonBots.OnWhisperReceived then
                 DungeonBots:OnWhisperReceived(cleanSender, message)
             end
             return
         end
 
-        local inParty = (DungeonBots:FindPartyUnitByName(cleanSender) ~= nil)
-        local isKnownOrHistory = DungeonBots:ShouldTreatAsBot(cleanSender)
-        local hasPendingScan = DungeonBots:HasPendingScan(cleanSender)
-        local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
-        local inRaid = (GetNumRaidMembers and GetNumRaidMembers() > 0)
-        local canConsumeClassSummon = (not isKnownOrHistory)
-            and (not hasPendingScan)
-            and (not inParty)
-            and (not inRaid)
-            and (numParty < 4)
-            and DungeonBots:HasPendingClassSummon()
+        local inParty = evalResult.inParty
+        local isKnownOrHistory = evalResult.isKnownOrHistory
+        local isBotText = evalResult.isBotText
 
-        -- Si no fue agregado recientemente ni está en el historial (ni bajo escaneo manual), tratar como jugador
-        if not isKnownOrHistory and not hasPendingScan and not canConsumeClassSummon then
-            if DungeonBots.OnWhisperReceived then
-                DungeonBots:OnWhisperReceived(cleanSender, message)
-            end
-            return
-        end
-
-        local lowerMsg = string.lower(message or "")
-        local isBotText = (string.find(lowerMsg, "follow distance")
-            or string.find(lowerMsg, "following")
-            or string.find(lowerMsg, "staying")
-            or string.find(lowerMsg, "strategies:")
-            or string.find(lowerMsg, "available specs")
-            or string.find(lowerMsg, "talents")
-            or string.find(lowerMsg, "co %+")
-            or string.find(lowerMsg, "nc %+")
-            or string.find(lowerMsg, "fleeing")
-            or string.find(lowerMsg, "stats:")
-            or string.find(lowerMsg, "money:")
-            or string.find(lowerMsg, "greetings")
-            or string.find(lowerMsg, "ready")
-            or string.match(lowerMsg, "%d+[-/]%d+[-/]%d+")) and true or false
-
-        -- Confirmación manual mediante "¿Quién es bot?"
-        if hasPendingScan and not isKnownOrHistory then
-            if not isBotText then
-                DungeonBots.pendingScan[cleanSender] = nil
-                if DungeonBots.OnWhisperReceived then
-                    DungeonBots:OnWhisperReceived(cleanSender, message)
-                end
-                return
-            end
-            DungeonBots.pendingScan[cleanSender] = nil
-            DungeonBots.confirmedBots[cleanSender] = true
-            DungeonBots:MarkRecentBot(cleanSender, 120)
-            DungeonBots:RegisterBot(cleanSender, true)
-            DungeonBots:RecordBotHistory(cleanSender)
-            DungeonBots:Print("Bot confirmado: |cff00e5ff" .. cleanSender .. "|r (respondió automáticamente como bot).")
-            isKnownOrHistory = true
-        end
-
-        -- Consumo de invocación reciente por clase ("Invocar Bot por Clase")
-        if canConsumeClassSummon and not isKnownOrHistory then
-            if DungeonBots:ConsumePendingClassSummon() then
-                DungeonBots:MarkRecentBot(cleanSender, 120)
-                DungeonBots:RegisterBot(cleanSender, true)
-                DungeonBots:RecordBotHistory(cleanSender)
-                isKnownOrHistory = true
-            end
-        end
+        ParseQuestCaptureWhisper(cleanSender, message)
+        ParseTalkCaptureWhisper(cleanSender, message)
 
         -- Parser dinámico de ramas de talentos y especialización activa en vivo
         local foundAnySpec, detectedActiveSpec = ParseTalentWhisper(cleanSender, message)
@@ -1744,12 +2579,36 @@ SLASH_DUNGEONBOTS2 = "/dungeonbots"
 SLASH_DUNGEONBOTS3 = "/bots"
 SLASH_DUNGEONBOTS4 = "/playerbot"
 
-SlashCmdList["DUNGEONBOTS"] = function(msg)
-    msg = CleanMsg(msg)
+SlashCmdList["DUNGEONBOTS"] = function(rawMsg)
+    local trimmed = TrimText(rawMsg or "")
+    local msg = CleanMsg(trimmed)
     if msg == "hud" then
         if DungeonBots.ToggleHUD then
             DungeonBots:ToggleHUD()
         end
+    elseif msg == "talk" or string.match(msg, "^talk%s+") then
+        local botArg = TrimText(string.sub(trimmed, 5))
+        local resolvedBot = nil
+        if botArg ~= "" then
+            local lowerArg = string.lower(botArg)
+            for i = 1, 4 do
+                local pName = UnitName("party" .. i)
+                if pName and string.lower(pName) == lowerArg then
+                    resolvedBot = pName
+                    break
+                end
+            end
+            if not resolvedBot and DungeonBotsDB and DungeonBotsDB.botHistory then
+                for hName in pairs(DungeonBotsDB.botHistory) do
+                    if string.lower(hName) == lowerArg then
+                        resolvedBot = hName
+                        break
+                    end
+                end
+            end
+            resolvedBot = resolvedBot or botArg
+        end
+        DungeonBots:SendTalkCommand(resolvedBot, "talk")
     elseif msg == "dalaran" then
         DungeonBots:DalaranPrep()
     elseif msg == "addall" then

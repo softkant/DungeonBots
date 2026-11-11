@@ -10,9 +10,10 @@
 * **Bot History (`Historial de bots` / `Ver Historial de bots`):** Automatically records bots you group with (name, class, race/gender portrait, and last known talent spec). Open the history window to individually summon & invite previous bots (`Invitar`, runs `.playerbots bot add <name>` + party invite), remove individual entries, or clear the list.
 * **Summon by Class (`Invocar Bot por Clase Individual`):** 10 class buttons that run `.playerbots bot addclass <class>`.
 * **Smart Auto-Invite & Human Safety:** Newly summoned bots that whisper on creation (within the summon window, when party size < 5) are invited automatically. Real players are never treated as bots unless explicitly confirmed or toggled.
-* **Global Group Controls:**
+* **Global Group Controls & Chat Hiding:**
   * Toggle auto-invite for newly summoned bots.
   * Toggle whether the floating Combat HUD appears only inside 5-player dungeons (`IsInInstance()` == `"party"`).
+  * **Bot Whisper Hiding (Blizzard Chat & WIM Compatible):** Choose between `Desactivado` (Off), `Automáticos` (hides technical queries, summon greetings, quests, NPC talk captures, and addon outgoing whispers while keeping manual whispers visible), and `Todos` (hides all incoming and outgoing whispers with known bots). Includes an optional toggle to also hide bot messages in `/p`, `/y`, and `/s`. Real human players (`[JUGADOR]` or unknown players) are never filtered, and WIM's SavedVariables are never modified.
   * **`Reinvocar Grupo`:** Runs `.playerbots bot add *` to recall absent bots that are still in your party.
   * **`Despedir a Todos`:** Runs `.playerbots bot remove *` and removes confirmed bots from the party while preserving human players.
   * **`Reparar Equipo`:** Sends `/p repair`.
@@ -31,8 +32,10 @@ Displays one tactical card per party slot (`party1` to `party4`):
   * **`Adaptar Equipo`:** Whispers `autogear match` to adapt gear to the active talent spec (includes an item level warning tooltip).
   * **`Equipar Azul`:** Whispers `autogear blue` to equip rare quality gear.
 * **Quests & Dismiss (Right Column):**
-  * **`Misiones`:** Whispers `quests all` to inspect the bot's active quests.
+  * **`Misiones`:** Silently queries `quests all` and opens the interactive **Quest Dialog** showing all active quests (or an empty notice when none are active). Click any quest to inspect its details, or click `Abandonar` to send `drop` and automatically refresh the list.
   * **`Despedir`:** Dismisses the bot (`.playerbots bot remove <name>`) and uninvites it from the party if needed.
+* **NPC Talk Dialog (`talk`):**
+  * Selecting an NPC and whispering `talk` to a bot (`/w <bot> talk`, `/p talk`, `/s talk`, or `/db talk [bot]`) captures the bot's reply cleanly out of chat/WIM and opens an interactive **NPC Dialog** window with clickable quest/item hyperlinks, 1-click numbered gossip options (`talk #n`), quest accept/turn-in buttons (`accept` / `accept *`), and a direct follow-up command bar.
 
 ---
 
@@ -69,6 +72,7 @@ Compact, draggable, and lockable floating bar (shown only inside 5-player dungeo
 * **Slash Commands (`/db`, `/dungeonbots`, `/bots`, `/playerbot`):**
   * `/db` — Toggle main window.
   * `/db hud` — Toggle the floating Combat HUD.
+  * `/db talk [bot]` — Query a bot's current NPC dialog (`talk`) and open the NPC Talk dialog.
   * `/db dalaran` — Trigger the Dalaran prep step.
   * `/db addall` — Recall all bots (`.playerbots bot add *`).
   * `/db dismiss` (or `/db removeall`) — Dismiss all bots (`.playerbots bot remove *`).
