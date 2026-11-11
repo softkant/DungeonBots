@@ -1168,13 +1168,6 @@ local function CreateTalkActionRow(parent, idx)
     label:SetWordWrap(false)
     row.label = label
 
-    local inspectBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-    inspectBtn:SetSize(64, 20)
-    inspectBtn:SetPoint("RIGHT", row, "RIGHT", -104, 0)
-    inspectBtn:SetText("Hablar")
-    inspectBtn:Hide()
-    row.inspectBtn = inspectBtn
-
     local acceptBtn = CreateRedIconButton(row, 96, 20, "Aceptar", "Interface\\Icons\\INV_Misc_Book_09")
     acceptBtn:SetPoint("RIGHT", row, "RIGHT", -4, 0)
     acceptBtn:Hide()
@@ -1246,7 +1239,6 @@ function DungeonBots:BuildTalkDialog()
     acceptAllBtn:SetPoint("TOPRIGHT", tf, "TOPRIGHT", -108, -40)
     acceptAllBtn:SetText("Aceptar *")
     acceptAllBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
         if tf.currentBot then
             DungeonBots:SendTalkCommand(tf.currentBot, "accept *")
         end
@@ -1371,7 +1363,21 @@ function DungeonBots:UpdateTalkDialog(botName)
 
     if #actions == 0 then
         if data and data.loading then
-            tf.emptyOptLabel:SetText("|cff71d5ffConsultando opciones y misiones del PNJ con " .. targetBot .. "...|r")
+            if data.isAcceptCmd then
+                tf.emptyOptLabel:SetText("|cff71d5ffAceptando misión con " .. targetBot .. "...|r")
+            else
+                tf.emptyOptLabel:SetText("|cff71d5ffConsultando opciones y misiones del PNJ con " .. targetBot .. "...|r")
+            end
+        elseif data and data.isAcceptCmd and not data.acceptError then
+            if #lines > 0 then
+                local cleanFallback = DungeonBots:StripChatFormatting(lines[#lines])
+                tf.emptyOptLabel:SetText("|cff34c759" .. cleanFallback .. "|r")
+            else
+                tf.emptyOptLabel:SetText("|cff34c759Misión aceptada.|r Actualizando diálogo del PNJ...")
+            end
+        elseif data and data.acceptError and #lines > 0 then
+            local cleanFallback = DungeonBots:StripChatFormatting(lines[#lines])
+            tf.emptyOptLabel:SetText("|cffff5544No se pudo aceptar la misión:|r\n\n|cffffaaaa" .. cleanFallback .. "|r")
         elseif #lines > 0 then
             local cleanFallback = DungeonBots:StripChatFormatting(lines[#lines])
             tf.emptyOptLabel:SetText("No se detectaron opciones ni misiones disponibles.\n\n|cffaaaaaa(" .. cleanFallback .. ")|r")
@@ -1388,7 +1394,7 @@ function DungeonBots:UpdateTalkDialog(botName)
             if act.kind == "quest" then
                 row.mainBtn:ClearAllPoints()
                 row.mainBtn:SetPoint("TOPLEFT", row, "TOPLEFT", 4, -2)
-                row.mainBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -172, 2)
+                row.mainBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -104, 2)
                 row.label:SetText("|cffffd200[Misión]|r " .. (act.displayLink or act.title or "Misión"))
                 row.mainBtn:SetScript("OnClick", function(self)
                     PlaySound("igMainMenuOptionCheckBoxOn")
@@ -1407,18 +1413,11 @@ function DungeonBots:UpdateTalkDialog(botName)
                     GameTooltip:Hide()
                 end)
 
-                row.inspectBtn:Show()
-                row.inspectBtn:SetScript("OnClick", function()
-                    PlaySound("igMainMenuOptionCheckBoxOn")
-                    DungeonBots:SendTalkCommand(targetBot, act.talkCmd or ("talk " .. (act.safeLink or act.title)))
-                end)
                 row.acceptBtn:Show()
                 row.acceptBtn:SetScript("OnClick", function()
-                    PlaySound("igMainMenuOptionCheckBoxOn")
                     DungeonBots:SendTalkCommand(targetBot, act.acceptCmd)
                 end)
             else
-                row.inspectBtn:Hide()
                 row.acceptBtn:Hide()
                 row.mainBtn:ClearAllPoints()
                 row.mainBtn:SetPoint("TOPLEFT", row, "TOPLEFT", 4, -2)

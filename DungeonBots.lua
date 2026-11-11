@@ -170,6 +170,7 @@ DungeonBots.questDialogData = {}
 DungeonBots.pendingQuestRefresh = {}
 DungeonBots.pendingTalkCapture = {}
 DungeonBots.talkDialogData = {}
+DungeonBots.pendingTalkRefresh = {}
 DungeonBots.pendingPartyTalkUntil = 0
 DungeonBots.lastTalkBot = nil
 
@@ -1072,10 +1073,12 @@ function DungeonBots:QueryQuests(botName, isSilent)
     local cleanBot = NormalizePlayerName(botName)
     if not cleanBot then return end
     local now = NowTime()
+    DungeonBots.pendingTalkCapture[cleanBot] = nil
+    DungeonBots.pendingTalkRefresh[cleanBot] = nil
     DungeonBots.pendingQuestCapture[cleanBot] = {
         startedAt = now,
-        expiresAt = now + 2.6,
-        finalizeAt = now + 1.8,
+        expiresAt = now + 3.5,
+        finalizeAt = now + 2.2,
         gotAnyLine = false,
     }
     DungeonBots.questDialogData[cleanBot] = {
@@ -1170,6 +1173,10 @@ function DungeonBots:ArmTalkCapture(botName, cmd, resetLines)
     local cleanBot = NormalizePlayerName(botName)
     if not cleanBot then return end
     local now = NowTime()
+    local lowerCmd = string.lower(TrimText(cmd or "talk"))
+    local isAcceptCmd = (lowerCmd == "accept *" or lowerCmd == "accept" or string.match(lowerCmd, "^accept%s+.+$") ~= nil)
+    DungeonBots.pendingQuestCapture[cleanBot] = nil
+    DungeonBots.pendingTalkRefresh[cleanBot] = nil
     DungeonBots.lastTalkBot = cleanBot
     local data = DungeonBots.talkDialogData[cleanBot]
     if resetLines or not data then
@@ -1177,6 +1184,8 @@ function DungeonBots:ArmTalkCapture(botName, cmd, resetLines)
             botName = cleanBot,
             npcName = (UnitExists("target") and not UnitIsPlayer("target")) and UnitName("target") or (data and data.npcName) or nil,
             lastCmd = cmd or "talk",
+            isAcceptCmd = isAcceptCmd,
+            acceptError = false,
             loading = true,
             done = false,
             lines = {},
@@ -1189,15 +1198,18 @@ function DungeonBots:ArmTalkCapture(botName, cmd, resetLines)
         data.loading = true
         data.done = false
         data.lastCmd = cmd or data.lastCmd or "talk"
+        data.isAcceptCmd = isAcceptCmd
+        data.acceptError = false
         if UnitExists("target") and not UnitIsPlayer("target") then
             data.npcName = UnitName("target")
         end
     end
     DungeonBots.pendingTalkCapture[cleanBot] = {
         startedAt = now,
-        expiresAt = now + 3.2,
-        finalizeAt = now + 2.0,
+        expiresAt = now + (isAcceptCmd and 1.4 or 3.2),
+        finalizeAt = now + (isAcceptCmd and 0.85 or 2.0),
         gotAnyLine = false,
+        isAcceptCmd = isAcceptCmd,
     }
     if DungeonBots.uiCaptureFrame then
         DungeonBots.uiCaptureFrame:Show()
@@ -2018,6 +2030,17 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
         end
     end
 
+    for botName, refreshAt in pairs(DungeonBots.pendingTalkRefresh) do
+        if now >= refreshAt then
+            DungeonBots.pendingTalkRefresh[botName] = nil
+            if DungeonBots.talkFrame and DungeonBots.talkFrame:IsShown() and DungeonBots.talkFrame.currentBot == botName then
+                DungeonBots:SendTalkCommand(botName, "talk")
+            end
+        else
+            hasAny = true
+        end
+    end
+
     for botName, cap in pairs(DungeonBots.pendingQuestCapture) do
         if now >= (cap.finalizeAt or cap.expiresAt or 0) or now >= (cap.expiresAt or 0) then
             DungeonBots.pendingQuestCapture[botName] = nil
@@ -2041,6 +2064,23 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
             if data then
                 data.loading = false
                 data.done = true
+                if cap.isAcceptCmd then
+                    if data.acceptError then
+                        if not data.playedAcceptSound then
+                            data.playedAcceptSound = true
+                            PlaySound("igQuestFailed")
+                        end
+                    else
+                        if not data.playedAcceptSound then
+                            data.playedAcceptSound = true
+                            PlaySound("QUESTADDED")
+                        end
+                        if DungeonBots.talkFrame and DungeonBots.talkFrame:IsShown() and DungeonBots.talkFrame.currentBot == botName then
+                            DungeonBots.pendingTalkRefresh[botName] = now + 0.15
+                            hasAny = true
+                        end
+                    end
+                end
                 if DungeonBots.UpdateTalkDialog then
                     DungeonBots:UpdateTalkDialog(botName)
                 end
@@ -2074,7 +2114,7 @@ local function ParseQuestCaptureWhisper(cleanSender, message)
     end
 
     cap.gotAnyLine = true
-    cap.finalizeAt = math.min(cap.expiresAt, now + 0.45)
+    cap.finalizeAt = math.min(cap.expiresAt, now + 0.75)
     data.loading = false
     data.updatedAt = now
 
@@ -2176,12 +2216,61 @@ local function AddTalkAction(data, key, actionObj)
     table.insert(data.actions, actionObj)
 end
 
+local function IsQuestLogDumpMessage(message)
+    local lowerClean = string.lower(TrimText(StripWowFormatting(message or "")))
+    if lowerClean == "" then return false end
+    if string.find(lowerClean, "active quests", 1, true)
+        or string.find(lowerClean, "completed quests", 1, true)
+        or string.find(lowerClean, "no active quests", 1, true)
+        or string.find(lowerClean, "^summary:", 1, false) then
+        return true
+    end
+    return false
+end
+
+local function ClassifyTalkQuestLine(lowerClean, isAcceptCmd)
+    local isError = (string.find(lowerClean, "cannot", 1, true)
+        or string.find(lowerClean, "couldn't", 1, true)
+        or string.find(lowerClean, "could not", 1, true)
+        or string.find(lowerClean, "unable", 1, true)
+        or string.find(lowerClean, "not ready", 1, true)
+        or string.find(lowerClean, "failed", 1, true)
+        or string.find(lowerClean, "don't meet", 1, true)
+        or string.find(lowerClean, "quest log is full", 1, true)
+        or string.find(lowerClean, "no npc", 1, true)
+        or string.find(lowerClean, "out of range", 1, true)) and true or false
+
+    if isAcceptCmd then
+        return true, isError
+    end
+
+    local isAlreadyOrBlocked = isError
+        or string.find(lowerClean, "in progress", 1, true)
+        or string.find(lowerClean, "incomplete", 1, true)
+        or string.find(lowerClean, "already", 1, true)
+        or string.find(lowerClean, "on quest", 1, true)
+        or string.find(lowerClean, "accepted", 1, true)
+        or string.find(lowerClean, "turned in", 1, true)
+        or string.find(lowerClean, "aceptada", 1, true)
+        or string.find(lowerClean, "en progreso", 1, true)
+        or string.find(lowerClean, "en curso", 1, true)
+        or string.find(lowerClean, "ya tienes", 1, true)
+        or string.find(lowerClean, "entregada", 1, true)
+
+    return isAlreadyOrBlocked and true or false, false
+end
+
 local function ParseTalkCaptureWhisper(cleanSender, message)
+    if DungeonBots.pendingQuestCapture and DungeonBots.pendingQuestCapture[cleanSender] then
+        return false
+    end
+
     local cap = DungeonBots.pendingTalkCapture[cleanSender]
     if not cap then
         if (DungeonBots.pendingPartyTalkUntil or 0) > NowTime()
             and DungeonBots:FindPartyUnitByName(cleanSender)
-            and not IsPureTalentResponse(message) then
+            and not IsPureTalentResponse(message)
+            and not IsQuestLogDumpMessage(message) then
             DungeonBots.pendingPartyTalkUntil = 0
             DungeonBots:ArmTalkCapture(cleanSender, DungeonBots.pendingPartyTalkCmd or "talk", true)
             local reclaimed = DungeonBots.talkDialogData[cleanSender]
@@ -2199,7 +2288,7 @@ local function ParseTalkCaptureWhisper(cleanSender, message)
         return false
     end
 
-    if IsPureTalentResponse(message) then
+    if IsPureTalentResponse(message) or IsQuestLogDumpMessage(message) then
         return false
     end
 
@@ -2207,8 +2296,13 @@ local function ParseTalkCaptureWhisper(cleanSender, message)
     if not data then return false end
 
     cap.gotAnyLine = true
-    cap.finalizeAt = math.min((cap.startedAt or now) + 5.0, now + 0.50)
-    cap.expiresAt = math.min((cap.startedAt or now) + 5.5, math.max(cap.expiresAt, now + 1.5))
+    if cap.isAcceptCmd then
+        cap.finalizeAt = math.min((cap.startedAt or now) + 2.0, now + 0.20)
+        cap.expiresAt = math.min((cap.startedAt or now) + 2.5, math.max(cap.expiresAt, now + 0.6))
+    else
+        cap.finalizeAt = math.min((cap.startedAt or now) + 5.0, now + 0.50)
+        cap.expiresAt = math.min((cap.startedAt or now) + 5.5, math.max(cap.expiresAt, now + 1.5))
+    end
     data.loading = false
     data.updatedAt = now
 
@@ -2222,12 +2316,28 @@ local function ParseTalkCaptureWhisper(cleanSender, message)
             end
 
             local cleanLine = TrimText(StripWowFormatting(line))
+            local lowerClean = string.lower(cleanLine)
             local headerNpc = string.match(cleanLine, "^%-%-+%s*(.-)%s*%-%-+$")
                 or string.match(cleanLine, "^Talking to%s+([^:]+):?$")
             local isNpcHeaderLine = false
             if headerNpc and headerNpc ~= "" and not string.find(string.lower(headerNpc), "quest") then
                 data.npcName = headerNpc
                 isNpcHeaderLine = true
+            end
+
+            local hasQuestLinkInLine = (string.find(line, "|Hquest:", 1, true) ~= nil)
+            local skipQuestAction, isAcceptErr = ClassifyTalkQuestLine(lowerClean, cap.isAcceptCmd)
+            if cap.isAcceptCmd then
+                if isAcceptErr then
+                    data.acceptError = true
+                elseif (string.find(lowerClean, "accepted", 1, true)
+                    or string.find(lowerClean, "aceptada", 1, true)
+                    or string.find(lowerClean, "completed", 1, true)
+                    or string.find(lowerClean, "turned in", 1, true))
+                    and not data.playedAcceptSound then
+                    data.playedAcceptSound = true
+                    PlaySound("QUESTADDED")
+                end
             end
 
             -- Opciones numeradas de gossip ([0] ..., [1] ..., #1: ..., 1. ...)
@@ -2246,18 +2356,19 @@ local function ParseTalkCaptureWhisper(cleanSender, message)
                 local cleanOpt = TrimText(StripWowFormatting(optBody))
                 if cleanOpt ~= "" then
                     isOptionLine = true
-                    AddTalkAction(data, "gossip_" .. optNum, {
-                        kind = "gossip",
-                        cmd = hadHash and ("talk #" .. optNum) or ("talk " .. optNum),
-                        label = cleanOpt,
-                        rawText = line,
-                    })
+                    if not hasQuestLinkInLine then
+                        AddTalkAction(data, "gossip_" .. optNum, {
+                            kind = "gossip",
+                            cmd = hadHash and ("talk #" .. optNum) or ("talk " .. optNum),
+                            label = cleanOpt,
+                            rawText = line,
+                        })
+                    end
                 end
             end
 
             if not isNpcHeaderLine then
                 if isOptionLine then
-                    -- Si contiene enlace clicable, mostrarlo en el diálogo sin el número [0]
                     if string.find(line, "|H") then
                         local cleanBody = TrimText(optBody)
                         if cleanBody ~= "" then
@@ -2270,29 +2381,31 @@ local function ParseTalkCaptureWhisper(cleanSender, message)
             end
 
             -- Enlaces de misión dentro del diálogo del PNJ
-            local scanPos = 1
-            while true do
-                local subLine = string.sub(line, scanPos)
-                local safeLink, sOff, eOff, plainH = ExtractSafeQuestLinkFromText(subLine)
-                if not plainH then break end
+            if hasQuestLinkInLine and not skipQuestAction then
+                local scanPos = 1
+                while true do
+                    local subLine = string.sub(line, scanPos)
+                    local safeLink, sOff, eOff, plainH = ExtractSafeQuestLinkFromText(subLine)
+                    if not plainH then break end
 
-                local qId, qLevel, qTitle = string.match(plainH, "^|Hquest:(%d+):(-?%d*)|h%[([^%]]+)%]|h$")
-                qTitle = qTitle or StripWowFormatting(plainH)
-                local actionTarget = safeLink or qTitle
-                AddTalkAction(data, "quest_" .. (qId or string.lower(qTitle)), {
-                    kind = "quest",
-                    questId = qId,
-                    questLevel = (qLevel and qLevel ~= "") and qLevel or "80",
-                    title = qTitle,
-                    safeLink = safeLink,
-                    displayLink = safeLink or ("|cffffff00" .. plainH .. "|r"),
-                    acceptCmd = "accept " .. actionTarget,
-                    talkCmd = "talk " .. actionTarget,
-                    label = qTitle,
-                })
+                    local qId, qLevel, qTitle = string.match(plainH, "^|Hquest:(%d+):(-?%d*)|h%[([^%]]+)%]|h$")
+                    qTitle = qTitle or StripWowFormatting(plainH)
+                    local actionTarget = safeLink or qTitle
+                    AddTalkAction(data, "quest_" .. (qId or string.lower(qTitle)), {
+                        kind = "quest",
+                        questId = qId,
+                        questLevel = (qLevel and qLevel ~= "") and qLevel or "80",
+                        title = qTitle,
+                        safeLink = safeLink,
+                        displayLink = safeLink or ("|cffffff00" .. plainH .. "|r"),
+                        acceptCmd = "accept " .. actionTarget,
+                        talkCmd = "talk " .. actionTarget,
+                        label = qTitle,
+                    })
 
-                scanPos = scanPos + eOff
-                if scanPos > #line then break end
+                    scanPos = scanPos + eOff
+                    if scanPos > #line then break end
+                end
             end
         end
     end
