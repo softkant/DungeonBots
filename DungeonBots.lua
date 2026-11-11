@@ -1189,6 +1189,22 @@ function DungeonBots:HasValidNpcTarget()
     return true
 end
 
+function DungeonBots:IsTalkBusy(botName)
+    local cleanBot = NormalizePlayerName(botName)
+    if not cleanBot then return false end
+    local data = DungeonBots.talkDialogData and DungeonBots.talkDialogData[cleanBot]
+    if data and data.loading then
+        return true
+    end
+    if DungeonBots.pendingTalkCapture and DungeonBots.pendingTalkCapture[cleanBot] then
+        return true
+    end
+    if DungeonBots.pendingTalkRefresh and DungeonBots.pendingTalkRefresh[cleanBot] then
+        return true
+    end
+    return false
+end
+
 function DungeonBots:GetPartyBotsList()
     local bots = {}
     local seen = {}

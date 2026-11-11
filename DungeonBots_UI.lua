@@ -131,8 +131,8 @@ function DungeonBots:InitUI()
 
     -- Botón de cerrar
     local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
-    closeBtn:SetSize(24, 24)
-    closeBtn:SetPoint("RIGHT", 0, 0)
+    closeBtn:SetSize(32, 32)
+    closeBtn:SetPoint("RIGHT", header, "RIGHT", 2, 0)
     closeBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOff")
         f:Hide()
@@ -141,7 +141,7 @@ function DungeonBots:InitUI()
     -- Botón de configuración (engranaje) en la cabecera
     local settingsBtn = CreateFrame("Button", "DungeonBots_SettingsHeaderBtn", header)
     settingsBtn:SetSize(20, 20)
-    settingsBtn:SetPoint("RIGHT", closeBtn, "LEFT", -4, 0)
+    settingsBtn:SetPoint("RIGHT", closeBtn, "LEFT", -2, 0)
 
     local settingsIcon = settingsBtn:CreateTexture(nil, "ARTWORK")
     settingsIcon:SetAllPoints()
@@ -1355,34 +1355,27 @@ function DungeonBots:BuildTalkDialog()
         tf:Hide()
     end)
 
+    local requeryBtn = CreateFrame("Button", nil, tf, "UIPanelButtonTemplate")
+    requeryBtn:SetSize(106, 22)
+    requeryBtn:SetPoint("TOPRIGHT", tf, "TOPRIGHT", -12, -40)
+    requeryBtn:SetText("Reconsultar")
+    requeryBtn:SetScript("OnClick", function()
+        if not tf.currentBot then return end
+        if DungeonBots.IsTalkBusy and DungeonBots:IsTalkBusy(tf.currentBot) then
+            return
+        end
+        PlaySound("igMainMenuOptionCheckBoxOn")
+        DungeonBots:SendTalkCommand(tf.currentBot, "talk")
+    end)
+    tf.requeryBtn = requeryBtn
+
     local npcLabel = tf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     npcLabel:SetPoint("TOPLEFT", 14, -44)
-    npcLabel:SetWidth(310)
+    npcLabel:SetPoint("RIGHT", requeryBtn, "LEFT", -8, 0)
     npcLabel:SetJustifyH("LEFT")
     npcLabel:SetWordWrap(false)
     npcLabel:SetText("PNJ: |cffffd200Objetivo actual|r")
     tf.npcLabel = npcLabel
-
-    local acceptAllBtn = CreateFrame("Button", nil, tf, "UIPanelButtonTemplate")
-    acceptAllBtn:SetSize(88, 22)
-    acceptAllBtn:SetPoint("TOPRIGHT", tf, "TOPRIGHT", -108, -40)
-    acceptAllBtn:SetText("Aceptar *")
-    acceptAllBtn:SetScript("OnClick", function()
-        if tf.currentBot then
-            DungeonBots:SendTalkCommand(tf.currentBot, "accept *")
-        end
-    end)
-
-    local requeryBtn = CreateFrame("Button", nil, tf, "UIPanelButtonTemplate")
-    requeryBtn:SetSize(92, 22)
-    requeryBtn:SetPoint("TOPRIGHT", tf, "TOPRIGHT", -12, -40)
-    requeryBtn:SetText("Reconsultar")
-    requeryBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        if tf.currentBot then
-            DungeonBots:SendTalkCommand(tf.currentBot, "talk")
-        end
-    end)
 
     -- Lista principal de opciones y misiones detectadas (1 clic)
     local optTitle = tf:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -1533,9 +1526,20 @@ function DungeonBots:UpdateTalkDialog(botName)
     tf.title:SetText("|cff00ccffDiálogo PNJ:|r |cffffd200" .. targetBot .. "|r")
 
     local data = DungeonBots.talkDialogData and DungeonBots.talkDialogData[targetBot]
+    local isBusy = (DungeonBots.IsTalkBusy and DungeonBots:IsTalkBusy(targetBot)) and true or false
     local npcTitle = (data and data.npcName and data.npcName ~= "") and data.npcName or "PNJ seleccionado"
-    local statusTag = (data and data.loading) and "|cff71d5ff[Consultando...]|r" or "|cff34c759[Listo]|r"
+    local statusTag = isBusy and "|cff71d5ff[Consultando...]|r" or "|cff34c759[Listo]|r"
     tf.npcLabel:SetText("PNJ: |cffffd200" .. npcTitle .. "|r  " .. statusTag)
+
+    if tf.requeryBtn then
+        if isBusy then
+            tf.requeryBtn:Disable()
+            tf.requeryBtn:SetText("Consultando...")
+        else
+            tf.requeryBtn:Enable()
+            tf.requeryBtn:SetText("Reconsultar")
+        end
+    end
 
     local lines = (data and data.lines) or {}
     local actions = (data and data.actions) or {}
