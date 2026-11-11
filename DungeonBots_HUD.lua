@@ -105,7 +105,7 @@ local function HandleHudTalkClick(anchorBtn)
 
     UIDropDownMenu_Initialize(dd, function(self, level)
         local infoTitle = UIDropDownMenu_CreateInfo()
-        infoTitle.text = "-- Elegir bot para 'talk' --"
+        infoTitle.text = "-- Elegir Bot --"
         infoTitle.isTitle = true
         infoTitle.notCheckable = true
         UIDropDownMenu_AddButton(infoTitle, level)
@@ -114,8 +114,7 @@ local function HandleHudTalkClick(anchorBtn)
             local info = UIDropDownMenu_CreateInfo()
             local c = (bot.classToken and RAID_CLASS_COLORS and RAID_CLASS_COLORS[bot.classToken]) or { r = 1.0, g = 0.82, b = 0.0 }
             local hex = string.format("|cff%02x%02x%02x", math.floor(c.r * 255), math.floor(c.g * 255), math.floor(c.b * 255))
-            local specBadge = (bot.spec and bot.spec ~= "") and (" |cffaaaaaa(" .. bot.spec .. ")|r") or ""
-            info.text = hex .. bot.name .. "|r" .. specBadge
+            info.text = hex .. bot.name .. "|r"
             info.notCheckable = true
             local chosenName = bot.name
             info.func = function()

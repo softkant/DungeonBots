@@ -2212,19 +2212,26 @@ local function ParseTalkCaptureWhisper(cleanSender, message)
     data.loading = false
     data.updatedAt = now
 
+    local playerName = (UnitName and UnitName("player")) or ""
+
     for rawLine in string.gmatch(message or "", "[^\r\n]+") do
         local line = TrimText(rawLine)
         if line ~= "" then
-            table.insert(data.lines, line)
+            if playerName ~= "" then
+                line = string.gsub(line, "%$[nN]", playerName)
+            end
 
             local cleanLine = TrimText(StripWowFormatting(line))
             local headerNpc = string.match(cleanLine, "^%-%-+%s*(.-)%s*%-%-+$")
                 or string.match(cleanLine, "^Talking to%s+([^:]+):?$")
+            local isNpcHeaderLine = false
             if headerNpc and headerNpc ~= "" and not string.find(string.lower(headerNpc), "quest") then
                 data.npcName = headerNpc
+                isNpcHeaderLine = true
             end
 
-            -- Opciones numeradas de gossip (#1: ..., [#1] ..., 1. ...)
+            -- Opciones numeradas de gossip ([0] ..., [1] ..., #1: ..., 1. ...)
+            local hadHash = (string.match(line, "^%s*%[#") ~= nil) or (string.match(line, "^%s*#") ~= nil)
             local optNum, optBody = string.match(line, "^%s*%[#?(%d+)%]%s*[:%.%-]*%s*(.+)$")
             if not optNum then
                 optNum, optBody = string.match(line, "^%s*#(%d+)%s*[:%.%-%)]*%s*(.+)$")
@@ -2234,15 +2241,31 @@ local function ParseTalkCaptureWhisper(cleanSender, message)
             end
 
             local parsedNum = optNum and tonumber(optNum) or nil
-            if parsedNum and parsedNum >= 1 and parsedNum <= 30 and optBody then
+            local isOptionLine = false
+            if parsedNum and parsedNum >= 0 and parsedNum <= 30 and optBody then
                 local cleanOpt = TrimText(StripWowFormatting(optBody))
                 if cleanOpt ~= "" then
+                    isOptionLine = true
                     AddTalkAction(data, "gossip_" .. optNum, {
                         kind = "gossip",
-                        cmd = "talk #" .. optNum,
-                        label = "#" .. optNum .. " - " .. cleanOpt,
+                        cmd = hadHash and ("talk #" .. optNum) or ("talk " .. optNum),
+                        label = cleanOpt,
                         rawText = line,
                     })
+                end
+            end
+
+            if not isNpcHeaderLine then
+                if isOptionLine then
+                    -- Si contiene enlace clicable, mostrarlo en el diálogo sin el número [0]
+                    if string.find(line, "|H") then
+                        local cleanBody = TrimText(optBody)
+                        if cleanBody ~= "" then
+                            table.insert(data.lines, cleanBody)
+                        end
+                    end
+                else
+                    table.insert(data.lines, line)
                 end
             end
 

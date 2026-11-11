@@ -1293,7 +1293,7 @@ function DungeonBots:BuildTalkDialog()
     local msgBg = CreateFrame("Frame", nil, tf)
     msgBg:SetPoint("TOPLEFT", tf, "TOPLEFT", 10, -68)
     msgBg:SetPoint("TOPRIGHT", tf, "TOPRIGHT", -10, -68)
-    msgBg:SetHeight(176)
+    msgBg:SetHeight(130)
     ApplyDarkBackdrop(msgBg, 10)
     msgBg:SetBackdropColor(0.02, 0.03, 0.05, 1.0)
     msgBg:SetBackdropBorderColor(0.30, 0.34, 0.42, 1.0)
@@ -1344,11 +1344,11 @@ function DungeonBots:BuildTalkDialog()
 
     -- Zona intermedia: opciones y misiones detectadas (1 clic)
     local optTitle = tf:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    optTitle:SetPoint("TOPLEFT", tf, "TOPLEFT", 14, -250)
+    optTitle:SetPoint("TOPLEFT", tf, "TOPLEFT", 14, -204)
     optTitle:SetText("|cffffd200Opciones y Misiones Detectadas:|r |cff888888(1 clic para interactuar)|r")
 
     local optBg = CreateFrame("Frame", nil, tf)
-    optBg:SetPoint("TOPLEFT", tf, "TOPLEFT", 10, -266)
+    optBg:SetPoint("TOPLEFT", tf, "TOPLEFT", 10, -220)
     optBg:SetPoint("BOTTOMRIGHT", tf, "BOTTOMRIGHT", -10, 74)
     ApplyDarkBackdrop(optBg, 10)
     optBg:SetBackdropColor(0.03, 0.04, 0.06, 1.0)
@@ -1366,7 +1366,7 @@ function DungeonBots:BuildTalkDialog()
     local emptyOptLabel = optBg:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     emptyOptLabel:SetPoint("CENTER", optBg, "CENTER", -8, 0)
     emptyOptLabel:SetWidth(430)
-    emptyOptLabel:SetText("|cff888888No se detectaron opciones numeradas ni enlaces de misión.\nPuedes hacer clic en los enlaces de arriba o escribir un comando abajo.|r")
+    emptyOptLabel:SetText("|cff888888No se detectaron opciones ni misiones disponibles.\nPuedes hacer clic en los enlaces de arriba o escribir un comando abajo.|r")
     tf.emptyOptLabel = emptyOptLabel
 
     -- Zona inferior: barra de comando directo + cerrar
@@ -1437,10 +1437,13 @@ function DungeonBots:UpdateTalkDialog(botName)
     tf.npcLabel:SetText("PNJ: |cffffd200" .. npcTitle .. "|r  " .. statusTag)
 
     local lines = (data and data.lines) or {}
+    local actions = (data and data.actions) or {}
     tf.msgFrame:Clear()
     if #lines == 0 then
         if data and data.loading then
             tf.emptyMsgLabel:SetText("|cff71d5ffConsultando lo que tiene el PNJ con " .. targetBot .. "...|r")
+        elseif #actions > 0 then
+            tf.emptyMsgLabel:SetText("|cffccccccSelecciona una opción o misión en la lista de abajo.|r")
         else
             tf.emptyMsgLabel:SetText("No se recibió texto del PNJ.\nAsegúrate de tener seleccionado un PNJ cerca de " .. targetBot .. " y pulsa 'Reconsultar'.")
         end
@@ -1453,7 +1456,6 @@ function DungeonBots:UpdateTalkDialog(botName)
         tf.msgFrame:ScrollToBottom()
     end
 
-    local actions = (data and data.actions) or {}
     for _, row in ipairs(talkActionRows) do
         row:Hide()
     end
@@ -1504,7 +1506,7 @@ function DungeonBots:UpdateTalkDialog(botName)
                 row.mainBtn:ClearAllPoints()
                 row.mainBtn:SetPoint("TOPLEFT", row, "TOPLEFT", 4, -2)
                 row.mainBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -4, 2)
-                row.label:SetText("|cff71d5ff" .. (act.label or act.cmd or "Opción") .. "|r")
+                row.label:SetText("|cff00ccff>|r |cffffe599" .. (act.label or act.cmd or "Opción") .. "|r")
                 row.mainBtn:SetScript("OnClick", function()
                     PlaySound("igMainMenuOptionCheckBoxOn")
                     DungeonBots:SendTalkCommand(targetBot, act.cmd)
