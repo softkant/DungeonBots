@@ -98,7 +98,7 @@ function DungeonBots:InitUI()
     if mainFrame then return end
 
     local f = CreateFrame("Frame", "DungeonBots_MainFrame", UIParent)
-    f:SetSize(620, 552)
+    f:SetSize(620, 524)
     f:SetPoint("CENTER", UIParent, "CENTER", 0, 20)
     f:SetMovable(true)
     f:EnableMouse(true)
@@ -378,27 +378,10 @@ function DungeonBots:BuildTab1(parent)
     actionTitle:SetPoint("TOPLEFT", 10, -8)
     actionTitle:SetText("|cffffd200Control General del Grupo de Bots|r")
 
-    -- Checkbox de Auto-Invite
-    local autoInviteCheck = CreateFrame("CheckButton", "DungeonBots_AutoInviteCheck", actionBox, "UICheckButtonTemplate")
-    autoInviteCheck:SetSize(24, 24)
-    autoInviteCheck:SetPoint("TOPLEFT", 10, -26)
-    autoInviteCheck:SetChecked(DungeonBotsDB and DungeonBotsDB.autoInvite)
-
-    local checkText = autoInviteCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    checkText:SetPoint("LEFT", autoInviteCheck, "RIGHT", 4, 0)
-    checkText:SetText("Auto-invitar bots que te susurren al crearse (Recomendado)")
-
-    autoInviteCheck:SetScript("OnClick", function(self)
-        local val = self:GetChecked() and true or false
-        if DungeonBotsDB then DungeonBotsDB.autoInvite = val end
-        PlaySound(val and "igMainMenuOptionCheckBoxOn" or "igMainMenuOptionCheckBoxOff")
-        DungeonBots:Print("Auto-invite de bots: " .. (val and "|cff34c759Activado|r" or "|cffff3b30Desactivado|r"))
-    end)
-
     -- Checkbox de Barra Táctica solo en Mazmorras de 5 jugadores
     local hudDungeonCheck = CreateFrame("CheckButton", "DungeonBots_HudDungeonCheck", actionBox, "UICheckButtonTemplate")
     hudDungeonCheck:SetSize(24, 24)
-    hudDungeonCheck:SetPoint("TOPLEFT", 10, -50)
+    hudDungeonCheck:SetPoint("TOPLEFT", 10, -28)
     hudDungeonCheck:SetChecked(not DungeonBotsDB or DungeonBotsDB.hudOnlyInDungeon ~= false)
 
     local hudCheckText = hudDungeonCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -418,7 +401,7 @@ function DungeonBots:BuildTab1(parent)
     -- Checkbox principal para ocultar susurros de bots
     local muteWhispersCheck = CreateFrame("CheckButton", "DungeonBots_MuteWhispersCheck", actionBox, "UICheckButtonTemplate")
     muteWhispersCheck:SetSize(24, 24)
-    muteWhispersCheck:SetPoint("TOPLEFT", 10, -74)
+    muteWhispersCheck:SetPoint("TOPLEFT", 10, -52)
     muteWhispersCheck:SetChecked(not DungeonBotsDB or DungeonBotsDB.whisperMuteMode ~= "off")
 
     local muteWhispersText = muteWhispersCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -436,7 +419,7 @@ function DungeonBots:BuildTab1(parent)
     -- Checkbox dependiente para silenciar /p, /y y /s de bots (solo visible si el anterior está activo)
     local muteGroupCheck = CreateFrame("CheckButton", "DungeonBots_MuteGroupChatCheck", actionBox, "UICheckButtonTemplate")
     muteGroupCheck:SetSize(24, 24)
-    muteGroupCheck:SetPoint("TOPLEFT", 26, -98)
+    muteGroupCheck:SetPoint("TOPLEFT", 26, -76)
     muteGroupCheck:SetChecked(DungeonBotsDB and DungeonBotsDB.muteBotGroupChat)
 
     local muteGroupText = muteGroupCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -466,17 +449,17 @@ function DungeonBots:BuildTab1(parent)
         addAllBtn:ClearAllPoints()
         if isEnabled then
             muteGroupCheck:Show()
-            quickActionsLabel:SetPoint("TOPLEFT", 12, -130)
-            addAllBtn:SetPoint("TOPLEFT", 11, -148)
+            quickActionsLabel:SetPoint("TOPLEFT", 12, -108)
+            addAllBtn:SetPoint("TOPLEFT", 11, -126)
             if mainFrame then
-                mainFrame:SetHeight(548)
+                mainFrame:SetHeight(524)
             end
         else
             muteGroupCheck:Hide()
-            quickActionsLabel:SetPoint("TOPLEFT", 12, -106)
-            addAllBtn:SetPoint("TOPLEFT", 11, -124)
+            quickActionsLabel:SetPoint("TOPLEFT", 12, -84)
+            addAllBtn:SetPoint("TOPLEFT", 11, -102)
             if mainFrame then
-                mainFrame:SetHeight(524)
+                mainFrame:SetHeight(500)
             end
         end
     end
@@ -1168,7 +1151,7 @@ local function CreateTalkActionRow(parent, idx)
     label:SetWordWrap(false)
     row.label = label
 
-    local acceptBtn = CreateRedIconButton(row, 96, 20, "Aceptar", "Interface\\Icons\\INV_Misc_Book_09")
+    local acceptBtn = CreateRedIconButton(row, 104, 20, "Aceptar", "Interface\\Icons\\INV_Misc_Book_09")
     acceptBtn:SetPoint("RIGHT", row, "RIGHT", -4, 0)
     acceptBtn:Hide()
     row.acceptBtn = acceptBtn
@@ -1343,6 +1326,8 @@ local TALK_QUEST_STYLE = {
         prefix = "|cff34c759[Disponible]|r ",
         showBtn = true,
         btnText = "Aceptar",
+        btnIcon = "Interface\\Icons\\INV_Misc_Book_09",
+        btnAction = "accept",
         rightBadge = nil,
         border = { 0.25, 0.85, 0.45, 1.0 },
         tipStatus = "Disponible",
@@ -1350,19 +1335,23 @@ local TALK_QUEST_STYLE = {
         tipHint = "El bot puede tomar esta misión. Pulsa 'Aceptar' o haz clic para inspeccionarla.",
     },
     incompleted = {
-        prefix = "|cffff5544[Incompleta]|r ",
-        showBtn = false,
-        btnText = nil,
-        rightBadge = "|cffff9f0aEn curso|r",
+        prefix = "|cffff9f0a[En curso]|r ",
+        showBtn = true,
+        btnText = "Abandonar",
+        btnIcon = "Interface\\Icons\\Spell_ChargeNegative",
+        btnAction = "drop",
+        rightBadge = nil,
         border = { 1.0, 0.55, 0.25, 1.0 },
-        tipStatus = "Incompleta (En curso)",
-        tipColor = { 1.0, 0.45, 0.3 },
-        tipHint = "El bot ya tomó esta misión y aún está en progreso. Clic para ver detalles.",
+        tipStatus = "En curso",
+        tipColor = { 1.0, 0.62, 0.15 },
+        tipHint = "El bot ya lleva esta misión. Clic en el nombre para ver detalles, o pulsa 'Abandonar'.",
     },
     completed = {
         prefix = "|cff00ccff[Completa]|r ",
         showBtn = true,
         btnText = "Entregar",
+        btnIcon = "Interface\\Icons\\INV_Misc_Book_09",
+        btnAction = "accept",
         rightBadge = nil,
         border = { 0.25, 0.85, 1.0, 1.0 },
         tipStatus = "Completa (Lista para entregar)",
@@ -1373,6 +1362,8 @@ local TALK_QUEST_STYLE = {
         prefix = "|cff888888[No disponible]|r ",
         showBtn = false,
         btnText = nil,
+        btnIcon = nil,
+        btnAction = nil,
         rightBadge = "|cff888888Bloqueada|r",
         border = { 0.5, 0.5, 0.55, 1.0 },
         tipStatus = "No disponible",
@@ -1383,6 +1374,8 @@ local TALK_QUEST_STYLE = {
         prefix = "|cffffd200[Misión]|r ",
         showBtn = true,
         btnText = "Aceptar",
+        btnIcon = "Interface\\Icons\\INV_Misc_Book_09",
+        btnAction = "accept",
         rightBadge = nil,
         border = { 1.0, 0.82, 0.25, 1.0 },
         tipStatus = nil,
@@ -1448,7 +1441,7 @@ function DungeonBots:UpdateTalkDialog(botName)
                 local style = TALK_QUEST_STYLE[act.questState or "unknown"] or TALK_QUEST_STYLE.unknown
                 row.mainBtn:ClearAllPoints()
                 row.mainBtn:SetPoint("TOPLEFT", row, "TOPLEFT", 4, -2)
-                row.mainBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -104, 2)
+                row.mainBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -112, 2)
                 row.label:SetText(style.prefix .. (act.displayLink or act.title or "Misión"))
                 row.mainBtn:SetScript("OnClick", function(self)
                     PlaySound("igMainMenuOptionCheckBoxOn")
@@ -1474,10 +1467,18 @@ function DungeonBots:UpdateTalkDialog(botName)
 
                 if style.showBtn then
                     row.statusTag:Hide()
+                    if row.acceptBtn.icon then
+                        row.acceptBtn.icon:SetTexture(style.btnIcon or "Interface\\Icons\\INV_Misc_Book_09")
+                    end
                     row.acceptBtn:SetText(style.btnText or "Aceptar")
                     row.acceptBtn:Show()
                     row.acceptBtn:SetScript("OnClick", function()
-                        DungeonBots:SendTalkCommand(targetBot, act.acceptCmd)
+                        if style.btnAction == "drop" then
+                            PlaySound("igQuestLogAbandonQuest")
+                            DungeonBots:DropBotQuest(targetBot, act, true)
+                        else
+                            DungeonBots:SendTalkCommand(targetBot, act.acceptCmd)
+                        end
                     end)
                 else
                     row.acceptBtn:Hide()

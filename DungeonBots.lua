@@ -171,6 +171,7 @@ DungeonBots.pendingQuestRefresh = {}
 DungeonBots.pendingTalkCapture = {}
 DungeonBots.talkDialogData = {}
 DungeonBots.pendingTalkRefresh = {}
+DungeonBots.pendingTalkAfterQuest = {}
 DungeonBots.pendingPartyTalkUntil = 0
 DungeonBots.lastTalkBot = nil
 
@@ -1107,13 +1108,15 @@ function DungeonBots:QueryQuests(botName, isSilent)
     DungeonBots:SendWhisperCommand(cleanBot, "quests all")
 end
 
--- Abandonar una misión de un bot y refrescar la lista
-function DungeonBots:DropBotQuest(botName, questEntry)
+-- Abandonar una misión de un bot y refrescar la ventana correspondiente
+function DungeonBots:DropBotQuest(botName, questEntry, fromTalkDialog)
     local cleanBot = NormalizePlayerName(botName)
     if not cleanBot or not questEntry then return end
     local target = questEntry.safeLink or questEntry.title
     if not target or target == "" then return end
     local now = NowTime()
+    local qKey = questEntry.questId and ("id_" .. tostring(questEntry.questId)) or (questEntry.title and ("t_" .. string.lower(questEntry.title)))
+    local tKey = "quest_" .. (questEntry.questId or (questEntry.title and string.lower(questEntry.title) or ""))
 
     local data = DungeonBots.questDialogData and DungeonBots.questDialogData[cleanBot]
     if data and type(data.quests) == "table" then
@@ -1123,25 +1126,67 @@ function DungeonBots:DropBotQuest(botName, questEntry)
                 table.remove(data.quests, i)
             end
         end
-        if data.seenKeys then
-            local key = questEntry.questId and ("id_" .. tostring(questEntry.questId)) or (questEntry.title and ("t_" .. string.lower(questEntry.title)))
-            if key then
-                data.seenKeys[key] = nil
-            end
+        if data.seenKeys and qKey then
+            data.seenKeys[qKey] = nil
         end
     end
+
+    local talkData = DungeonBots.talkDialogData and DungeonBots.talkDialogData[cleanBot]
+    if talkData and type(talkData.actions) == "table" then
+        for i = #talkData.actions, 1, -1 do
+            local act = talkData.actions[i]
+            if act == questEntry or (act.kind == "quest" and ((questEntry.questId and act.questId == questEntry.questId) or (questEntry.title and act.title == questEntry.title))) then
+                table.remove(talkData.actions, i)
+            end
+        end
+        if talkData.seenActions and tKey ~= "quest_" then
+            talkData.seenActions[tKey] = nil
+        end
+        if fromTalkDialog and #talkData.actions == 0 then
+            talkData.loading = true
+        end
+    end
+
     if DungeonBots.pendingQuestCapture then
         DungeonBots.pendingQuestCapture[cleanBot] = nil
     end
+    if DungeonBots.pendingTalkCapture and fromTalkDialog then
+        DungeonBots.pendingTalkCapture[cleanBot] = nil
+    end
 
     DungeonBots:SendWhisperCommand(cleanBot, "drop " .. target)
-    if DungeonBots.UpdateQuestDialog then
+
+    if DungeonBots.UpdateQuestDialog and DungeonBots.questFrame and DungeonBots.questFrame:IsShown() and DungeonBots.questFrame.currentBot == cleanBot then
         DungeonBots:UpdateQuestDialog(cleanBot)
     end
-    DungeonBots.pendingQuestRefresh[cleanBot] = now + 0.55
+    if DungeonBots.UpdateTalkDialog and DungeonBots.talkFrame and DungeonBots.talkFrame:IsShown() and DungeonBots.talkFrame.currentBot == cleanBot then
+        DungeonBots:UpdateTalkDialog(cleanBot)
+    end
+
+    if fromTalkDialog then
+        DungeonBots.pendingTalkRefresh[cleanBot] = now + 0.55
+    else
+        DungeonBots.pendingQuestRefresh[cleanBot] = now + 0.55
+        if DungeonBots.talkFrame and DungeonBots.talkFrame:IsShown() and DungeonBots.talkFrame.currentBot == cleanBot then
+            DungeonBots.pendingTalkAfterQuest[cleanBot] = true
+        end
+    end
     if DungeonBots.uiCaptureFrame then
         DungeonBots.uiCaptureFrame:Show()
     end
+end
+
+function DungeonBots:HasValidNpcTarget()
+    if not UnitExists("target") then
+        return false
+    end
+    if UnitIsPlayer("target") or UnitPlayerControlled("target") then
+        return false
+    end
+    if UnitIsDead("target") then
+        return false
+    end
+    return true
 end
 
 function DungeonBots:GetPartyBotsList()
@@ -2075,6 +2120,13 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
                     DungeonBots:UpdateQuestDialog(botName)
                 end
             end
+            if DungeonBots.pendingTalkAfterQuest and DungeonBots.pendingTalkAfterQuest[botName] then
+                DungeonBots.pendingTalkAfterQuest[botName] = nil
+                if DungeonBots.talkFrame and DungeonBots.talkFrame:IsShown() and DungeonBots.talkFrame.currentBot == botName then
+                    DungeonBots.pendingTalkRefresh[botName] = now + 0.10
+                    hasAny = true
+                end
+            end
         else
             hasAny = true
         end
@@ -2519,6 +2571,7 @@ eventFrame:RegisterEvent("PARTY_MEMBERS_CHANGED")
 eventFrame:RegisterEvent("UNIT_NAME_UPDATE")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+eventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
 
 local function HandlePartyChanged(isEnteringWorld)
     DungeonBots:ResolvePendingPartyBots()
@@ -2532,6 +2585,9 @@ local function HandlePartyChanged(isEnteringWorld)
     if isEnteringWorld and DungeonBots.UpdateHUDVisibility then
         DungeonBots:UpdateHUDVisibility()
     end
+    if isEnteringWorld and DungeonBots.UpdateHUDTalkButtonState then
+        DungeonBots:UpdateHUDTalkButtonState()
+    end
 end
 
 eventFrame:SetScript("OnEvent", function(self, event, ...)
@@ -2544,6 +2600,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                     DungeonBotsDB[k] = v
                 end
             end
+            DungeonBotsDB.autoInvite = true
             if DungeonBotsDB.whisperMuteMode == "auto" then
                 DungeonBotsDB.whisperMuteMode = "all"
             end
@@ -2567,6 +2624,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                 end
             end
         end
+        DungeonBotsDB.autoInvite = true
 
         DungeonBotsDB.botHistory = DungeonBotsDB.botHistory or {}
         for _, entry in pairs(DungeonBotsDB.botHistory) do
@@ -2712,7 +2770,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
 
         -- Auto-invite solo para bots recién invocados o bots del historial con respuesta de bot, si hay cupo (< 5 en grupo)
         local shouldAutoInvite = DungeonBots:IsRecentBot(cleanSender) or (isKnownOrHistory and isBotResponse)
-        if shouldAutoInvite and DungeonBotsDB and DungeonBotsDB.autoInvite and not inParty and DungeonBots:CanInviteToParty() then
+        if shouldAutoInvite and not inParty and DungeonBots:CanInviteToParty() then
             if (DungeonBots.recentInvites[cleanSender] or 0) <= NowTime() then
                 DungeonBots.recentInvites[cleanSender] = NowTime() + 3
                 DungeonBots:RecordBotHistory(cleanSender)
@@ -2738,6 +2796,11 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     elseif event == "ZONE_CHANGED_NEW_AREA" then
         if DungeonBots.UpdateHUDVisibility then
             DungeonBots:UpdateHUDVisibility()
+        end
+
+    elseif event == "PLAYER_TARGET_CHANGED" then
+        if DungeonBots.UpdateHUDTalkButtonState then
+            DungeonBots:UpdateHUDTalkButtonState()
         end
     end
 end)

@@ -69,6 +69,7 @@ local HUD_ACTIONS = {
 }
 
 local hudTalkDropDown = nil
+local hudTalkBtn = nil
 
 local function GetOrCreateHudTalkDropDown()
     if hudTalkDropDown then return hudTalkDropDown end
@@ -79,6 +80,9 @@ local function GetOrCreateHudTalkDropDown()
 end
 
 local function HandleHudTalkClick(anchorBtn)
+    if DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
+        return
+    end
     local bots = DungeonBots.GetPartyBotsList and DungeonBots:GetPartyBotsList() or {}
     if #bots == 0 then
         if CloseDropDownMenus then CloseDropDownMenus() end
@@ -135,6 +139,38 @@ function DungeonBots:IsInFiveManDungeon()
     return (inInstance and instanceType == "party") and true or false
 end
 
+function DungeonBots:UpdateHUDTalkButtonState()
+    if not hudTalkBtn then return end
+    local canTalk = (DungeonBots.HasValidNpcTarget and DungeonBots:HasValidNpcTarget()) and true or false
+    local c = (hudTalkBtn.actionDef and hudTalkBtn.actionDef.color) or { 0.2, 0.8, 1.0 }
+    if canTalk then
+        hudTalkBtn:Enable()
+        hudTalkBtn:SetAlpha(1.0)
+        if hudTalkBtn.icon then
+            hudTalkBtn.icon:SetDesaturated(false)
+            hudTalkBtn.icon:SetVertexColor(1, 1, 1, 1)
+        end
+        hudTalkBtn:SetBackdropBorderColor(c[1], c[2], c[3], 0.85)
+        if hudTalkBtn.highlightTex then
+            hudTalkBtn.highlightTex:Show()
+        end
+    else
+        hudTalkBtn:Disable()
+        hudTalkBtn:SetAlpha(0.45)
+        if hudTalkBtn.icon then
+            hudTalkBtn.icon:SetDesaturated(true)
+            hudTalkBtn.icon:SetVertexColor(0.55, 0.55, 0.55, 0.85)
+        end
+        hudTalkBtn:SetBackdropBorderColor(0.35, 0.35, 0.38, 0.65)
+        if hudTalkBtn.highlightTex then
+            hudTalkBtn.highlightTex:Hide()
+        end
+        if hudTalkDropDown and UIDROPDOWNMENU_OPEN_MENU == hudTalkDropDown and CloseDropDownMenus then
+            CloseDropDownMenus()
+        end
+    end
+end
+
 function DungeonBots:UpdateHUDVisibility()
     if not hudFrame then return end
     if DungeonBotsDB and DungeonBotsDB.hudVisible == false then
@@ -146,6 +182,7 @@ function DungeonBots:UpdateHUDVisibility()
         hudFrame:Hide()
     else
         hudFrame:Show()
+        DungeonBots:UpdateHUDTalkButtonState()
     end
 end
 
@@ -269,6 +306,13 @@ function DungeonBots:InitHUD()
         highlight:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
         highlight:SetBlendMode("ADD")
 
+        btn.icon = icon
+        btn.highlightTex = highlight
+        btn.actionDef = action
+        if action.isTalkPicker then
+            hudTalkBtn = btn
+        end
+
         btn:SetScript("OnClick", function(self)
             PlaySound("igMainMenuOptionCheckBoxOn")
             if action.isTalkPicker then
@@ -283,7 +327,11 @@ function DungeonBots:InitHUD()
             GameTooltip:AddLine(action.title, 1, 1, 1)
             GameTooltip:AddLine(action.desc, 0.85, 0.85, 0.85, true)
             if action.isTalkPicker then
-                GameTooltip:AddLine("Acción: |cffffd200/w <Bot> talk|r (menú si hay 2+ bots)", 0.5, 0.8, 1.0)
+                if DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
+                    GameTooltip:AddLine("Desactivado: Haz clic primero en un PNJ (los bots no cuentan).", 1.0, 0.35, 0.35, true)
+                else
+                    GameTooltip:AddLine("Acción: |cffffd200/w <Bot> talk|r (menú si hay 2+ bots)", 0.5, 0.8, 1.0)
+                end
             else
                 GameTooltip:AddLine("Comando enviado: |cffffd200/p " .. action.cmd .. "|r", 0.5, 0.8, 1.0)
             end
@@ -319,6 +367,7 @@ function DungeonBots:InitHUD()
     hudFrame = f
     DungeonBots.hudFrame = f
 
+    DungeonBots:UpdateHUDTalkButtonState()
     DungeonBots:UpdateHUDVisibility()
 end
 
