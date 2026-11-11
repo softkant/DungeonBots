@@ -1318,8 +1318,8 @@ function DungeonBots:ArmTalkCapture(botName, cmd, resetLines)
     end
     DungeonBots.pendingTalkCapture[cleanBot] = {
         startedAt = now,
-        expiresAt = now + (isAcceptCmd and 1.4 or 3.2),
-        finalizeAt = now + (isAcceptCmd and 0.85 or 2.0),
+        expiresAt = now + (isAcceptCmd and 1.2 or 2.0),
+        finalizeAt = now + (isAcceptCmd and 0.70 or 1.20),
         gotAnyLine = false,
         isAcceptCmd = isAcceptCmd,
     }
@@ -2478,11 +2478,11 @@ local function ParseTalkCaptureWhisper(cleanSender, message)
 
     cap.gotAnyLine = true
     if cap.isAcceptCmd then
-        cap.finalizeAt = math.min((cap.startedAt or now) + 2.0, now + 0.20)
-        cap.expiresAt = math.min((cap.startedAt or now) + 2.5, math.max(cap.expiresAt, now + 0.6))
+        cap.finalizeAt = math.min((cap.startedAt or now) + 1.5, now + 0.15)
+        cap.expiresAt = math.min((cap.startedAt or now) + 2.0, math.max(cap.expiresAt, now + 0.5))
     else
-        cap.finalizeAt = math.min((cap.startedAt or now) + 5.0, now + 0.50)
-        cap.expiresAt = math.min((cap.startedAt or now) + 5.5, math.max(cap.expiresAt, now + 1.5))
+        cap.finalizeAt = math.min((cap.startedAt or now) + 2.5, now + 0.18)
+        cap.expiresAt = math.min((cap.startedAt or now) + 3.0, math.max(cap.expiresAt, now + 0.6))
     end
     data.loading = false
     data.updatedAt = now

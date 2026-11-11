@@ -1424,12 +1424,10 @@ function DungeonBots:BuildTalkDialog()
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:AddLine("Siguiente Bot (talk)", 1, 0.85, 0.2)
         if DungeonBots.GetTalkBotCycleInfo then
-            local curIdx, total, nextBot = DungeonBots:GetTalkBotCycleInfo(tf.currentBot)
-            if total >= 2 and nextBot then
-                local posLabel = (curIdx > 0) and (curIdx .. "/" .. total) or ("?/" .. total)
-                GameTooltip:AddLine("Recorre en orden los bots del grupo y consulta 'talk' con el siguiente.", 0.8, 0.9, 1.0, true)
-                GameTooltip:AddLine("Actual: " .. (tf.currentBot or "-") .. " (" .. posLabel .. ")", 0.75, 0.75, 0.8)
-                GameTooltip:AddLine("Siguiente: " .. nextBot, 0.25, 0.9, 0.45)
+            local curIdx, total = DungeonBots:GetTalkBotCycleInfo(tf.currentBot)
+            if total >= 2 then
+                local posLabel = (curIdx > 0) and (curIdx .. "/" .. total) or ("0/" .. total)
+                GameTooltip:AddLine("Cambia en orden por los bots del grupo y consulta 'talk' con el siguiente (" .. posLabel .. ").", 0.8, 0.9, 1.0, true)
             else
                 GameTooltip:AddLine("Se necesitan al menos 2 bots en el grupo para pasar al siguiente.", 0.8, 0.8, 0.8, true)
             end
@@ -1441,7 +1439,7 @@ function DungeonBots:BuildTalkDialog()
 
     local botCycleLabel = tf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     botCycleLabel:SetPoint("LEFT", nextBotBtn, "RIGHT", 8, 0)
-    botCycleLabel:SetWidth(150)
+    botCycleLabel:SetWidth(60)
     botCycleLabel:SetJustifyH("LEFT")
     botCycleLabel:SetWordWrap(false)
     botCycleLabel:SetText("")
@@ -1572,12 +1570,12 @@ function DungeonBots:UpdateTalkDialog(botName)
     end
 
     if tf.nextBotBtn and DungeonBots.GetTalkBotCycleInfo then
-        local curIdx, total, nextBot = DungeonBots:GetTalkBotCycleInfo(targetBot)
-        if total >= 2 and nextBot then
+        local curIdx, total = DungeonBots:GetTalkBotCycleInfo(targetBot)
+        if total >= 2 then
             tf.nextBotBtn:Enable()
             if tf.botCycleLabel then
-                local posStr = (curIdx > 0) and ("(" .. curIdx .. "/" .. total .. ") ") or ""
-                tf.botCycleLabel:SetText("|cff888888" .. posStr .. "Sig:|r |cffffd200" .. nextBot .. "|r")
+                local posStr = (curIdx > 0) and (curIdx .. "/" .. total) or ("0/" .. total)
+                tf.botCycleLabel:SetText("|cffaaaaaa(" .. posStr .. ")|r")
             end
         else
             tf.nextBotBtn:Disable()
