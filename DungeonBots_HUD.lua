@@ -59,7 +59,9 @@ local HUD_ACTIONS = {
         name = "Hablar PNJ",
         cmd = "talk",
         isTalkPicker = true,
-        icon = "Interface\\Icons\\INV_Letter_15",
+        fullTexCoord = true,
+        iconInset = 6,
+        icon = "Interface\\GossipFrame\\GossipGossipIcon",
         title = "|cff00e5ffHablar con PNJ (Talk)|r",
         desc = "Consulta los diálogos y misiones del PNJ seleccionado mediante un bot.\n\n|cff71d5ffSi hay varios bots en grupo abre un menú para elegir cuál; si solo hay uno, lo envía directo.|r",
         color = { 0.2, 0.8, 1.0 }
@@ -250,10 +252,15 @@ function DungeonBots:InitHUD()
 
         -- Textura del icono ajustada limpiamente dentro del marco
         local icon = btn:CreateTexture(nil, "ARTWORK")
-        icon:SetPoint("TOPLEFT", 3, -3)
-        icon:SetPoint("BOTTOMRIGHT", -3, 3)
+        local pad = action.iconInset or 3
+        icon:SetPoint("TOPLEFT", pad, -pad)
+        icon:SetPoint("BOTTOMRIGHT", -pad, pad)
         icon:SetTexture(action.icon)
-        icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        if action.fullTexCoord then
+            icon:SetTexCoord(0, 1, 0, 1)
+        else
+            icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        end
 
         -- Textura al pasar el ratón (Highlight)
         local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
