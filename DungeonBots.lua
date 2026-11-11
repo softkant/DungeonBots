@@ -1114,7 +1114,30 @@ function DungeonBots:DropBotQuest(botName, questEntry)
     local target = questEntry.safeLink or questEntry.title
     if not target or target == "" then return end
     local now = NowTime()
+
+    local data = DungeonBots.questDialogData and DungeonBots.questDialogData[cleanBot]
+    if data and type(data.quests) == "table" then
+        for i = #data.quests, 1, -1 do
+            local q = data.quests[i]
+            if q == questEntry or (questEntry.questId and q.questId == questEntry.questId) then
+                table.remove(data.quests, i)
+            end
+        end
+        if data.seenKeys then
+            local key = questEntry.questId and ("id_" .. tostring(questEntry.questId)) or (questEntry.title and ("t_" .. string.lower(questEntry.title)))
+            if key then
+                data.seenKeys[key] = nil
+            end
+        end
+    end
+    if DungeonBots.pendingQuestCapture then
+        DungeonBots.pendingQuestCapture[cleanBot] = nil
+    end
+
     DungeonBots:SendWhisperCommand(cleanBot, "drop " .. target)
+    if DungeonBots.UpdateQuestDialog then
+        DungeonBots:UpdateQuestDialog(cleanBot)
+    end
     DungeonBots.pendingQuestRefresh[cleanBot] = now + 0.55
     if DungeonBots.uiCaptureFrame then
         DungeonBots.uiCaptureFrame:Show()
@@ -2126,11 +2149,7 @@ local function ParseQuestCaptureWhisper(cleanSender, message)
         if cleanLine ~= "" then
             table.insert(data.rawLines, line)
 
-            if string.find(lowerClean, "completed quests") or string.find(lowerClean, "^%-*%s*completed") then
-                data.captureSection = "completed"
-            elseif string.find(lowerClean, "active quests") or string.find(lowerClean, "^%-*%s*active") then
-                data.captureSection = "active"
-            elseif string.find(lowerClean, "no active quests")
+            if string.find(lowerClean, "no active quests")
                 or string.find(lowerClean, "0 active quests")
                 or lowerClean == "no quests"
                 or lowerClean == "none" then
@@ -2140,9 +2159,19 @@ local function ParseQuestCaptureWhisper(cleanSender, message)
                 or string.find(lowerClean, "^summary:")
                 or string.find(lowerClean, "^total:")
                 or string.find(lowerClean, "no completed quests")
+                or string.find(lowerClean, "no incompleted quests")
+                or string.find(lowerClean, "no incomplete quests")
                 or string.find(lowerClean, "quest dropped")
                 or string.find(lowerClean, "abandoned") then
                 -- Encabezado o resumen informativo; no agregar como fila de misión
+            elseif string.find(lowerClean, "incompleted quests")
+                or string.find(lowerClean, "incomplete quests")
+                or string.find(lowerClean, "active quests")
+                or string.find(lowerClean, "^%-*%s*incompleted?")
+                or string.find(lowerClean, "^%-*%s*active") then
+                data.captureSection = "active"
+            elseif string.find(lowerClean, "completed quests") or string.find(lowerClean, "^%-*%s*completed") then
+                data.captureSection = "completed"
             else
                 local scanPos = 1
                 local foundLinkInLine = false
@@ -2165,6 +2194,9 @@ local function ParseQuestCaptureWhisper(cleanSender, message)
                             local afterTxt = TrimText(StripWowFormatting(string.sub(subLine, eOff + 1)))
                             extraText = TrimText(beforeTxt .. " " .. afterTxt)
                         end
+                        if extraText == "" and data.captureSection == "completed" then
+                            extraText = "Completa (lista para entregar)"
+                        end
                         table.insert(data.quests, {
                             questId = qId,
                             questLevel = (qLevel and qLevel ~= "") and qLevel or "80",
@@ -2172,7 +2204,7 @@ local function ParseQuestCaptureWhisper(cleanSender, message)
                             safeLink = safeLink,
                             displayLink = safeLink or ("|cffffff00" .. plainH .. "|r"),
                             statusText = extraText,
-                            canDrop = (data.captureSection ~= "completed"),
+                            canDrop = true,
                             rawLine = line,
                         })
                     end
@@ -2181,19 +2213,20 @@ local function ParseQuestCaptureWhisper(cleanSender, message)
                     if scanPos > #line then break end
                 end
 
-                if not foundLinkInLine and data.captureSection ~= "completed" then
+                if not foundLinkInLine then
                     local fallbackTitle = TrimText(string.gsub(cleanLine, "^[%d#]+[%.)%]:%-]+%s*", ""))
                     if fallbackTitle ~= "" and #fallbackTitle > 2 then
                         local dedupKey = "t_" .. string.lower(fallbackTitle)
                         if not data.seenKeys[dedupKey] then
                             data.seenKeys[dedupKey] = true
+                            local statusBadge = (data.captureSection == "completed") and "Completa (lista para entregar)" or ""
                             table.insert(data.quests, {
                                 questId = nil,
                                 questLevel = nil,
                                 title = fallbackTitle,
                                 safeLink = nil,
                                 displayLink = nil,
-                                statusText = "",
+                                statusText = statusBadge,
                                 canDrop = true,
                                 rawLine = line,
                             })

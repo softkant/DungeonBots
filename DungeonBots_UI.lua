@@ -901,7 +901,7 @@ local function CreateQuestRow(parent, idx)
 
     local titleBtn = CreateFrame("Button", nil, row)
     titleBtn:SetPoint("TOPLEFT", row, "TOPLEFT", 32, -2)
-    titleBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -108, 2)
+    titleBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -116, 2)
     row.titleBtn = titleBtn
 
     local titleText = titleBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -918,7 +918,7 @@ local function CreateQuestRow(parent, idx)
     subText:SetWordWrap(false)
     row.subText = subText
 
-    local dropBtn = CreateRedIconButton(row, 96, 22, "Abandonar", "Interface\\Icons\\Spell_ChargeNegative")
+    local dropBtn = CreateRedIconButton(row, 104, 22, "Abandonar", "Interface\\Icons\\Spell_ChargeNegative")
     dropBtn:SetPoint("RIGHT", row, "RIGHT", -6, 0)
     row.dropBtn = dropBtn
 
@@ -1114,22 +1114,18 @@ function DungeonBots:UpdateQuestDialog(botName)
             GameTooltip:Hide()
         end)
 
-        if q.canDrop ~= false then
-            row.dropBtn:Show()
-            row.dropBtn:SetScript("OnClick", function()
-                PlaySound("igMainMenuOptionCheckBoxOff")
-                DungeonBots:DropBotQuest(targetBot, q)
-            end)
-            row.dropBtn:SetScript("OnEnter", function(self)
-                GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                GameTooltip:AddLine("Abandonar Misión", 1, 0.35, 0.35)
-                GameTooltip:AddLine("Ordena a " .. targetBot .. " abandonar '" .. (q.title or "") .. "' y recarga la lista.", 0.8, 0.85, 0.95, true)
-                GameTooltip:Show()
-            end)
-            row.dropBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-        else
-            row.dropBtn:Hide()
-        end
+        row.dropBtn:Show()
+        row.dropBtn:SetScript("OnClick", function()
+            PlaySound("igQuestLogAbandonQuest")
+            DungeonBots:DropBotQuest(targetBot, q)
+        end)
+        row.dropBtn:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:AddLine("Abandonar Misión", 1, 0.35, 0.35)
+            GameTooltip:AddLine("Ordena a " .. targetBot .. " abandonar '" .. (q.title or "") .. "' y recarga la lista.", 0.8, 0.85, 0.95, true)
+            GameTooltip:Show()
+        end)
+        row.dropBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
     end
 
     qf.scrollChild:SetHeight(math.max(1, (#quests * 40) + 4))
