@@ -1380,7 +1380,7 @@ function DungeonBots:BuildTalkDialog()
     -- Lista principal de opciones y misiones detectadas (1 clic)
     local optTitle = tf:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     optTitle:SetPoint("TOPLEFT", tf, "TOPLEFT", 14, -68)
-    optTitle:SetText("|cffffd200Opciones y Misiones del PNJ:|r |cff888888(clic para ver o interactuar)|r")
+    optTitle:SetText("|cffffd200Opciones y Misiones del PNJ:|r")
 
     local optBg = CreateFrame("Frame", nil, tf)
     optBg:SetPoint("TOPLEFT", tf, "TOPLEFT", 10, -84)
@@ -1593,7 +1593,7 @@ function DungeonBots:UpdateTalkDialog(botName)
     end
 
     if #actions == 0 then
-        if data and data.loading then
+        if data and (data.loading or isBusy) then
             if data.isAcceptCmd then
                 tf.emptyOptLabel:SetText("|cff71d5ffAceptando misión con " .. targetBot .. "...|r")
             else

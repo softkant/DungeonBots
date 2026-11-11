@@ -1335,8 +1335,8 @@ function DungeonBots:ArmTalkCapture(botName, cmd, resetLines)
     end
     DungeonBots.pendingTalkCapture[cleanBot] = {
         startedAt = now,
-        expiresAt = now + (isAcceptCmd and 1.2 or 2.0),
-        finalizeAt = now + (isAcceptCmd and 0.70 or 1.20),
+        expiresAt = now + (isAcceptCmd and 1.8 or 3.0),
+        finalizeAt = nil,
         gotAnyLine = false,
         isAcceptCmd = isAcceptCmd,
     }
@@ -2194,7 +2194,8 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
     end
 
     for botName, cap in pairs(DungeonBots.pendingTalkCapture) do
-        if now >= (cap.finalizeAt or cap.expiresAt or 0) or now >= (cap.expiresAt or 0) then
+        local readyToFinalize = (cap.gotAnyLine and cap.finalizeAt and now >= cap.finalizeAt)
+        if readyToFinalize or now >= (cap.expiresAt or 0) then
             DungeonBots.pendingTalkCapture[botName] = nil
             local data = DungeonBots.talkDialogData[botName]
             if data then
@@ -2499,11 +2500,11 @@ local function ParseTalkCaptureWhisper(cleanSender, message)
 
     cap.gotAnyLine = true
     if cap.isAcceptCmd then
-        cap.finalizeAt = math.min((cap.startedAt or now) + 1.5, now + 0.15)
-        cap.expiresAt = math.min((cap.startedAt or now) + 2.0, math.max(cap.expiresAt, now + 0.5))
+        cap.finalizeAt = math.min((cap.startedAt or now) + 2.0, now + 0.22)
+        cap.expiresAt = math.min((cap.startedAt or now) + 2.5, math.max(cap.expiresAt, now + 0.6))
     else
-        cap.finalizeAt = math.min((cap.startedAt or now) + 2.5, now + 0.18)
-        cap.expiresAt = math.min((cap.startedAt or now) + 3.0, math.max(cap.expiresAt, now + 0.6))
+        cap.finalizeAt = math.min((cap.startedAt or now) + 4.0, now + 0.35)
+        cap.expiresAt = math.min((cap.startedAt or now) + 4.5, math.max(cap.expiresAt, now + 1.0))
     end
     data.loading = false
     data.updatedAt = now
