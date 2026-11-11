@@ -2148,30 +2148,56 @@ local function ParseQuestCaptureWhisper(cleanSender, message)
 
         if cleanLine ~= "" then
             table.insert(data.rawLines, line)
+            local hasQuestLink = (string.find(line, "|Hquest:", 1, true) ~= nil)
+            local lowerMeta = hasQuestLink
+                and string.lower(TrimText(StripWowFormatting(string.gsub(line, "|Hquest:[^|]+|h%[[^%]]+%]|h", " "))))
+                or lowerClean
 
-            if string.find(lowerClean, "no active quests")
-                or string.find(lowerClean, "0 active quests")
+            if string.find(lowerMeta, "quest dropped", 1, true)
+                or string.find(lowerMeta, "abandoned", 1, true) then
+                -- Confirmacion de abandono; no agregar como fila de mision
+            elseif not hasQuestLink and (
+                string.find(lowerClean, "no active quests", 1, true)
+                or string.find(lowerClean, "0 active quests", 1, true)
                 or lowerClean == "no quests"
-                or lowerClean == "none" then
+                or (lowerClean == "none" and #(data.quests) == 0)
+            ) then
                 data.emptyHint = cleanLine
                 cap.finalizeAt = math.min(cap.finalizeAt, now + 0.25)
-            elseif string.find(lowerClean, "^[-=]+$")
-                or string.find(lowerClean, "^summary:")
-                or string.find(lowerClean, "^total:")
-                or string.find(lowerClean, "no completed quests")
-                or string.find(lowerClean, "no incompleted quests")
-                or string.find(lowerClean, "no incomplete quests")
-                or string.find(lowerClean, "quest dropped")
-                or string.find(lowerClean, "abandoned") then
-                -- Encabezado o resumen informativo; no agregar como fila de misión
-            elseif string.find(lowerClean, "incompleted quests")
-                or string.find(lowerClean, "incomplete quests")
-                or string.find(lowerClean, "active quests")
+            elseif not hasQuestLink and (
+                string.find(lowerClean, "no completed quests", 1, true)
+                or string.find(lowerClean, "no incompleted quests", 1, true)
+                or string.find(lowerClean, "no incomplete quests", 1, true)
+                or lowerClean == "none"
+            ) then
+                -- Encabezado o resumen informativo vacio
+            elseif not hasQuestLink and (
+                string.find(lowerClean, "incompleted quests", 1, true)
+                or string.find(lowerClean, "incomplete quests", 1, true)
+                or string.find(lowerClean, "active quests", 1, true)
                 or string.find(lowerClean, "^%-*%s*incompleted?")
-                or string.find(lowerClean, "^%-*%s*active") then
+                or string.find(lowerClean, "^%-*%s*active")
+            ) then
                 data.captureSection = "active"
-            elseif string.find(lowerClean, "completed quests") or string.find(lowerClean, "^%-*%s*completed") then
+            elseif not hasQuestLink and (
+                string.find(lowerClean, "completed quests", 1, true)
+                or string.find(lowerClean, "^%-*%s*completed")
+            ) then
                 data.captureSection = "completed"
+            elseif not hasQuestLink and string.find(lowerClean, "summary", 1, true) then
+                data.captureSection = "summary"
+            elseif not hasQuestLink and (
+                string.find(lowerClean, "^[-=]+$")
+                or string.find(lowerClean, "^[-=]+.*[-=]+$")
+                or string.find(lowerClean, "^total%s*:")
+                or string.find(lowerClean, "^completed%s*:")
+                or string.find(lowerClean, "^incompleted?%s*:")
+                or string.find(lowerClean, "^%d+%s*/%s*%d+")
+                or string.find(lowerClean, "^%d+%s+quests?")
+                or string.find(lowerClean, "^%d+%s+incompleted?")
+                or string.find(lowerClean, "^%d+%s+completed")
+            ) then
+                -- Separador o resumen numerico; no agregar como fila de mision
             else
                 local scanPos = 1
                 local foundLinkInLine = false
@@ -2213,7 +2239,7 @@ local function ParseQuestCaptureWhisper(cleanSender, message)
                     if scanPos > #line then break end
                 end
 
-                if not foundLinkInLine then
+                if not foundLinkInLine and data.captureSection ~= "summary" then
                     local fallbackTitle = TrimText(string.gsub(cleanLine, "^[%d#]+[%.)%]:%-]+%s*", ""))
                     if fallbackTitle ~= "" and #fallbackTitle > 2 then
                         local dedupKey = "t_" .. string.lower(fallbackTitle)
@@ -2253,12 +2279,42 @@ local function IsQuestLogDumpMessage(message)
     local lowerClean = string.lower(TrimText(StripWowFormatting(message or "")))
     if lowerClean == "" then return false end
     if string.find(lowerClean, "active quests", 1, true)
+        or string.find(lowerClean, "incompleted quests", 1, true)
+        or string.find(lowerClean, "incomplete quests", 1, true)
         or string.find(lowerClean, "completed quests", 1, true)
         or string.find(lowerClean, "no active quests", 1, true)
-        or string.find(lowerClean, "^summary:", 1, false) then
+        or string.find(lowerClean, "summary", 1, true) then
         return true
     end
     return false
+end
+
+local function DetectTalkQuestState(lowerText)
+    if not lowerText or lowerText == "" then return nil end
+    if string.find(lowerText, "unavailable", 1, true) then
+        return "unavailable"
+    elseif string.find(lowerText, "incompleted", 1, true)
+        or string.find(lowerText, "incomplete", 1, true)
+        or string.find(lowerText, "in progress", 1, true)
+        or string.find(lowerText, "already on quest", 1, true)
+        or string.find(lowerText, "on quest", 1, true)
+        or string.find(lowerText, "en progreso", 1, true)
+        or string.find(lowerText, "en curso", 1, true)
+        or string.find(lowerText, "ya tienes", 1, true) then
+        return "incompleted"
+    elseif string.find(lowerText, "quest completed", 1, true)
+        or string.find(lowerText, "completed:", 1, true)
+        or string.find(lowerText, "complete:", 1, true)
+        or string.find(lowerText, "ready to turn in", 1, true)
+        or string.find(lowerText, "reward", 1, true)
+        or string.find(lowerText, "completada", 1, true)
+        or string.find(lowerText, "lista para entregar", 1, true) then
+        return "completed"
+    elseif string.find(lowerText, "available", 1, true)
+        or string.find(lowerText, "disponible", 1, true) then
+        return "available"
+    end
+    return nil
 end
 
 local function ClassifyTalkQuestLine(lowerClean, isAcceptCmd)
@@ -2274,23 +2330,19 @@ local function ClassifyTalkQuestLine(lowerClean, isAcceptCmd)
         or string.find(lowerClean, "out of range", 1, true)) and true or false
 
     if isAcceptCmd then
-        return true, isError
+        return true, isError, nil
     end
 
-    local isAlreadyOrBlocked = isError
-        or string.find(lowerClean, "in progress", 1, true)
-        or string.find(lowerClean, "incomplete", 1, true)
-        or string.find(lowerClean, "already", 1, true)
-        or string.find(lowerClean, "on quest", 1, true)
-        or string.find(lowerClean, "accepted", 1, true)
+    if isError
         or string.find(lowerClean, "turned in", 1, true)
-        or string.find(lowerClean, "aceptada", 1, true)
-        or string.find(lowerClean, "en progreso", 1, true)
-        or string.find(lowerClean, "en curso", 1, true)
-        or string.find(lowerClean, "ya tienes", 1, true)
         or string.find(lowerClean, "entregada", 1, true)
+        or string.find(lowerClean, "accepted quest", 1, true)
+        or string.find(lowerClean, "just accepted", 1, true) then
+        return true, isError, nil
+    end
 
-    return isAlreadyOrBlocked and true or false, false
+    local state = DetectTalkQuestState(lowerClean)
+    return false, false, state
 end
 
 local function ParseTalkCaptureWhisper(cleanSender, message)
@@ -2359,7 +2411,11 @@ local function ParseTalkCaptureWhisper(cleanSender, message)
             end
 
             local hasQuestLinkInLine = (string.find(line, "|Hquest:", 1, true) ~= nil)
-            local skipQuestAction, isAcceptErr = ClassifyTalkQuestLine(lowerClean, cap.isAcceptCmd)
+            local probeLower = lowerClean
+            if hasQuestLinkInLine then
+                probeLower = string.lower(TrimText(StripWowFormatting(string.gsub(line, "|Hquest:[^|]+|h%[[^%]]+%]|h", " "))))
+            end
+            local skipQuestAction, isAcceptErr, lineQuestState = ClassifyTalkQuestLine(probeLower, cap.isAcceptCmd)
             if cap.isAcceptCmd then
                 if isAcceptErr then
                     data.acceptError = true
@@ -2423,6 +2479,8 @@ local function ParseTalkCaptureWhisper(cleanSender, message)
 
                     local qId, qLevel, qTitle = string.match(plainH, "^|Hquest:(%d+):(-?%d*)|h%[([^%]]+)%]|h$")
                     qTitle = qTitle or StripWowFormatting(plainH)
+                    local segBefore = string.lower(TrimText(StripWowFormatting(string.sub(subLine, 1, sOff - 1))))
+                    local qState = DetectTalkQuestState(segBefore) or lineQuestState or "unknown"
                     local actionTarget = safeLink or qTitle
                     AddTalkAction(data, "quest_" .. (qId or string.lower(qTitle)), {
                         kind = "quest",
@@ -2433,6 +2491,7 @@ local function ParseTalkCaptureWhisper(cleanSender, message)
                         displayLink = safeLink or ("|cffffff00" .. plainH .. "|r"),
                         acceptCmd = "accept " .. actionTarget,
                         talkCmd = "talk " .. actionTarget,
+                        questState = qState,
                         label = qTitle,
                     })
 

@@ -1080,7 +1080,7 @@ function DungeonBots:UpdateQuestDialog(botName)
         local subStr = ""
         if q.statusText and q.statusText ~= "" then
             local lowerSt = string.lower(q.statusText)
-            if string.find(lowerSt, "complete") and not string.find(lowerSt, "incomplete") then
+            if (string.find(lowerSt, "complete") or string.find(lowerSt, "completa")) and not string.find(lowerSt, "incomplete") then
                 subStr = "|cff34c759" .. q.statusText .. "|r"
             else
                 subStr = "|cff9aa5b5" .. q.statusText .. "|r"
@@ -1173,6 +1173,14 @@ local function CreateTalkActionRow(parent, idx)
     acceptBtn:Hide()
     row.acceptBtn = acceptBtn
 
+    local statusTag = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    statusTag:SetPoint("RIGHT", row, "RIGHT", -10, 0)
+    statusTag:SetWidth(90)
+    statusTag:SetJustifyH("RIGHT")
+    statusTag:SetWordWrap(false)
+    statusTag:Hide()
+    row.statusTag = statusTag
+
     talkActionRows[idx] = row
     return row
 end
@@ -1259,7 +1267,7 @@ function DungeonBots:BuildTalkDialog()
     -- Lista principal de opciones y misiones detectadas (1 clic)
     local optTitle = tf:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     optTitle:SetPoint("TOPLEFT", tf, "TOPLEFT", 14, -68)
-    optTitle:SetText("|cffffd200Opciones y Misiones Disponibles:|r |cff888888(1 clic para interactuar)|r")
+    optTitle:SetText("|cffffd200Opciones y Misiones del PNJ:|r |cff888888(clic para ver o interactuar)|r")
 
     local optBg = CreateFrame("Frame", nil, tf)
     optBg:SetPoint("TOPLEFT", tf, "TOPLEFT", 10, -84)
@@ -1330,6 +1338,59 @@ function DungeonBots:BuildTalkDialog()
     DungeonBots.talkFrame = tf
 end
 
+local TALK_QUEST_STYLE = {
+    available = {
+        prefix = "|cff34c759[Disponible]|r ",
+        showBtn = true,
+        btnText = "Aceptar",
+        rightBadge = nil,
+        border = { 0.25, 0.85, 0.45, 1.0 },
+        tipStatus = "Disponible",
+        tipColor = { 0.2, 0.9, 0.45 },
+        tipHint = "El bot puede tomar esta misión. Pulsa 'Aceptar' o haz clic para inspeccionarla.",
+    },
+    incompleted = {
+        prefix = "|cffff5544[Incompleta]|r ",
+        showBtn = false,
+        btnText = nil,
+        rightBadge = "|cffff9f0aEn curso|r",
+        border = { 1.0, 0.55, 0.25, 1.0 },
+        tipStatus = "Incompleta (En curso)",
+        tipColor = { 1.0, 0.45, 0.3 },
+        tipHint = "El bot ya tomó esta misión y aún está en progreso. Clic para ver detalles.",
+    },
+    completed = {
+        prefix = "|cff00ccff[Completa]|r ",
+        showBtn = true,
+        btnText = "Entregar",
+        rightBadge = nil,
+        border = { 0.25, 0.85, 1.0, 1.0 },
+        tipStatus = "Completa (Lista para entregar)",
+        tipColor = { 0.2, 0.85, 1.0 },
+        tipHint = "Objetivos completos. Pulsa 'Entregar' o haz clic para ver detalles.",
+    },
+    unavailable = {
+        prefix = "|cff888888[No disponible]|r ",
+        showBtn = false,
+        btnText = nil,
+        rightBadge = "|cff888888Bloqueada|r",
+        border = { 0.5, 0.5, 0.55, 1.0 },
+        tipStatus = "No disponible",
+        tipColor = { 0.65, 0.65, 0.7 },
+        tipHint = "El bot aún no puede tomar esta misión. Clic para ver detalles.",
+    },
+    unknown = {
+        prefix = "|cffffd200[Misión]|r ",
+        showBtn = true,
+        btnText = "Aceptar",
+        rightBadge = nil,
+        border = { 1.0, 0.82, 0.25, 1.0 },
+        tipStatus = nil,
+        tipColor = { 1, 0.85, 0.2 },
+        tipHint = "Clic para ver la descripción de la misión.",
+    },
+}
+
 function DungeonBots:UpdateTalkDialog(botName)
     if not DungeonBots.talkFrame then return end
     local tf = DungeonBots.talkFrame
@@ -1384,20 +1445,26 @@ function DungeonBots:UpdateTalkDialog(botName)
             row:Show()
 
             if act.kind == "quest" then
+                local style = TALK_QUEST_STYLE[act.questState or "unknown"] or TALK_QUEST_STYLE.unknown
                 row.mainBtn:ClearAllPoints()
                 row.mainBtn:SetPoint("TOPLEFT", row, "TOPLEFT", 4, -2)
                 row.mainBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -104, 2)
-                row.label:SetText("|cffffd200[Misión]|r " .. (act.displayLink or act.title or "Misión"))
+                row.label:SetText(style.prefix .. (act.displayLink or act.title or "Misión"))
                 row.mainBtn:SetScript("OnClick", function(self)
                     PlaySound("igMainMenuOptionCheckBoxOn")
                     local linkRef = act.questId and ("quest:" .. act.questId .. ":" .. (act.questLevel or "80")) or nil
                     SafeShowLinkTooltip(self, linkRef, act.displayLink, act.title, act.label)
                 end)
                 row.mainBtn:SetScript("OnEnter", function(self)
-                    row:SetBackdropBorderColor(1.0, 0.82, 0.25, 1.0)
+                    local b = style.border
+                    row:SetBackdropBorderColor(b[1], b[2], b[3], b[4])
                     GameTooltip:SetOwner(self, "ANCHOR_TOP")
                     GameTooltip:AddLine(act.title or "Misión", 1, 0.85, 0.2)
-                    GameTooltip:AddLine("Clic para ver la descripción de la misión.", 0.75, 0.85, 1.0)
+                    if style.tipStatus then
+                        local c = style.tipColor
+                        GameTooltip:AddLine("Estado: " .. style.tipStatus, c[1], c[2], c[3])
+                    end
+                    GameTooltip:AddLine(style.tipHint, 0.75, 0.85, 1.0, true)
                     GameTooltip:Show()
                 end)
                 row.mainBtn:SetScript("OnLeave", function()
@@ -1405,12 +1472,21 @@ function DungeonBots:UpdateTalkDialog(botName)
                     GameTooltip:Hide()
                 end)
 
-                row.acceptBtn:Show()
-                row.acceptBtn:SetScript("OnClick", function()
-                    DungeonBots:SendTalkCommand(targetBot, act.acceptCmd)
-                end)
+                if style.showBtn then
+                    row.statusTag:Hide()
+                    row.acceptBtn:SetText(style.btnText or "Aceptar")
+                    row.acceptBtn:Show()
+                    row.acceptBtn:SetScript("OnClick", function()
+                        DungeonBots:SendTalkCommand(targetBot, act.acceptCmd)
+                    end)
+                else
+                    row.acceptBtn:Hide()
+                    row.statusTag:SetText(style.rightBadge or "")
+                    row.statusTag:Show()
+                end
             else
                 row.acceptBtn:Hide()
+                row.statusTag:Hide()
                 row.mainBtn:ClearAllPoints()
                 row.mainBtn:SetPoint("TOPLEFT", row, "TOPLEFT", 4, -2)
                 row.mainBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -4, 2)
