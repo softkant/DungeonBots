@@ -1,0 +1,11 @@
+## Interface: 30300
+## Title: |cff00ccffDungeon|r|cffffd200Bots|r
+## Notes: Gestor táctico y visual de bots para Mazmorras en WoW 3.3.5a.
+## Author: Antigravity
+## Version: 1.0.0
+## SavedVariables: DungeonBotsDB
+
+DungeonBots.lua
+DungeonBots_HUD.lua
+DungeonBots_UI.lua
+
