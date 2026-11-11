@@ -883,35 +883,35 @@ function DungeonBots:BuildTab2(parent)
 
         -- DropDown de Especializaciones Dinámicas (Specs)
         local specDropDown = CreateFrame("Frame", "DungeonBots_SpecDropDown_" .. i, card, "UIDropDownMenuTemplate")
-        specDropDown:SetPoint("TOPLEFT", card, "TOPLEFT", 175, -8)
-        UIDropDownMenu_SetWidth(specDropDown, 150)
+        specDropDown:SetPoint("TOPLEFT", card, "TOPLEFT", 175, -10)
+        UIDropDownMenu_SetWidth(specDropDown, 185)
         UIDropDownMenu_JustifyText(specDropDown, "LEFT")
         card.specDropDown = specDropDown
 
-        -- Botón Listar / Actualizar Ramas Oficiales del Bot
-        local querySpecBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
-        querySpecBtn:SetSize(160, 22)
-        querySpecBtn:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 195, 8)
-        querySpecBtn:SetText("Ver Ramas")
-        card.querySpecBtn = querySpecBtn
-
-        -- Botones de Equipo
+        -- Botones de Equipo debajo del DropDown
         local matchGearBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
-        matchGearBtn:SetSize(120, 24)
-        matchGearBtn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -8)
+        matchGearBtn:SetSize(118, 22)
+        matchGearBtn:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 193, 12)
         matchGearBtn:SetText("Adaptar Equipo")
         card.matchGearBtn = matchGearBtn
 
         local blueGearBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
-        blueGearBtn:SetSize(120, 22)
-        blueGearBtn:SetPoint("TOP", matchGearBtn, "BOTTOM", 0, -3)
+        blueGearBtn:SetSize(114, 22)
+        blueGearBtn:SetPoint("LEFT", matchGearBtn, "RIGHT", 6, 0)
         blueGearBtn:SetText("Equipar Azul")
         card.blueGearBtn = blueGearBtn
 
+        -- Botón Misiones (quests all) arriba de Despedir
+        local questsBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
+        questsBtn:SetSize(120, 24)
+        questsBtn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -16)
+        questsBtn:SetText("Misiones")
+        card.questsBtn = questsBtn
+
         -- Botón Despedir bot individual
         local kickBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
-        kickBtn:SetSize(120, 20)
-        kickBtn:SetPoint("TOP", blueGearBtn, "BOTTOM", 0, -3)
+        kickBtn:SetSize(120, 24)
+        kickBtn:SetPoint("TOP", questsBtn, "BOTTOM", 0, -6)
         kickBtn:SetText("Despedir")
         card.kickBtn = kickBtn
 
@@ -980,9 +980,9 @@ function DungeonBots:UpdatePartyUI()
                     card.botBadge:SetBackdropColor(0.08, 0.16, 0.22, 0.95)
                     card.humanNotice:Hide()
                     card.specDropDown:Show()
-                    card.querySpecBtn:Show()
                     card.matchGearBtn:Show()
                     card.blueGearBtn:Show()
+                    card.questsBtn:Show()
                     card.kickBtn:Show()
                 else
                     card.botBadge.text:SetText("|cffffb020[ JUGADOR ]|r")
@@ -990,9 +990,9 @@ function DungeonBots:UpdatePartyUI()
                     card.botBadge:SetBackdropColor(0.20, 0.14, 0.08, 0.95)
                     card.humanNotice:Show()
                     card.specDropDown:Hide()
-                    card.querySpecBtn:Hide()
                     card.matchGearBtn:Hide()
                     card.blueGearBtn:Hide()
+                    card.questsBtn:Hide()
                     card.kickBtn:Hide()
                 end
 
@@ -1055,7 +1055,7 @@ function DungeonBots:UpdatePartyUI()
 
                     if #optionList == 0 then
                         local infoHint = UIDropDownMenu_CreateInfo()
-                        infoHint.text = "Pulsa 'Ver Ramas'"
+                        infoHint.text = "Sin ramas cargadas"
                         infoHint.disabled = true
                         UIDropDownMenu_AddButton(infoHint, level)
                         return
@@ -1092,22 +1092,21 @@ function DungeonBots:UpdatePartyUI()
                     UIDropDownMenu_SetText(card.specDropDown, "Consultando talentos...")
                 else
                     UIDropDownMenu_SetSelectedValue(card.specDropDown, nil)
-                    UIDropDownMenu_SetText(card.specDropDown, "Sin detectar (Ver Ramas)")
+                    UIDropDownMenu_SetText(card.specDropDown, "Sin detectar")
                 end
 
-                -- Botón Ver / Actualizar Ramas
-                card.querySpecBtn:SetScript("OnClick", function()
+                -- Botón Misiones (quests all)
+                card.questsBtn:SetScript("OnClick", function()
                     PlaySound("igMainMenuOptionCheckBoxOn")
-                    DungeonBots:QueryBotSpecs(name)
-                    ToggleDropDownMenu(1, nil, card.specDropDown, card.specDropDown, 0, 0)
+                    DungeonBots:QueryQuests(name)
                 end)
-                card.querySpecBtn:SetScript("OnEnter", function(self)
+                card.questsBtn:SetScript("OnEnter", function(self)
                     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                    GameTooltip:AddLine("Ver / Actualizar Ramas del Bot", 1, 1, 1)
-                    GameTooltip:AddLine("Susurra 'talents spec list' al bot y abre el menú de ramas para elegir.", 0.7, 0.8, 1.0, true)
+                    GameTooltip:AddLine("Misiones del Bot (quests all)", 1, 1, 1)
+                    GameTooltip:AddLine("Susurra 'quests all' al bot para ver todas sus misiones actuales.", 0.7, 0.8, 1.0, true)
                     GameTooltip:Show()
                 end)
-                card.querySpecBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+                card.questsBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
                 -- Botón Adaptar Equipo
                 card.matchGearBtn:SetScript("OnClick", function()
