@@ -385,8 +385,11 @@ function DungeonBots:ToggleHUD()
         if hudFrame:IsShown() then
             DungeonBots:Print("HUD Táctico visible.")
         else
-            DungeonBots:Print("HUD Táctico activado (aparecerá automáticamente al entrar a una mazmorra de 5 jugadores). Puedes cambiar esto en 'Armar Grupo'.")
+            DungeonBots:Print("HUD Táctico activado (aparecerá automáticamente al entrar a una mazmorra de 5 jugadores). Puedes cambiar esto en Configuración (el engranaje).")
         end
+    end
+    if DungeonBots.UpdateSettingsDialog then
+        DungeonBots:UpdateSettingsDialog()
     end
 end
 

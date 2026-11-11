@@ -98,7 +98,7 @@ function DungeonBots:InitUI()
     if mainFrame then return end
 
     local f = CreateFrame("Frame", "DungeonBots_MainFrame", UIParent)
-    f:SetSize(620, 524)
+    f:SetSize(620, 448)
     f:SetPoint("CENTER", UIParent, "CENTER", 0, 20)
     f:SetMovable(true)
     f:EnableMouse(true)
@@ -138,28 +138,28 @@ function DungeonBots:InitUI()
         f:Hide()
     end)
 
-    -- Botón de alternar HUD táctico en la cabecera
-    local hudToggleBtn = CreateFrame("Button", nil, header)
-    hudToggleBtn:SetSize(20, 20)
-    hudToggleBtn:SetPoint("RIGHT", closeBtn, "LEFT", -4, 0)
+    -- Botón de configuración (engranaje) en la cabecera
+    local settingsBtn = CreateFrame("Button", "DungeonBots_SettingsHeaderBtn", header)
+    settingsBtn:SetSize(20, 20)
+    settingsBtn:SetPoint("RIGHT", closeBtn, "LEFT", -4, 0)
 
-    local hudToggleIcon = hudToggleBtn:CreateTexture(nil, "ARTWORK")
-    hudToggleIcon:SetAllPoints()
-    hudToggleIcon:SetTexture("Interface\\Icons\\Ability_Warrior_OffensiveStance")
-    hudToggleIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    local settingsIcon = settingsBtn:CreateTexture(nil, "ARTWORK")
+    settingsIcon:SetAllPoints()
+    settingsIcon:SetTexture("Interface\\Icons\\Trade_Engineering")
+    settingsIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
-    hudToggleBtn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
-    hudToggleBtn:SetScript("OnClick", function()
+    settingsBtn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+    settingsBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
-        DungeonBots:ToggleHUD()
+        DungeonBots:ToggleSettingsDialog()
     end)
-    hudToggleBtn:SetScript("OnEnter", function(self)
+    settingsBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Alternar HUD Táctico Flotante", 1, 1, 1)
-        GameTooltip:AddLine("Muestra u oculta la barra rápida de combate para mazmorras.", 0.7, 0.7, 0.7)
+        GameTooltip:AddLine("Configuración", 1, 1, 1)
+        GameTooltip:AddLine("Abre las opciones de la Barra Táctica (HUD) y filtros de chat de bots.", 0.7, 0.8, 1.0, true)
         GameTooltip:Show()
     end)
-    hudToggleBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    settingsBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     -- Barra de Pestañas
     local tabNames = {
@@ -265,6 +265,9 @@ function DungeonBots:SelectTab(tabIndex)
         end
     end
 
+    if mainFrame then
+        mainFrame:SetHeight((tabIndex == 1) and 448 or 524)
+    end
     if tabIndex == 2 then
         DungeonBots:UpdatePartyUI()
     end
@@ -378,63 +381,9 @@ function DungeonBots:BuildTab1(parent)
     actionTitle:SetPoint("TOPLEFT", 10, -8)
     actionTitle:SetText("|cffffd200Control General del Grupo de Bots|r")
 
-    -- Checkbox de Barra Táctica solo en Mazmorras de 5 jugadores
-    local hudDungeonCheck = CreateFrame("CheckButton", "DungeonBots_HudDungeonCheck", actionBox, "UICheckButtonTemplate")
-    hudDungeonCheck:SetSize(24, 24)
-    hudDungeonCheck:SetPoint("TOPLEFT", 10, -28)
-    hudDungeonCheck:SetChecked(not DungeonBotsDB or DungeonBotsDB.hudOnlyInDungeon ~= false)
-
-    local hudCheckText = hudDungeonCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    hudCheckText:SetPoint("LEFT", hudDungeonCheck, "RIGHT", 4, 0)
-    hudCheckText:SetText("Mostrar barra táctica inferior solo dentro de mazmorras de 5 jugadores")
-
-    hudDungeonCheck:SetScript("OnClick", function(self)
-        local val = self:GetChecked() and true or false
-        if DungeonBotsDB then DungeonBotsDB.hudOnlyInDungeon = val end
-        PlaySound(val and "igMainMenuOptionCheckBoxOn" or "igMainMenuOptionCheckBoxOff")
-        if DungeonBots.UpdateHUDVisibility then
-            DungeonBots:UpdateHUDVisibility()
-        end
-        DungeonBots:Print("Barra táctica solo en mazmorra (5j): " .. (val and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
-    end)
-
-    -- Checkbox principal para ocultar susurros de bots
-    local muteWhispersCheck = CreateFrame("CheckButton", "DungeonBots_MuteWhispersCheck", actionBox, "UICheckButtonTemplate")
-    muteWhispersCheck:SetSize(24, 24)
-    muteWhispersCheck:SetPoint("TOPLEFT", 10, -52)
-    muteWhispersCheck:SetChecked(not DungeonBotsDB or DungeonBotsDB.whisperMuteMode ~= "off")
-
-    local muteWhispersText = muteWhispersCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    muteWhispersText:SetPoint("LEFT", muteWhispersCheck, "RIGHT", 4, 0)
-    muteWhispersText:SetText("Ocultar susurros de bots en el chat")
-
-    muteWhispersCheck:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Ocultar Susurros de Bots", 1, 1, 1)
-        GameTooltip:AddLine("Oculta todos los susurros entrantes y salientes con cualquier personaje identificado como bot.\n\nLos jugadores humanos reales ([JUGADOR] o desconocidos) NUNCA se ocultan.", 0.75, 0.85, 1.0, true)
-        GameTooltip:Show()
-    end)
-    muteWhispersCheck:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
-    -- Checkbox dependiente para silenciar /p, /y y /s de bots (solo visible si el anterior está activo)
-    local muteGroupCheck = CreateFrame("CheckButton", "DungeonBots_MuteGroupChatCheck", actionBox, "UICheckButtonTemplate")
-    muteGroupCheck:SetSize(24, 24)
-    muteGroupCheck:SetPoint("TOPLEFT", 26, -76)
-    muteGroupCheck:SetChecked(DungeonBotsDB and DungeonBotsDB.muteBotGroupChat)
-
-    local muteGroupText = muteGroupCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    muteGroupText:SetPoint("LEFT", muteGroupCheck, "RIGHT", 4, 0)
-    muteGroupText:SetText("Ocultar también mensajes de bots en Grupo (/p), Grito (/y) y Decir (/s)")
-
-    muteGroupCheck:SetScript("OnClick", function(self)
-        local val = self:GetChecked() and true or false
-        if DungeonBotsDB then DungeonBotsDB.muteBotGroupChat = val end
-        PlaySound(val and "igMainMenuOptionCheckBoxOn" or "igMainMenuOptionCheckBoxOff")
-        DungeonBots:Print("Ocultar chat de bots en Grupo/Decir: " .. (val and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
-    end)
-
     -- Subtítulo de acciones rápidas
     local quickActionsLabel = actionBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    quickActionsLabel:SetPoint("TOPLEFT", 12, -32)
     quickActionsLabel:SetText("|cffaaaaaaAcciones rápidas de grupo:|r")
 
     -- Fila única compacta con los 4 botones rojos clásicos e icono por función
@@ -442,42 +391,8 @@ function DungeonBots:BuildTab1(parent)
         actionBox, 134, 24, "Reinvocar Grupo",
         "Interface\\Icons\\Spell_Nature_AstralRecalGroup"
     )
+    addAllBtn:SetPoint("TOPLEFT", 11, -50)
 
-    local function UpdateMuteOptionsVisibility()
-        local isEnabled = (not DungeonBotsDB) or (DungeonBotsDB.whisperMuteMode ~= "off")
-        quickActionsLabel:ClearAllPoints()
-        addAllBtn:ClearAllPoints()
-        if isEnabled then
-            muteGroupCheck:Show()
-            quickActionsLabel:SetPoint("TOPLEFT", 12, -108)
-            addAllBtn:SetPoint("TOPLEFT", 11, -126)
-            if mainFrame then
-                mainFrame:SetHeight(524)
-            end
-        else
-            muteGroupCheck:Hide()
-            quickActionsLabel:SetPoint("TOPLEFT", 12, -84)
-            addAllBtn:SetPoint("TOPLEFT", 11, -102)
-            if mainFrame then
-                mainFrame:SetHeight(500)
-            end
-        end
-    end
-
-    muteWhispersCheck:SetScript("OnClick", function(self)
-        local val = self:GetChecked() and true or false
-        if DungeonBotsDB then
-            DungeonBotsDB.whisperMuteMode = val and "all" or "off"
-        end
-        PlaySound(val and "igMainMenuOptionCheckBoxOn" or "igMainMenuOptionCheckBoxOff")
-        if val and DungeonBots.CloseBotWIMWindows then
-            DungeonBots:CloseBotWIMWindows()
-        end
-        UpdateMuteOptionsVisibility()
-        DungeonBots:Print("Ocultar susurros de bots: " .. (val and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
-    end)
-
-    UpdateMuteOptionsVisibility()
     addAllBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
         DungeonBots:AddAllBots()
@@ -544,6 +459,228 @@ function DungeonBots:BuildTab1(parent)
         GameTooltip:Show()
     end)
     releaseBtn:HookScript("OnLeave", function() GameTooltip:Hide() end)
+end
+
+-- =========================================================================
+-- VENTANA DE DIÁLOGO: CONFIGURACIÓN (engranaje)
+-- =========================================================================
+local function CreateSettingsCheckbox(parent, name, labelText, tipTitle, tipBody)
+    local cb = CreateFrame("CheckButton", name, parent, "UICheckButtonTemplate")
+    cb:SetSize(24, 24)
+    local fs = cb:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    fs:SetPoint("LEFT", cb, "RIGHT", 4, 0)
+    fs:SetText(labelText)
+    cb.label = fs
+    if tipTitle then
+        cb:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:AddLine(tipTitle, 1, 1, 1)
+            GameTooltip:AddLine(tipBody or "", 0.75, 0.85, 1.0, true)
+            GameTooltip:Show()
+        end)
+        cb:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    end
+    return cb
+end
+
+function DungeonBots:UpdateSettingsDialog()
+    local sf = DungeonBots.settingsFrame
+    if not sf then return end
+
+    local hudShow = (not DungeonBotsDB) or (DungeonBotsDB.hudVisible ~= false)
+    local hudDungeonOnly = (not DungeonBotsDB) or (DungeonBotsDB.hudOnlyInDungeon ~= false)
+    local muteShow = (not DungeonBotsDB) or (DungeonBotsDB.whisperMuteMode ~= "off")
+    local muteGroup = (DungeonBotsDB and DungeonBotsDB.muteBotGroupChat) and true or false
+
+    sf.hudVisibleCheck:SetChecked(hudShow)
+    sf.hudDungeonCheck:SetChecked(hudDungeonOnly)
+    sf.muteWhispersCheck:SetChecked(muteShow)
+    sf.muteGroupCheck:SetChecked(muteGroup)
+
+    sf.muteWhispersCheck:ClearAllPoints()
+    if hudShow then
+        sf.hudDungeonCheck:Show()
+        sf.muteWhispersCheck:SetPoint("TOPLEFT", sf.hudDungeonCheck, "BOTTOMLEFT", -18, -10)
+    else
+        sf.hudDungeonCheck:Hide()
+        sf.muteWhispersCheck:SetPoint("TOPLEFT", sf.hudVisibleCheck, "BOTTOMLEFT", 0, -10)
+    end
+
+    if muteShow then
+        sf.muteGroupCheck:Show()
+    else
+        sf.muteGroupCheck:Hide()
+    end
+
+    local totalH = 152 + (hudShow and 26 or 0) + (muteShow and 26 or 0)
+    sf:SetHeight(totalH)
+end
+
+function DungeonBots:BuildSettingsDialog()
+    if DungeonBots.settingsFrame then return end
+
+    local sf = CreateFrame("Frame", "DungeonBots_SettingsFrame", UIParent)
+    sf:SetSize(540, 204)
+    sf:SetPoint("CENTER", UIParent, "CENTER", 0, 40)
+    sf:SetFrameStrata("DIALOG")
+    sf:SetFrameLevel(22)
+    sf:SetToplevel(true)
+    sf:SetMovable(true)
+    sf:EnableMouse(true)
+    sf:SetClampedToScreen(true)
+    sf:RegisterForDrag("LeftButton")
+    sf:SetScript("OnDragStart", sf.StartMoving)
+    sf:SetScript("OnDragStop", sf.StopMovingOrSizing)
+    sf:Hide()
+    ApplyDarkBackdrop(sf, 14)
+    sf:SetBackdropColor(0.04, 0.05, 0.08, 1.0)
+
+    local solidBg = sf:CreateTexture(nil, "BACKGROUND")
+    solidBg:SetPoint("TOPLEFT", sf, "TOPLEFT", 4, -4)
+    solidBg:SetPoint("BOTTOMRIGHT", sf, "BOTTOMRIGHT", -4, 4)
+    solidBg:SetTexture(0.04, 0.05, 0.08, 1.0)
+
+    tinsert(UISpecialFrames, "DungeonBots_SettingsFrame")
+
+    local header = CreateFrame("Frame", nil, sf)
+    header:SetPoint("TOPLEFT", sf, "TOPLEFT", 6, -6)
+    header:SetPoint("TOPRIGHT", sf, "TOPRIGHT", -6, -6)
+    header:SetHeight(30)
+    ApplyHeaderBackdrop(header)
+    header:SetBackdropColor(0.10, 0.12, 0.16, 1.0)
+
+    local headerSolidBg = header:CreateTexture(nil, "BACKGROUND")
+    headerSolidBg:SetPoint("TOPLEFT", header, "TOPLEFT", 2, -2)
+    headerSolidBg:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -2, 2)
+    headerSolidBg:SetTexture(0.10, 0.12, 0.16, 1.0)
+
+    local hIcon = header:CreateTexture(nil, "ARTWORK")
+    hIcon:SetSize(16, 16)
+    hIcon:SetPoint("LEFT", 10, 0)
+    hIcon:SetTexture("Interface\\Icons\\Trade_Engineering")
+    hIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    title:SetPoint("LEFT", hIcon, "RIGHT", 6, 0)
+    title:SetText("|cff00ccffConfiguración|r |cff888888DungeonBots|r")
+
+    local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
+    closeBtn:SetPoint("RIGHT", header, "RIGHT", -2, 0)
+    closeBtn:SetScript("OnClick", function()
+        PlaySound("igMainMenuOptionCheckBoxOff")
+        sf:Hide()
+    end)
+
+    -- Opcion 1: Mostrar/Ocultar HUD Tactico
+    local hudVisibleCheck = CreateSettingsCheckbox(
+        sf, "DungeonBots_HudVisibleCheck",
+        "Mostrar Barra Táctica flotante (HUD)",
+        "Barra Táctica Flotante (HUD)",
+        "Muestra la barra rápida flotante de comandos de combate y Hablar PNJ.\n\nDesmarca esta opción para ocultar la barra por completo."
+    )
+    hudVisibleCheck:SetPoint("TOPLEFT", sf, "TOPLEFT", 16, -46)
+    sf.hudVisibleCheck = hudVisibleCheck
+
+    -- Opcion 1b (dependiente): Solo en mazmorras de 5 jugadores
+    local hudDungeonCheck = CreateSettingsCheckbox(
+        sf, "DungeonBots_HudDungeonCheck",
+        "Mostrar barra táctica solo dentro de mazmorras de 5 jugadores",
+        "Solo en Mazmorras de 5 Jugadores",
+        "Cuando está activa, la barra táctica se oculta fuera de mazmorras de 5 jugadores y aparece automáticamente al entrar."
+    )
+    hudDungeonCheck:SetPoint("TOPLEFT", hudVisibleCheck, "BOTTOMLEFT", 18, -2)
+    sf.hudDungeonCheck = hudDungeonCheck
+
+    -- Opcion 2: Ocultar susurros de bots
+    local muteWhispersCheck = CreateSettingsCheckbox(
+        sf, "DungeonBots_MuteWhispersCheck",
+        "Ocultar susurros de bots en el chat",
+        "Ocultar Susurros de Bots",
+        "Oculta todos los susurros entrantes y salientes con cualquier personaje identificado como bot.\n\nLos jugadores humanos reales ([JUGADOR] o desconocidos) NUNCA se ocultan."
+    )
+    sf.muteWhispersCheck = muteWhispersCheck
+
+    -- Opcion 2b (dependiente): Ocultar mensajes de bots en Grupo/Grito/Decir
+    local muteGroupCheck = CreateSettingsCheckbox(
+        sf, "DungeonBots_MuteGroupChatCheck",
+        "Ocultar también mensajes de bots en Grupo (/p), Grito (/y) y Decir (/s)",
+        "Ocultar Chat de Grupo/Decir de Bots",
+        "También filtra los mensajes públicos de bots en canales de Grupo (/p), Grito (/y) y Decir (/s)."
+    )
+    muteGroupCheck:SetPoint("TOPLEFT", muteWhispersCheck, "BOTTOMLEFT", 18, -2)
+    sf.muteGroupCheck = muteGroupCheck
+
+    hudVisibleCheck:SetScript("OnClick", function(self)
+        local val = self:GetChecked() and true or false
+        if DungeonBotsDB then DungeonBotsDB.hudVisible = val end
+        PlaySound(val and "igMainMenuOptionCheckBoxOn" or "igMainMenuOptionCheckBoxOff")
+        if val and DungeonBots.InitHUD and not DungeonBots.hudFrame then
+            DungeonBots:InitHUD()
+        elseif DungeonBots.UpdateHUDVisibility then
+            DungeonBots:UpdateHUDVisibility()
+        end
+        DungeonBots:UpdateSettingsDialog()
+        DungeonBots:Print("Barra táctica (HUD): " .. (val and "|cff34c759Activada|r" or "|cffff3b30Oculta|r"))
+    end)
+
+    hudDungeonCheck:SetScript("OnClick", function(self)
+        local val = self:GetChecked() and true or false
+        if DungeonBotsDB then DungeonBotsDB.hudOnlyInDungeon = val end
+        PlaySound(val and "igMainMenuOptionCheckBoxOn" or "igMainMenuOptionCheckBoxOff")
+        if DungeonBots.UpdateHUDVisibility then
+            DungeonBots:UpdateHUDVisibility()
+        end
+        DungeonBots:Print("Barra táctica solo en mazmorra (5j): " .. (val and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
+    end)
+
+    muteWhispersCheck:SetScript("OnClick", function(self)
+        local val = self:GetChecked() and true or false
+        if DungeonBotsDB then
+            DungeonBotsDB.whisperMuteMode = val and "all" or "off"
+        end
+        PlaySound(val and "igMainMenuOptionCheckBoxOn" or "igMainMenuOptionCheckBoxOff")
+        if val and DungeonBots.CloseBotWIMWindows then
+            DungeonBots:CloseBotWIMWindows()
+        end
+        DungeonBots:UpdateSettingsDialog()
+        DungeonBots:Print("Ocultar susurros de bots: " .. (val and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
+    end)
+
+    muteGroupCheck:SetScript("OnClick", function(self)
+        local val = self:GetChecked() and true or false
+        if DungeonBotsDB then DungeonBotsDB.muteBotGroupChat = val end
+        PlaySound(val and "igMainMenuOptionCheckBoxOn" or "igMainMenuOptionCheckBoxOff")
+        DungeonBots:Print("Ocultar chat de bots en Grupo/Decir: " .. (val and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
+    end)
+
+    local closeFooterBtn = CreateFrame("Button", nil, sf, "UIPanelButtonTemplate")
+    closeFooterBtn:SetSize(90, 24)
+    closeFooterBtn:SetPoint("BOTTOMRIGHT", sf, "BOTTOMRIGHT", -14, 12)
+    closeFooterBtn:SetText("Cerrar")
+    closeFooterBtn:SetScript("OnClick", function()
+        PlaySound("igMainMenuOptionCheckBoxOff")
+        sf:Hide()
+    end)
+
+    DungeonBots.settingsFrame = sf
+    DungeonBots:UpdateSettingsDialog()
+end
+
+function DungeonBots:ToggleSettingsDialog()
+    if not DungeonBots.settingsFrame then
+        DungeonBots:BuildSettingsDialog()
+    end
+    local sf = DungeonBots.settingsFrame
+    if sf:IsShown() then
+        PlaySound("igMainMenuOptionCheckBoxOff")
+        sf:Hide()
+    else
+        DungeonBots:UpdateSettingsDialog()
+        sf:Show()
+        if sf.Raise then
+            pcall(sf.Raise, sf)
+        end
+    end
 end
 
 -- =========================================================================
