@@ -86,15 +86,9 @@ local function UpdateSlotSelectionUI()
     end
 
     if selected then
-        local linkTxt = (selected.displayLink and selected.displayLink ~= "")
-            and selected.displayLink
-            or ("|cffffffff[" .. (selected.name or selected.rawName or "Objeto") .. "]|r")
-        local qtyTxt = ((selected.count or 1) > 1) and (" |cffaaaaaa(x" .. selected.count .. ")|r") or ""
-        inv.selectedLabel:SetText("Sel.: " .. linkTxt .. qtyTxt)
         inv.destroyBtn:Enable()
         inv.destroyBtn:SetAlpha(1.0)
     else
-        inv.selectedLabel:SetText("|cff888888Clic izq.: sel. | Clic der.: destruir|r")
         inv.destroyBtn:Disable()
         inv.destroyBtn:SetAlpha(0.45)
     end
@@ -196,7 +190,11 @@ local function CreateInventorySlotButton(parent, idx)
         end
 
         PlaySound("igMainMenuOptionCheckBoxOn")
-        inv.selectedItem = (inv.selectedItem == item) and nil or item
+        if inv.selectedItem == item then
+            inv.selectedItem = nil
+        else
+            inv.selectedItem = item
+        end
         UpdateSlotSelectionUI()
     end)
 
@@ -373,14 +371,6 @@ function DungeonBots:BuildInventoryDialog()
     end)
     destroyBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
     inv.destroyBtn = destroyBtn
-
-    local selectedLabel = inv:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    selectedLabel:SetPoint("LEFT", botCycleLabel, "RIGHT", 6, 0)
-    selectedLabel:SetPoint("RIGHT", destroyBtn, "LEFT", -8, 0)
-    selectedLabel:SetJustifyH("CENTER")
-    selectedLabel:SetWordWrap(false)
-    selectedLabel:SetText("|cff888888Clic izq.: sel. | Clic der.: destruir|r")
-    inv.selectedLabel = selectedLabel
 
     DungeonBots.inventoryFrame = inv
 end
