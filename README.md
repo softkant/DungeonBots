@@ -17,7 +17,7 @@
 * **Summon by Class (`Invocar Bot por Clase Individual`):** 10 class buttons that run `.playerbots bot addclass <class>`.
 * **Smart Auto-Invite & Human Safety:** Newly summoned bots that whisper on creation (within the summon window, when party size < 5) are invited automatically. Real players are never treated as bots unless explicitly confirmed or toggled.
 * **Settings Modal (Header Gear Icon):**
-  * Show/hide the floating Combat HUD and toggle displaying it only inside 5-player dungeons (`IsInInstance() == "party"`, enabled by default).
+  * Independently show or hide the Floating Combat HUD and the Floating Utility Bar (both enabled by default) and toggle hiding floating bars outside 5-player dungeons (`IsInInstance() == "party"`, enabled by default).
   * **Bot Whisper Hiding:** Toggle hiding all incoming and outgoing whispers with known bots (compatible with Blizzard chat and WIM without touching WIM's SavedVariables); when enabled, reveals an additional option to also hide bot messages in `/p`, `/y`, and `/s`. Real human players (`[JUGADOR]` or unknown players) are never filtered.
 * **Global Group Controls:**
   * **`Reinvocar Grupo`:** Runs `.playerbots bot add *` + `/p summon` to recall absent bots that are still in your party.
@@ -54,15 +54,23 @@ Automates the Forge of Souls -> Pit of Saron -> Halls of Reflection quest chain 
 
 ---
 
-### 5. Floating Tactical Bar (`Combat HUD`)
-Compact, draggable, and lockable floating bar (shown only inside 5-player dungeons by default) with 7 combat actions sent to `/p`:
+### 5. Floating Combat Bar & Utility Bar
+Both floating bars are draggable, independently lockable, individually toggleable in Settings (gear icon, both enabled by default), and share the 5-player dungeon visibility toggle:
+
+#### Floating Combat HUD (`Barra Táctica`)
+Compact bar (plus quick lock toggle and main panel book button) with 6 party combat actions sent to `/p`:
 1. **Focus Target:** `do attack my target`
 2. **Pull con Tanque:** `pull my target`
 3. **Quedarse:** `stay`
 4. **Seguir:** `follow`
 5. **Summon:** `summon`
 6. **¡Huir!:** `flee`
-7. **Hablar PNJ:** `talk` (opens a bot selector dropdown if 2+ party bots are present, or queries the single bot directly and opens the interactive NPC Talk dialog; disabled when no living non-player NPC is targeted)
+
+#### Floating Utility Bar (`Barra de Utilidades`)
+Positioned cleanly above the Tactical HUD by default:
+1. **Hablar PNJ:** `talk` (opens a bot selector dropdown if 2+ party bots are present, or queries the single bot directly and opens the interactive NPC Talk dialog; disabled when no living non-player NPC is targeted).
+2. **Bots en el Grupo:** Opens the main `DungeonBots` window directly onto Tab 2 (`Bots en el grupo`).
+3. **Inventario de Bot:** Opens a party bot dropdown selector (`c`) and opens the **Bot Inventory / Bag Viewer**, rendering bag items in a visual grid with quality-colored borders, stack counts, search filter, localized tooltips, and confirmed item destruction (`destroy [itemLink]` whispered to the bot; no trade UI).
 
 ---
 
@@ -75,11 +83,13 @@ Compact, draggable, and lockable floating bar (shown only inside 5-player dungeo
 - `DungeonBots_Comms.lua` — Chat command dispatch, staggered queue, filters, and WIM hooks
 - `DungeonBots_Talents.lua` — Talent parsing, live queries, spec switching, and autogear
 - `DungeonBots_Quests.lua` — Quest Log & Talk capture engine plus Dalaran timer helpers
+- `DungeonBots_Inventory.lua` — Bot bag query (`c`), whisper parser, and `destroy` dispatcher
 - `DungeonBots_Events.lua` — WoW event dispatcher and slash commands
-- `DungeonBots_HUD.lua` — Floating Combat HUD
+- `DungeonBots_HUD.lua` — Floating Combat Tactical HUD and Floating Utility Bar
 - `DungeonBots_UI.lua` — Main 3-tab UI frame, minimap icon, and LFD eye hooks
 - `DungeonBots_Modals.lua` — Settings and Bot History modal windows
 - `DungeonBots_QuestTalkUI.lua` — Quest Log and NPC Talk modal windows
+- `DungeonBots_InventoryUI.lua` — Bag-grid Bot Inventory window and item destruction confirmation
 
 ---
 
@@ -96,7 +106,8 @@ Compact, draggable, and lockable floating bar (shown only inside 5-player dungeo
   * `/db` — Toggle main window.
   * `/db hud` — Toggle the floating Combat HUD.
   * `/db talk [bot]` — Query a bot's current NPC dialog (`talk`) and open the NPC Talk dialog.
+  * `/db inv [bot]` — Query a bot's bags (`c`) and open the Bot Inventory window.
   * `/db dalaran` — Trigger the Dalaran prep step.
   * `/db addall` — Recall all bots (`.playerbots bot add *`).
   * `/db dismiss` (or `/db removeall`) — Dismiss all bots (`.playerbots bot remove *`).
-  * `/db reset` — Reset the Combat HUD position to bottom-center.
+  * `/db reset` — Reset both floating bars (Combat HUD & Utility Bar) to bottom-center.

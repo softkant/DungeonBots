@@ -1,12 +1,17 @@
 -- =========================================================================
--- DungeonBots_HUD.lua: Barra Táctica Flotante de Mazmorras
+-- DungeonBots_HUD.lua: Barras Flotantes (HUD Táctico y Barra de Utilidades)
 -- =========================================================================
 
 DungeonBots = DungeonBots or {}
+DungeonBots.Internal = DungeonBots.Internal or {}
 
+local DB_Internal = DungeonBots.Internal
 local hudFrame = nil
+local utilHudFrame = nil
+local hudBotDropDown = nil
+local hudTalkBtn = nil
 
-local HUD_ACTIONS = {
+local TACTICAL_ACTIONS = {
     {
         name = "Focus Target",
         cmd = "do attack my target",
@@ -55,47 +60,63 @@ local HUD_ACTIONS = {
         desc = "¡Botón de pánico! Fuerza a los bots a romper el combate y correr hacia ti.\n\n|cff71d5ffPerfecto para salvar un wipe o hacer un pull tras una esquina.|r",
         color = { 1.0, 0.3, 0.3 }
     },
+}
+
+local UTIL_ACTIONS = {
     {
         name = "Hablar PNJ",
-        cmd = "talk",
+        actionKind = "talk",
         isTalkPicker = true,
         fullTexCoord = true,
         iconInset = 6,
         icon = "Interface\\GossipFrame\\GossipGossipIcon",
         title = "|cff00e5ffHablar con PNJ (Talk)|r",
         desc = "Consulta los diálogos y misiones del PNJ seleccionado mediante un bot.\n\n|cff71d5ffSi hay varios bots en grupo abre un menú para elegir cuál; si solo hay uno, lo envía directo.|r",
+        tooltipCmd = "Acción: |cffffd200/w <Bot> talk|r (menú si hay 2+ bots)",
         color = { 0.2, 0.8, 1.0 }
+    },
+    {
+        name = "Bots en el Grupo",
+        actionKind = "party_tab",
+        icon = "Interface\\Icons\\INV_Misc_GroupNeedMore",
+        title = "|cffffd200Bots en el Grupo|r",
+        desc = "Abre directamente la pestaña de gestión del grupo actual (talentos, equipo y misiones).\n\n|cff71d5ffAtajo rápido a la segunda pestaña de DungeonBots.|r",
+        tooltipCmd = "Acción: |cffffd200Abrir pestaña Bots en el grupo|r",
+        color = { 0.95, 0.78, 0.25 }
+    },
+    {
+        name = "Inventario de Bot",
+        actionKind = "inventory",
+        icon = "Interface\\Icons\\INV_Misc_Bag_08",
+        title = "|cff34c759Inventario y Bolsas de Bot|r",
+        desc = "Abre un menú desplegable para elegir un bot del grupo y ver sus bolsas.\n\n|cff71d5ffPermite inspeccionar sus objetos y destruir los que no necesites.|r",
+        tooltipCmd = "Acción: |cffffd200Elegir bot -> /w <Bot> c|r",
+        color = { 0.35, 0.88, 0.45 }
     },
 }
 
-local hudTalkDropDown = nil
-local hudTalkBtn = nil
-
-local function GetOrCreateHudTalkDropDown()
-    if hudTalkDropDown then return hudTalkDropDown end
-    hudTalkDropDown = CreateFrame("Frame", "DungeonBots_HUDTalkDropDown", UIParent, "UIDropDownMenuTemplate")
-    hudTalkDropDown.displayMode = "MENU"
-    hudTalkDropDown:Hide()
-    return hudTalkDropDown
+local function GetOrCreateHudBotDropDown()
+    if hudBotDropDown then return hudBotDropDown end
+    hudBotDropDown = CreateFrame("Frame", "DungeonBots_HUDTalkDropDown", UIParent, "UIDropDownMenuTemplate")
+    hudBotDropDown.displayMode = "MENU"
+    hudBotDropDown:Hide()
+    return hudBotDropDown
 end
 
-local function HandleHudTalkClick(anchorBtn)
-    if DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
-        return
-    end
+local function OpenHudBotDropdown(anchorBtn, headerTitle, emptyWarnMsg, onSelectBot, directIfSingle)
     local bots = DungeonBots.GetPartyBotsList and DungeonBots:GetPartyBotsList() or {}
     if #bots == 0 then
         if CloseDropDownMenus then CloseDropDownMenus() end
-        DungeonBots:Warn("No hay bots detectados en el grupo para hablar con el PNJ.")
+        DungeonBots:Warn(emptyWarnMsg)
         return
     end
-    if #bots == 1 then
+    if directIfSingle and #bots == 1 then
         if CloseDropDownMenus then CloseDropDownMenus() end
-        DungeonBots:SendTalkCommand(bots[1].name, "talk")
+        onSelectBot(bots[1].name)
         return
     end
 
-    local dd = GetOrCreateHudTalkDropDown()
+    local dd = GetOrCreateHudBotDropDown()
     if UIDROPDOWNMENU_OPEN_MENU ~= dd and CloseDropDownMenus then
         CloseDropDownMenus()
     end
@@ -111,7 +132,7 @@ local function HandleHudTalkClick(anchorBtn)
 
     UIDropDownMenu_Initialize(dd, function(self, level)
         local infoTitle = UIDropDownMenu_CreateInfo()
-        infoTitle.text = "-- Elegir Bot --"
+        infoTitle.text = headerTitle or "-- Elegir Bot --"
         infoTitle.isTitle = true
         infoTitle.notCheckable = true
         UIDropDownMenu_AddButton(infoTitle, level)
@@ -125,13 +146,52 @@ local function HandleHudTalkClick(anchorBtn)
             local chosenName = bot.name
             info.func = function()
                 if CloseDropDownMenus then CloseDropDownMenus() end
-                DungeonBots:SendTalkCommand(chosenName, "talk")
+                onSelectBot(chosenName)
             end
             UIDropDownMenu_AddButton(info, level)
         end
     end, "MENU")
 
     ToggleDropDownMenu(1, nil, dd, anchorBtn, 0, opensUp and 4 or -4)
+end
+DB_Internal.OpenPartyBotDropdown = OpenHudBotDropdown
+
+local function HandleHudTalkClick(anchorBtn)
+    if DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
+        return
+    end
+    OpenHudBotDropdown(
+        anchorBtn,
+        "-- Elegir Bot --",
+        "No hay bots detectados en el grupo para hablar con el PNJ.",
+        function(chosenName)
+            DungeonBots:SendTalkCommand(chosenName, "talk")
+        end,
+        true
+    )
+end
+
+local function HandleUtilActionClick(anchorBtn, action)
+    if action.actionKind == "talk" then
+        HandleHudTalkClick(anchorBtn)
+    elseif action.actionKind == "party_tab" then
+        if CloseDropDownMenus then CloseDropDownMenus() end
+        if DungeonBots.OpenTab then
+            DungeonBots:OpenTab(2)
+        end
+    elseif action.actionKind == "inventory" then
+        OpenHudBotDropdown(
+            anchorBtn,
+            "-- Elegir Bot (Inventario) --",
+            "No hay bots detectados en el grupo para abrir su inventario.",
+            function(chosenName)
+                if DungeonBots.QueryBotInventory then
+                    DungeonBots:QueryBotInventory(chosenName)
+                end
+            end,
+            false
+        )
+    end
 end
 
 function DungeonBots:IsInFiveManDungeon()
@@ -165,48 +225,54 @@ function DungeonBots:UpdateHUDTalkButtonState()
         if hudTalkBtn.highlightTex then
             hudTalkBtn.highlightTex:Hide()
         end
-        if hudTalkDropDown and UIDROPDOWNMENU_OPEN_MENU == hudTalkDropDown and CloseDropDownMenus then
+        if hudBotDropDown and UIDROPDOWNMENU_OPEN_MENU == hudBotDropDown and CloseDropDownMenus then
             CloseDropDownMenus()
         end
     end
 end
 
-function DungeonBots:UpdateHUDVisibility()
-    if not hudFrame then return end
-    if DungeonBotsDB and DungeonBotsDB.hudVisible == false then
-        hudFrame:Hide()
-        return
+local function ApplyBarVisibility(barFrame, visibleKey)
+    if not barFrame then return false end
+    if DungeonBotsDB and DungeonBotsDB[visibleKey] == false then
+        barFrame:Hide()
+        return false
     end
     local onlyInDungeon = (not DungeonBotsDB) or (DungeonBotsDB.hudOnlyInDungeon ~= false)
     if onlyInDungeon and not DungeonBots:IsInFiveManDungeon() then
-        hudFrame:Hide()
-    else
-        hudFrame:Show()
+        barFrame:Hide()
+        return false
+    end
+    barFrame:Show()
+    return true
+end
+
+function DungeonBots:UpdateHUDVisibility()
+    ApplyBarVisibility(hudFrame, "hudVisible")
+    if ApplyBarVisibility(utilHudFrame, "utilHudVisible") then
         DungeonBots:UpdateHUDTalkButtonState()
     end
 end
 
-function DungeonBots:InitHUD()
-    if hudFrame then return end
-
+local function CreateFloatingToolbar(cfg)
+    local actions = cfg.actions or {}
     local btnSize = 34
     local spacing = 4
     local startX = 28
-    local totalWidth = startX + (#HUD_ACTIONS * (btnSize + spacing)) - spacing + 28
+    local rightPad = cfg.showMainPanelBtn and 28 or 8
+    local totalWidth = startX + (#actions * (btnSize + spacing)) - spacing + rightPad
 
-    local f = CreateFrame("Frame", "DungeonBots_HUDFrame", UIParent)
+    local f = CreateFrame("Frame", cfg.frameName, UIParent)
     f:SetSize(totalWidth, 48)
     f:SetClampedToScreen(true)
     f:SetMovable(true)
     f:EnableMouse(true)
     f:RegisterForDrag("LeftButton")
 
-    -- Restaurar posición guardada
-    local pos = (DungeonBotsDB and DungeonBotsDB.hudPosition) or { point = "BOTTOM", x = 0, y = 140 }
-    f:SetPoint(pos.point or "BOTTOM", UIParent, pos.point or "BOTTOM", pos.x or 0, pos.y or 140)
+    local pos = (DungeonBotsDB and DungeonBotsDB[cfg.posKey]) or cfg.defaultPos
+    f:SetPoint(pos.point or "BOTTOM", UIParent, pos.point or "BOTTOM", pos.x or 0, pos.y or cfg.defaultPos.y)
 
     f:SetScript("OnDragStart", function(self)
-        if not (DungeonBotsDB and DungeonBotsDB.hudLocked) then
+        if not (DungeonBotsDB and DungeonBotsDB[cfg.lockKey]) then
             self:StartMoving()
         end
     end)
@@ -215,7 +281,7 @@ function DungeonBots:InitHUD()
         self:StopMovingOrSizing()
         local point, _, _, x, y = self:GetPoint()
         if DungeonBotsDB then
-            DungeonBotsDB.hudPosition = { point = point, x = math.floor(x + 0.5), y = math.floor(y + 0.5) }
+            DungeonBotsDB[cfg.posKey] = { point = point, x = math.floor(x + 0.5), y = math.floor(y + 0.5) }
         end
     end)
 
@@ -228,7 +294,6 @@ function DungeonBots:InitHUD()
     f:SetBackdropColor(0.07, 0.08, 0.11, 0.92)
     f:SetBackdropBorderColor(0.68, 0.62, 0.44, 1.0)
 
-    -- Botón de bloqueo (candado nativo de WoW 3.3.5a)
     local lockBtn = CreateFrame("Button", nil, f)
     lockBtn:SetSize(18, 18)
     lockBtn:SetPoint("LEFT", f, "LEFT", 5, 0)
@@ -240,7 +305,7 @@ function DungeonBots:InitHUD()
     lockIcon:SetTexCoord(0, 0.875, 0, 0.875)
 
     local function updateLockVisual()
-        local isLocked = DungeonBotsDB and DungeonBotsDB.hudLocked
+        local isLocked = DungeonBotsDB and DungeonBotsDB[cfg.lockKey]
         if isLocked then
             lockIcon:SetVertexColor(1.0, 0.35, 0.35, 1.0)
         else
@@ -251,33 +316,31 @@ function DungeonBots:InitHUD()
 
     lockBtn:SetScript("OnClick", function()
         if DungeonBotsDB then
-            DungeonBotsDB.hudLocked = not DungeonBotsDB.hudLocked
+            DungeonBotsDB[cfg.lockKey] = not DungeonBotsDB[cfg.lockKey]
             updateLockVisual()
-            if DungeonBotsDB.hudLocked then
-                DungeonBots:Print("HUD Táctico: |cffff3b30Bloqueado|r.")
+            if DungeonBotsDB[cfg.lockKey] then
+                DungeonBots:Print(cfg.barLabel .. ": |cffff3b30Bloqueada|r.")
             else
-                DungeonBots:Print("HUD Táctico: |cff34c759Desbloqueado|r (puedes arrastrarlo).")
+                DungeonBots:Print(cfg.barLabel .. ": |cff34c759Desbloqueada|r (puedes arrastrarla).")
             end
         end
     end)
 
     lockBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        local isLocked = DungeonBotsDB and DungeonBotsDB.hudLocked
-        GameTooltip:AddLine(isLocked and "HUD Bloqueado" or "HUD Desbloqueado", 1, 1, 1)
-        GameTooltip:AddLine("Haz clic para " .. (isLocked and "desbloquear y poder moverlo." or "bloquear en su sitio."), 0.7, 0.7, 0.7)
+        local isLocked = DungeonBotsDB and DungeonBotsDB[cfg.lockKey]
+        GameTooltip:AddLine(cfg.barLabel .. (isLocked and ": Bloqueada" or ": Desbloqueada"), 1, 1, 1)
+        GameTooltip:AddLine("Haz clic para " .. (isLocked and "desbloquear y poder moverla." or "bloquear en su sitio."), 0.7, 0.7, 0.7)
         GameTooltip:Show()
     end)
     lockBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-    -- Crear los botones de acción
-    for i, action in ipairs(HUD_ACTIONS) do
-        local btn = CreateFrame("Button", "DungeonBots_HUDExtBtn_" .. i, f)
+    for i, action in ipairs(actions) do
+        local btn = CreateFrame("Button", cfg.btnPrefix .. i, f)
         btn:SetSize(btnSize, btnSize)
         btn:SetPoint("LEFT", f, "LEFT", startX + (i - 1) * (btnSize + spacing), 0)
         btn:RegisterForClicks("LeftButtonUp")
 
-        -- Fondo del botón con borde estilizado y nítido
         btn:SetBackdrop({
             bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
             edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -287,7 +350,6 @@ function DungeonBots:InitHUD()
         btn:SetBackdropColor(0.06, 0.08, 0.12, 0.95)
         btn:SetBackdropBorderColor(action.color[1], action.color[2], action.color[3], 0.85)
 
-        -- Textura del icono ajustada limpiamente dentro del marco
         local icon = btn:CreateTexture(nil, "ARTWORK")
         local pad = action.iconInset or 3
         icon:SetPoint("TOPLEFT", pad, -pad)
@@ -299,7 +361,6 @@ function DungeonBots:InitHUD()
             icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         end
 
-        -- Textura al pasar el ratón (Highlight)
         local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
         highlight:SetPoint("TOPLEFT", 3, -3)
         highlight:SetPoint("BOTTOMRIGHT", -3, 3)
@@ -315,24 +376,18 @@ function DungeonBots:InitHUD()
 
         btn:SetScript("OnClick", function(self)
             PlaySound("igMainMenuOptionCheckBoxOn")
-            if action.isTalkPicker then
-                HandleHudTalkClick(self)
-            else
-                DungeonBots:SendPartyCommand(action.cmd)
-            end
+            cfg.onActionClick(self, action)
         end)
 
         btn:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
             GameTooltip:AddLine(action.title, 1, 1, 1)
             GameTooltip:AddLine(action.desc, 0.85, 0.85, 0.85, true)
-            if action.isTalkPicker then
-                if DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
-                    GameTooltip:AddLine("Desactivado: Haz clic primero en un PNJ (los bots no cuentan).", 1.0, 0.35, 0.35, true)
-                else
-                    GameTooltip:AddLine("Acción: |cffffd200/w <Bot> talk|r (menú si hay 2+ bots)", 0.5, 0.8, 1.0)
-                end
-            else
+            if action.isTalkPicker and DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
+                GameTooltip:AddLine("Desactivado: Haz clic primero en un PNJ (los bots no cuentan).", 1.0, 0.35, 0.35, true)
+            elseif action.tooltipCmd then
+                GameTooltip:AddLine(action.tooltipCmd, 0.5, 0.8, 1.0)
+            elseif action.cmd then
                 GameTooltip:AddLine("Comando enviado: |cffffd200/p " .. action.cmd .. "|r", 0.5, 0.8, 1.0)
             end
             GameTooltip:Show()
@@ -342,33 +397,83 @@ function DungeonBots:InitHUD()
         end)
     end
 
-    -- Botón de acceso al panel principal a la derecha
-    local mainBtn = CreateFrame("Button", nil, f)
-    mainBtn:SetSize(16, 16)
-    mainBtn:SetPoint("RIGHT", f, "RIGHT", -6, 0)
+    if cfg.showMainPanelBtn then
+        local mainBtn = CreateFrame("Button", nil, f)
+        mainBtn:SetSize(16, 16)
+        mainBtn:SetPoint("RIGHT", f, "RIGHT", -6, 0)
 
-    local mainIcon = mainBtn:CreateTexture(nil, "ARTWORK")
-    mainIcon:SetAllPoints()
-    mainIcon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
-    mainIcon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+        local mainIcon = mainBtn:CreateTexture(nil, "ARTWORK")
+        mainIcon:SetAllPoints()
+        mainIcon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
+        mainIcon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
 
-    mainBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        DungeonBots:ToggleUI()
-    end)
-    mainBtn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Abrir Panel DungeonBots", 1, 1, 1)
-        GameTooltip:AddLine("Abre la ventana completa de configuración, clases y talentos.", 0.7, 0.7, 0.7)
-        GameTooltip:Show()
-    end)
-    mainBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        mainBtn:SetScript("OnClick", function()
+            PlaySound("igMainMenuOptionCheckBoxOn")
+            DungeonBots:ToggleUI()
+        end)
+        mainBtn:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:AddLine("Abrir Panel DungeonBots", 1, 1, 1)
+            GameTooltip:AddLine("Abre la ventana completa de configuración, clases y talentos.", 0.7, 0.7, 0.7)
+            GameTooltip:Show()
+        end)
+        mainBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    end
 
-    hudFrame = f
-    DungeonBots.hudFrame = f
+    return f
+end
+
+function DungeonBots:InitHUD()
+    if not hudFrame then
+        hudFrame = CreateFloatingToolbar({
+            frameName = "DungeonBots_HUDFrame",
+            posKey = "hudPosition",
+            lockKey = "hudLocked",
+            barLabel = "Barra Táctica (HUD)",
+            defaultPos = { point = "BOTTOM", x = 0, y = 140 },
+            actions = TACTICAL_ACTIONS,
+            btnPrefix = "DungeonBots_HUDExtBtn_",
+            showMainPanelBtn = true,
+            onActionClick = function(_, action)
+                DungeonBots:SendPartyCommand(action.cmd)
+            end,
+        })
+        DungeonBots.hudFrame = hudFrame
+    end
+
+    if not utilHudFrame then
+        utilHudFrame = CreateFloatingToolbar({
+            frameName = "DungeonBots_UtilHUDFrame",
+            posKey = "utilHudPosition",
+            lockKey = "utilHudLocked",
+            barLabel = "Barra de Utilidades",
+            defaultPos = { point = "BOTTOM", x = 0, y = 194 },
+            actions = UTIL_ACTIONS,
+            btnPrefix = "DungeonBots_UtilExtBtn_",
+            showMainPanelBtn = false,
+            onActionClick = function(btn, action)
+                HandleUtilActionClick(btn, action)
+            end,
+        })
+        DungeonBots.utilHudFrame = utilHudFrame
+    end
 
     DungeonBots:UpdateHUDTalkButtonState()
     DungeonBots:UpdateHUDVisibility()
+end
+
+function DungeonBots:ResetHUDPositions()
+    if not DungeonBotsDB then return end
+    DungeonBotsDB.hudPosition = { point = "BOTTOM", x = 0, y = 140 }
+    DungeonBotsDB.utilHudPosition = { point = "BOTTOM", x = 0, y = 194 }
+    if hudFrame then
+        hudFrame:ClearAllPoints()
+        hudFrame:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 140)
+    end
+    if utilHudFrame then
+        utilHudFrame:ClearAllPoints()
+        utilHudFrame:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 194)
+    end
 end
 
 function DungeonBots:ToggleHUD()
@@ -392,4 +497,3 @@ function DungeonBots:ToggleHUD()
         DungeonBots:UpdateSettingsDialog()
     end
 end
-

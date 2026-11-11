@@ -510,6 +510,10 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
         end
     end
 
+    if DB_Internal.TickInventoryCapture then
+        hasAny = DB_Internal.TickInventoryCapture(now) or hasAny
+    end
+
     if not hasAny then
         self:Hide()
     end
@@ -528,7 +532,8 @@ function DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
     local data = DungeonBots.questDialogData[cleanSender]
     if not data then return false end
 
-    if DB_Internal.IsPureTalentResponse and DB_Internal.IsPureTalentResponse(message) then
+    if (DB_Internal.IsPureTalentResponse and DB_Internal.IsPureTalentResponse(message))
+        or (DB_Internal.IsInventoryDumpMessage and DB_Internal.IsInventoryDumpMessage(message)) then
         return false
     end
 
@@ -763,6 +768,7 @@ function DB_Internal.ParseTalkCaptureWhisper(cleanSender, message)
         if (DungeonBots.pendingPartyTalkUntil or 0) > NowTime()
             and DungeonBots:FindPartyUnitByName(cleanSender)
             and not (DB_Internal.IsPureTalentResponse and DB_Internal.IsPureTalentResponse(message))
+            and not (DB_Internal.IsInventoryDumpMessage and DB_Internal.IsInventoryDumpMessage(message))
             and not IsQuestLogDumpMessage(message) then
             DungeonBots.pendingPartyTalkUntil = 0
             DungeonBots:ArmTalkCapture(cleanSender, DungeonBots.pendingPartyTalkCmd or "talk", true)
@@ -781,7 +787,9 @@ function DB_Internal.ParseTalkCaptureWhisper(cleanSender, message)
         return false
     end
 
-    if (DB_Internal.IsPureTalentResponse and DB_Internal.IsPureTalentResponse(message)) or IsQuestLogDumpMessage(message) then
+    if (DB_Internal.IsPureTalentResponse and DB_Internal.IsPureTalentResponse(message))
+        or (DB_Internal.IsInventoryDumpMessage and DB_Internal.IsInventoryDumpMessage(message))
+        or IsQuestLogDumpMessage(message) then
         return false
     end
 

@@ -191,6 +191,8 @@ function DB_Internal.IsBotDetectionText(message)
         or string.find(lowerMsg, "autogear")
         or string.find(lowerMsg, "nothing to say")
         or string.find(lowerMsg, "no npc")
+        or string.find(lowerMsg, "=== inventory ===")
+        or string.find(lowerMsg, "inventory is empty")
         or string.match(lowerMsg, "%d+[-/]%d+[-/]%d+")) and true or false
 end
 

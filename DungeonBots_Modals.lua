@@ -42,22 +42,25 @@ function DungeonBots:UpdateSettingsDialog()
     if not sf then return end
 
     local hudShow = (not DungeonBotsDB) or (DungeonBotsDB.hudVisible ~= false)
+    local utilHudShow = (not DungeonBotsDB) or (DungeonBotsDB.utilHudVisible ~= false)
+    local anyBarShow = hudShow or utilHudShow
     local hudDungeonOnly = (not DungeonBotsDB) or (DungeonBotsDB.hudOnlyInDungeon ~= false)
     local muteShow = (not DungeonBotsDB) or (DungeonBotsDB.whisperMuteMode ~= "off")
     local muteGroup = (DungeonBotsDB and DungeonBotsDB.muteBotGroupChat) and true or false
 
     sf.hudVisibleCheck:SetChecked(hudShow)
+    sf.utilHudVisibleCheck:SetChecked(utilHudShow)
     sf.hudDungeonCheck:SetChecked(hudDungeonOnly)
     sf.muteWhispersCheck:SetChecked(muteShow)
     sf.muteGroupCheck:SetChecked(muteGroup)
 
     sf.muteWhispersCheck:ClearAllPoints()
-    if hudShow then
+    if anyBarShow then
         sf.hudDungeonCheck:Show()
         sf.muteWhispersCheck:SetPoint("TOPLEFT", sf.hudDungeonCheck, "BOTTOMLEFT", -18, -10)
     else
         sf.hudDungeonCheck:Hide()
-        sf.muteWhispersCheck:SetPoint("TOPLEFT", sf.hudVisibleCheck, "BOTTOMLEFT", 0, -10)
+        sf.muteWhispersCheck:SetPoint("TOPLEFT", sf.utilHudVisibleCheck, "BOTTOMLEFT", 0, -10)
     end
 
     if muteShow then
@@ -66,7 +69,7 @@ function DungeonBots:UpdateSettingsDialog()
         sf.muteGroupCheck:Hide()
     end
 
-    local totalH = 152 + (hudShow and 26 or 0) + (muteShow and 26 or 0)
+    local totalH = 178 + (anyBarShow and 26 or 0) + (muteShow and 26 or 0)
     sf:SetHeight(totalH)
 end
 
@@ -130,19 +133,29 @@ function DungeonBots:BuildSettingsDialog()
         sf, "DungeonBots_HudVisibleCheck",
         "Mostrar Barra Táctica flotante (HUD)",
         "Barra Táctica Flotante (HUD)",
-        "Muestra la barra rápida flotante de comandos de combate y Hablar PNJ.\n\nDesmarca esta opción para ocultar la barra por completo."
+        "Muestra la barra rápida flotante de comandos de combate.\n\nDesmarca esta opción para ocultar esta barra por completo."
     )
     hudVisibleCheck:SetPoint("TOPLEFT", sf, "TOPLEFT", 16, -46)
     sf.hudVisibleCheck = hudVisibleCheck
 
+    -- Opción 1a: Mostrar/Ocultar Barra de Utilidades
+    local utilHudVisibleCheck = CreateSettingsCheckbox(
+        sf, "DungeonBots_UtilHudVisibleCheck",
+        "Mostrar Barra de Utilidades flotante (PNJ / Grupo / Bolsas)",
+        "Barra de Utilidades Flotante",
+        "Muestra la segunda barra flotante con accesos rápidos para Hablar con PNJ, abrir la pestaña Bots en el grupo e inspeccionar bolsas de bots.\n\nDesmarca esta opción para ocultar esta barra por completo."
+    )
+    utilHudVisibleCheck:SetPoint("TOPLEFT", hudVisibleCheck, "BOTTOMLEFT", 0, -2)
+    sf.utilHudVisibleCheck = utilHudVisibleCheck
+
     -- Opción 1b (dependiente): Solo en mazmorras de 5 jugadores
     local hudDungeonCheck = CreateSettingsCheckbox(
         sf, "DungeonBots_HudDungeonCheck",
-        "Mostrar barra táctica solo dentro de mazmorras de 5 jugadores",
+        "Mostrar barras flotantes solo dentro de mazmorras de 5 jugadores",
         "Solo en Mazmorras de 5 Jugadores",
-        "Cuando está activa, la barra táctica se oculta fuera de mazmorras de 5 jugadores y aparece automáticamente al entrar."
+        "Cuando está activa, las barras flotantes (Táctica y Utilidades) se ocultan fuera de mazmorras de 5 jugadores y aparecen automáticamente al entrar."
     )
-    hudDungeonCheck:SetPoint("TOPLEFT", hudVisibleCheck, "BOTTOMLEFT", 18, -2)
+    hudDungeonCheck:SetPoint("TOPLEFT", utilHudVisibleCheck, "BOTTOMLEFT", 18, -2)
     sf.hudDungeonCheck = hudDungeonCheck
 
     -- Opción 2: Ocultar susurros de bots
@@ -164,18 +177,23 @@ function DungeonBots:BuildSettingsDialog()
     muteGroupCheck:SetPoint("TOPLEFT", muteWhispersCheck, "BOTTOMLEFT", 18, -2)
     sf.muteGroupCheck = muteGroupCheck
 
-    hudVisibleCheck:SetScript("OnClick", function(self)
-        local val = self:GetChecked() and true or false
-        if DungeonBotsDB then DungeonBotsDB.hudVisible = val end
-        PlaySound(val and "igMainMenuOptionCheckBoxOn" or "igMainMenuOptionCheckBoxOff")
-        if val and DungeonBots.InitHUD and not DungeonBots.hudFrame then
-            DungeonBots:InitHUD()
-        elseif DungeonBots.UpdateHUDVisibility then
-            DungeonBots:UpdateHUDVisibility()
-        end
-        DungeonBots:UpdateSettingsDialog()
-        DungeonBots:Print("Barra táctica (HUD): " .. (val and "|cff34c759Activada|r" or "|cffff3b30Oculta|r"))
-    end)
+    local function BindBarVisibilityToggle(checkBtn, dbKey, frameField, labelText)
+        checkBtn:SetScript("OnClick", function(self)
+            local val = self:GetChecked() and true or false
+            if DungeonBotsDB then DungeonBotsDB[dbKey] = val end
+            PlaySound(val and "igMainMenuOptionCheckBoxOn" or "igMainMenuOptionCheckBoxOff")
+            if val and DungeonBots.InitHUD and not DungeonBots[frameField] then
+                DungeonBots:InitHUD()
+            elseif DungeonBots.UpdateHUDVisibility then
+                DungeonBots:UpdateHUDVisibility()
+            end
+            DungeonBots:UpdateSettingsDialog()
+            DungeonBots:Print(labelText .. ": " .. (val and "|cff34c759Activada|r" or "|cffff3b30Oculta|r"))
+        end)
+    end
+
+    BindBarVisibilityToggle(hudVisibleCheck, "hudVisible", "hudFrame", "Barra táctica (HUD)")
+    BindBarVisibilityToggle(utilHudVisibleCheck, "utilHudVisible", "utilHudFrame", "Barra de Utilidades")
 
     hudDungeonCheck:SetScript("OnClick", function(self)
         local val = self:GetChecked() and true or false
@@ -184,7 +202,7 @@ function DungeonBots:BuildSettingsDialog()
         if DungeonBots.UpdateHUDVisibility then
             DungeonBots:UpdateHUDVisibility()
         end
-        DungeonBots:Print("Barra táctica solo en mazmorra (5j): " .. (val and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
+        DungeonBots:Print("Barras flotantes solo en mazmorra (5j): " .. (val and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
     end)
 
     muteWhispersCheck:SetScript("OnClick", function(self)

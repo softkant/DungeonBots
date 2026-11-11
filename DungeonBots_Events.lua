@@ -168,6 +168,9 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         if DB_Internal.ParseTalkCaptureWhisper then
             DB_Internal.ParseTalkCaptureWhisper(cleanSender, message)
         end
+        if DB_Internal.ParseInventoryCaptureWhisper then
+            DB_Internal.ParseInventoryCaptureWhisper(cleanSender, message)
+        end
 
         -- Parser dinámico de ramas de talentos y especialización activa en vivo
         local foundAnySpec, detectedActiveSpec = false, nil
@@ -297,6 +300,26 @@ SLASH_DUNGEONBOTS2 = "/dungeonbots"
 SLASH_DUNGEONBOTS3 = "/bots"
 SLASH_DUNGEONBOTS4 = "/playerbot"
 
+local function ResolveBotNameArg(botArg)
+    local cleanArg = TrimText(botArg or "")
+    if cleanArg == "" then return nil end
+    local lowerArg = string.lower(cleanArg)
+    for i = 1, 4 do
+        local pName = UnitName("party" .. i)
+        if pName and string.lower(pName) == lowerArg then
+            return pName
+        end
+    end
+    if DungeonBotsDB and DungeonBotsDB.botHistory then
+        for hName in pairs(DungeonBotsDB.botHistory) do
+            if string.lower(hName) == lowerArg then
+                return hName
+            end
+        end
+    end
+    return cleanArg
+end
+
 SlashCmdList["DUNGEONBOTS"] = function(rawMsg)
     local trimmed = TrimText(rawMsg or "")
     local msg = CleanMsg(trimmed)
@@ -305,28 +328,14 @@ SlashCmdList["DUNGEONBOTS"] = function(rawMsg)
             DungeonBots:ToggleHUD()
         end
     elseif msg == "talk" or string.match(msg, "^talk%s+") then
-        local botArg = TrimText(string.sub(trimmed, 5))
-        local resolvedBot = nil
-        if botArg ~= "" then
-            local lowerArg = string.lower(botArg)
-            for i = 1, 4 do
-                local pName = UnitName("party" .. i)
-                if pName and string.lower(pName) == lowerArg then
-                    resolvedBot = pName
-                    break
-                end
-            end
-            if not resolvedBot and DungeonBotsDB and DungeonBotsDB.botHistory then
-                for hName in pairs(DungeonBotsDB.botHistory) do
-                    if string.lower(hName) == lowerArg then
-                        resolvedBot = hName
-                        break
-                    end
-                end
-            end
-            resolvedBot = resolvedBot or botArg
-        end
+        local resolvedBot = ResolveBotNameArg(string.sub(trimmed, 5))
         DungeonBots:SendTalkCommand(resolvedBot, "talk")
+    elseif msg == "inv" or msg == "inventory" or string.match(msg, "^inv%s+") or string.match(msg, "^inventory%s+") then
+        local botArg = string.match(trimmed, "^%S+%s+(.+)$")
+        local resolvedBot = ResolveBotNameArg(botArg) or (DungeonBots.FindDefaultTalkBot and DungeonBots:FindDefaultTalkBot())
+        if DungeonBots.QueryBotInventory then
+            DungeonBots:QueryBotInventory(resolvedBot)
+        end
     elseif msg == "dalaran" then
         DungeonBots:DalaranPrep()
     elseif msg == "addall" then
@@ -334,13 +343,9 @@ SlashCmdList["DUNGEONBOTS"] = function(rawMsg)
     elseif msg == "dismiss" or msg == "removeall" then
         DungeonBots:RemoveAllBots()
     elseif msg == "reset" then
-        if DungeonBotsDB then
-            DungeonBotsDB.hudPosition = { point = "BOTTOM", x = 0, y = 140 }
-            if DungeonBots.hudFrame then
-                DungeonBots.hudFrame:ClearAllPoints()
-                DungeonBots.hudFrame:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 140)
-            end
-            DungeonBots:Print("Posición del HUD restaurada.")
+        if DungeonBots.ResetHUDPositions then
+            DungeonBots:ResetHUDPositions()
+            DungeonBots:Print("Posición de las barras flotantes restaurada.")
         end
     else
         if DungeonBots.ToggleUI then

@@ -303,6 +303,19 @@ function DungeonBots:SelectTab(tabIndex)
     end
 end
 
+function DungeonBots:OpenTab(tabIndex)
+    if not mainFrame then
+        DungeonBots:InitUI()
+    end
+    DungeonBots:SelectTab(tabIndex or 1)
+    if mainFrame then
+        mainFrame:Show()
+        if mainFrame.Raise then
+            pcall(mainFrame.Raise, mainFrame)
+        end
+    end
+end
+
 -- =========================================================================
 -- PESTAÑA 1: ARMAR GRUPO (Party Builder)
 -- =========================================================================

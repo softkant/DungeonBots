@@ -14,11 +14,14 @@ local DEFAULT_CONFIG = {
     hudLocked = false,
     hudScale = 1.0,
     hudVisible = true,
+    utilHudVisible = true,
+    utilHudLocked = false,
     hudOnlyInDungeon = true,
     whisperMuteMode = "all",
     muteBotGroupChat = false,
     closeWimBotWindows = true,
     hudPosition = { point = "BOTTOM", x = 0, y = 140 },
+    utilHudPosition = { point = "BOTTOM", x = 0, y = 194 },
     minimapAngle = 195,
     lastWhisperLog = {},
     knownBots = {},
@@ -156,6 +159,9 @@ DungeonBots.pendingTalkCapture = {}
 DungeonBots.talkDialogData = {}
 DungeonBots.pendingTalkRefresh = {}
 DungeonBots.pendingTalkAfterQuest = {}
+DungeonBots.pendingInventoryCapture = {}
+DungeonBots.inventoryDialogData = {}
+DungeonBots.pendingInventoryRefresh = {}
 DungeonBots.pendingPartyTalkUntil = 0
 DungeonBots.lastTalkBot = nil
 DungeonBots.localizedQuestTitles = {}
@@ -203,18 +209,25 @@ function DB_Internal.EscapeLuaPattern(str)
     return string.gsub(str or "", "([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
 end
 
-function DB_Internal.ExtractSafeQuestLinkFromText(line)
+function DB_Internal.ExtractSafeHyperlinkFromText(line, linkType, startPos)
     if not line or line == "" then return nil end
-    local hStart, hEnd = string.find(line, "|Hquest:[^|]+|h%[[^%]]+%]|h")
+    local ltype = linkType or "quest"
+    local pattern = "|H" .. ltype .. ":[^|]+|h%[[^%]]+%]|h"
+    local hStart, hEnd = string.find(line, pattern, startPos or 1)
     if not hStart then return nil end
+    local plainH = string.sub(line, hStart, hEnd)
     if hStart > 10 then
         local colorPrefix = string.sub(line, hStart - 10, hStart - 1)
         local colorSuffix = string.sub(line, hEnd + 1, hEnd + 2)
         if string.match(colorPrefix, "^|c%x%x%x%x%x%x%x%x$") and colorSuffix == "|r" then
-            return string.sub(line, hStart - 10, hEnd + 2), hStart - 10, hEnd + 2, string.sub(line, hStart, hEnd)
+            return string.sub(line, hStart - 10, hEnd + 2), hStart - 10, hEnd + 2, plainH, colorPrefix
         end
     end
-    return nil, hStart, hEnd, string.sub(line, hStart, hEnd)
+    return nil, hStart, hEnd, plainH, nil
+end
+
+function DB_Internal.ExtractSafeQuestLinkFromText(line)
+    return DB_Internal.ExtractSafeHyperlinkFromText(line, "quest")
 end
 
 -- Función para obtener icono oficial de Raza y Género
