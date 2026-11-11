@@ -71,6 +71,7 @@ Positioned cleanly above the Tactical HUD by default:
 1. **Hablar PNJ:** `talk` (opens a bot selector dropdown if 2+ party bots are present, or queries the single bot directly and opens the interactive NPC Talk dialog; visually dimmed when no living non-player NPC is targeted while keeping its hover tooltip active).
 2. **Bots en el Grupo:** Opens the main `DungeonBots` window directly onto Tab 2 (`Bots en el grupo`).
 3. **Inventario de Bot:** Opens a party bot dropdown selector (`c`) and opens the **Bot Inventory / Bag Viewer**, rendering bag items in a visual grid with quality-colored borders, stack counts, search filter, localized tooltips, sequential party bot cycling (**`Siguiente Bot`** with `(index/total)` indicator), and verified item destruction (`destroy [itemLink]` normalized to client 3.3.5a link format; no trade UI).
+4. **Poderes de Bot:** Opens a party bot dropdown selector (`spells`) and opens the **Bot Powers / Spellbook Viewer** with 4 sub-tabs (**`Hechizos`**, **`Glifos`**, **`Entrenador`**, **`Stats`**), native `GetSpellInfo` / tooltip integration, reagent parsing (with item localization & buyable tags), local search, server `spells <filter>` querying (`<name>`, `<profession>`, `+<profession>`, `20-40`, `<slot>`), **`Detalle`** (`spell [link]`), **`Lanzar`** (`cast [link]`), shortcut to **`Talentos`**, and sequential party bot cycling (**`Siguiente Bot`**).
 
 ---
 
@@ -84,12 +85,14 @@ Positioned cleanly above the Tactical HUD by default:
 - `DungeonBots_Talents.lua` — Talent parsing, live queries, spec switching, and autogear
 - `DungeonBots_Quests.lua` — Quest Log & Talk capture engine plus Dalaran timer helpers
 - `DungeonBots_Inventory.lua` — Bot bag query (`c`), whisper parser, and `destroy` dispatcher
+- `DungeonBots_Spells.lua` — Bot `spells`/`spell`/`cast`/`glyphs`/`trainer`/`stats` query & parser engine
 - `DungeonBots_Events.lua` — WoW event dispatcher and slash commands
 - `DungeonBots_HUD.lua` — Floating Combat Tactical HUD and Floating Utility Bar
 - `DungeonBots_UI.lua` — Main 3-tab UI frame, minimap icon, and LFD eye hooks
 - `DungeonBots_Modals.lua` — Settings and Bot History modal windows
 - `DungeonBots_QuestTalkUI.lua` — Quest Log and NPC Talk modal windows
 - `DungeonBots_InventoryUI.lua` — Bag-grid Bot Inventory window and item destruction confirmation
+- `DungeonBots_SpellsUI.lua` — Interactive Bot Powers window (`spells`, `glyphs`, `trainer`, `stats`, `spell`, `cast`)
 
 ---
 
@@ -107,6 +110,7 @@ Positioned cleanly above the Tactical HUD by default:
   * `/db hud` — Toggle the floating Combat HUD.
   * `/db talk [bot]` — Query a bot's current NPC dialog (`talk`) and open the NPC Talk dialog.
   * `/db inv [bot]` — Query a bot's bags (`c`) and open the Bot Inventory window.
+  * `/db spells [bot] [filter]` — Query a bot's active spells/recipes (`spells` or `spells <filter>`) and open the Bot Powers window.
   * `/db dalaran` — Trigger the Dalaran prep step.
   * `/db addall` — Recall all bots (`.playerbots bot add *`).
   * `/db dismiss` (or `/db removeall`) — Dismiss all bots (`.playerbots bot remove *`).

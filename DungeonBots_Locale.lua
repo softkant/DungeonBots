@@ -466,6 +466,9 @@ function DungeonBots:ApplyCachedLocaleToStoredDialogs()
     if DB_Internal.RefreshInventoryItemVisuals then
         DB_Internal.RefreshInventoryItemVisuals(true)
     end
+    if DB_Internal.RefreshSpellVisuals then
+        DB_Internal.RefreshSpellVisuals(true)
+    end
 end
 
 localeResolveFrame:SetScript("OnUpdate", function(self, elapsed)

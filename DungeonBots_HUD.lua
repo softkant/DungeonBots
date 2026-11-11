@@ -93,6 +93,15 @@ local UTIL_ACTIONS = {
         tooltipCmd = "Acción: |cffffd200Elegir bot -> /w <Bot> c|r",
         color = { 0.35, 0.88, 0.45 }
     },
+    {
+        name = "Poderes de Bot",
+        actionKind = "spells",
+        icon = "Interface\\Icons\\Spell_Holy_MagicalSentry",
+        title = "|cffb266ffPoderes y Hechizos de Bot|r",
+        desc = "Abre un menú desplegable para elegir un bot del grupo y ver sus hechizos, recetas, glifos y stats.\n\n|cff71d5ffPermite filtrar ('spells'), consultar detalle ('spell') y ordenar lanzamientos ('cast').|r",
+        tooltipCmd = "Acción: |cffffd200Elegir bot -> /w <Bot> spells|r",
+        color = { 0.68, 0.45, 1.0 }
+    },
 }
 
 local function GetOrCreateHudBotDropDown()
@@ -189,6 +198,18 @@ local function HandleUtilActionClick(anchorBtn, action)
             function(chosenName)
                 if DungeonBots.QueryBotInventory then
                     DungeonBots:QueryBotInventory(chosenName)
+                end
+            end,
+            false
+        )
+    elseif action.actionKind == "spells" then
+        OpenHudBotDropdown(
+            anchorBtn,
+            "-- Elegir Bot (Poderes) --",
+            "No hay bots detectados en el grupo para ver sus poderes.",
+            function(chosenName)
+                if DungeonBots.QueryBotSpells then
+                    DungeonBots:QueryBotSpells(chosenName, "spells", "", false)
                 end
             end,
             false

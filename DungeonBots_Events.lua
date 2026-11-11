@@ -171,6 +171,9 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         if DB_Internal.ParseInventoryCaptureWhisper then
             DB_Internal.ParseInventoryCaptureWhisper(cleanSender, message)
         end
+        if DB_Internal.ParseSpellsCaptureWhisper then
+            DB_Internal.ParseSpellsCaptureWhisper(cleanSender, message)
+        end
 
         -- Parser dinámico de ramas de talentos y especialización activa en vivo
         local foundAnySpec, detectedActiveSpec = false, nil
@@ -335,6 +338,17 @@ SlashCmdList["DUNGEONBOTS"] = function(rawMsg)
         local resolvedBot = ResolveBotNameArg(botArg) or (DungeonBots.FindDefaultTalkBot and DungeonBots:FindDefaultTalkBot())
         if DungeonBots.QueryBotInventory then
             DungeonBots:QueryBotInventory(resolvedBot)
+        end
+    elseif msg == "spells" or msg == "poderes" or string.match(msg, "^spells%s+") or string.match(msg, "^poderes%s+") then
+        local arg1, arg2 = string.match(trimmed, "^%S+%s+(%S+)%s*(.-)$")
+        local resolvedBot = ResolveBotNameArg(arg1)
+        local filterArg = arg2 or ""
+        if not arg1 or arg1 == "" or (DungeonBots.FindPartyUnitByName and not DungeonBots:FindPartyUnitByName(resolvedBot) and not (DungeonBotsDB and DungeonBotsDB.botHistory and DungeonBotsDB.botHistory[resolvedBot])) then
+            resolvedBot = DungeonBots.FindDefaultTalkBot and DungeonBots:FindDefaultTalkBot()
+            filterArg = string.match(trimmed, "^%S+%s+(.+)$") or ""
+        end
+        if DungeonBots.QueryBotSpells then
+            DungeonBots:QueryBotSpells(resolvedBot, "spells", filterArg, false)
         end
     elseif msg == "dalaran" then
         DungeonBots:DalaranPrep()

@@ -513,6 +513,9 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
     if DB_Internal.TickInventoryCapture then
         hasAny = DB_Internal.TickInventoryCapture(now) or hasAny
     end
+    if DB_Internal.TickSpellsCapture then
+        hasAny = DB_Internal.TickSpellsCapture(now) or hasAny
+    end
 
     if not hasAny then
         self:Hide()

@@ -12,9 +12,11 @@ DungeonBots_Comms.lua
 DungeonBots_Talents.lua
 DungeonBots_Quests.lua
 DungeonBots_Inventory.lua
+DungeonBots_Spells.lua
 DungeonBots_Events.lua
 DungeonBots_HUD.lua
 DungeonBots_UI.lua
 DungeonBots_Modals.lua
 DungeonBots_QuestTalkUI.lua
 DungeonBots_InventoryUI.lua
+DungeonBots_SpellsUI.lua
