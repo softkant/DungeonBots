@@ -206,14 +206,165 @@ local function IsInventoryNoiseOrWrongResponse(message)
     return false
 end
 
-function DB_Internal.ParseInventoryCaptureWhisper(cleanSender, message)
-    local cap = DungeonBots.pendingInventoryCapture and DungeonBots.pendingInventoryCapture[cleanSender]
-    if not cap then return false end
+DungeonBots.pendingDestroyRequests = DungeonBots.pendingDestroyRequests or {}
 
+local function NormalizeItemPayloadColons(payload)
+    if not payload or payload == "" then return nil end
+    local parts = {}
+    for seg in string.gmatch(payload .. ":", "([^:]*):") do
+        table.insert(parts, seg)
+    end
+    if parts[1] ~= "item" or not tonumber(parts[2]) then
+        return nil
+    end
+    for i = 3, 9 do
+        if not parts[i] or parts[i] == "" then
+            parts[i] = "0"
+        end
+    end
+    if not parts[10] or parts[10] == "" then
+        parts[10] = "80"
+    end
+    local out = {}
+    for i = 1, 10 do
+        out[i] = parts[i]
+    end
+    return table.concat(out, ":")
+end
+
+local function NormalizeColorHexForLink(colorHex)
+    if type(colorHex) == "string" and string.match(colorHex, "^|c%x%x%x%x%x%x%x%x$") then
+        if string.lower(string.sub(colorHex, 1, 4)) == "|c00" then
+            return "|cff" .. string.sub(colorHex, 5)
+        end
+        return string.lower(colorHex)
+    end
+    return "|cffffffff"
+end
+
+local function BuildDestroyCommandLink(itemEntry)
+    if not itemEntry then return nil end
+
+    -- 1) Preferir GetItemInfo(itemId), que produce el mismo enlace 3.3.5a que Shift-Click
+    if itemEntry.itemId and GetItemInfo then
+        local _, clientLink = GetItemInfo(itemEntry.itemId)
+        if type(clientLink) == "string"
+            and string.match(clientLink, "^|c%x%x%x%x%x%x%x%x|Hitem:%d+:")
+            and string.len("destroy " .. clientLink) <= 250 then
+            return clientLink
+        end
+    end
+
+    -- 2) Respaldo normalizando enlace crudo del bot (9 campos tras item:, color |cff..., cierre |r)
+    local rawSrc = itemEntry.rawLink or itemEntry.plainLink
+    if type(rawSrc) == "string" and rawSrc ~= "" then
+        local colorPrefix = string.match(rawSrc, "^(|c%x%x%x%x%x%x%x%x)") or itemEntry.colorHex
+        local payload, bracketName = string.match(rawSrc, "|H(item:[^|]+)|h%[([^%]]+)%]|h")
+        if payload then
+            local normPayload = NormalizeItemPayloadColons(payload)
+            if normPayload then
+                local cleanColor = NormalizeColorHexForLink(colorPrefix)
+                local safeName = (bracketName and bracketName ~= "") and bracketName or (itemEntry.rawName or itemEntry.name or "item")
+                local candidate = cleanColor .. "|H" .. normPayload .. "|h[" .. safeName .. "]|h|r"
+                if string.len("destroy " .. candidate) <= 250 then
+                    return candidate
+                end
+            end
+        end
+    end
+
+    local fallbackName = itemEntry.rawName or itemEntry.name or "item"
+    return "[" .. fallbackName .. "]"
+end
+
+local function CountInventoryItemsByIdOrName(botName, itemId, rawName)
+    local data = DungeonBots.inventoryDialogData and DungeonBots.inventoryDialogData[botName]
+    if not data or type(data.items) ~= "table" then return 0 end
+    local total = 0
+    for _, entry in ipairs(data.items) do
+        local matched = false
+        if itemId and entry.itemId == itemId then
+            matched = true
+        elseif (not itemId) and rawName and entry.rawName == rawName then
+            matched = true
+        end
+        if matched then
+            total = total + (tonumber(entry.count) or 1)
+        end
+    end
+    return total
+end
+
+local function HandleDestroyFeedbackWhisper(cleanSender, message, now)
+    local req = DungeonBots.pendingDestroyRequests and DungeonBots.pendingDestroyRequests[cleanSender]
+    if not req then return false end
+    if now > (req.expiresAt or 0) then
+        DungeonBots.pendingDestroyRequests[cleanSender] = nil
+        return false
+    end
+    if not message or message == "" or IsInventoryNoiseOrWrongResponse(message) then
+        return false
+    end
+
+    local localizedMsg = (DungeonBots.LocalizeHyperlinksInText and DungeonBots:LocalizeHyperlinksInText(message)) or message
+    local cleanDisplay = TrimText(localizedMsg)
+    local lowerClean = string.lower(TrimText(StripWowFormatting(localizedMsg)))
+    if lowerClean == "" then return false end
+
+    -- Ignorar líneas normales del comando de inventario 'c' si llegaran solapadas
+    if string.match(lowerClean, "^===+.*===+$") or string.find(lowerClean, "^money:") then
+        return false
+    end
+
+    req.replyText = cleanDisplay
+
+    local isRefusal = string.find(lowerClean, "cannot", 1, true)
+        or string.find(lowerClean, "can't", 1, true)
+        or string.find(lowerClean, "unable", 1, true)
+        or string.find(lowerClean, "not found", 1, true)
+        or string.find(lowerClean, "nothing", 1, true)
+        or string.find(lowerClean, "equipped", 1, true)
+        or string.find(lowerClean, "invalid", 1, true)
+        or string.find(lowerClean, "usage:", 1, true)
+        or string.find(lowerClean, "no se puede", 1, true)
+        or string.find(lowerClean, "no encontrado", 1, true)
+
+    if isRefusal then
+        DungeonBots.pendingDestroyRequests[cleanSender] = nil
+        DungeonBots:Warn(cleanSender .. ": " .. cleanDisplay)
+        return true
+    end
+
+    local isConfirm = string.find(lowerClean, "destroy", 1, true)
+        or string.find(lowerClean, "destru", 1, true)
+        or string.find(lowerClean, "dropped", 1, true)
+        or string.find(lowerClean, "removed", 1, true)
+        or string.find(message, "|Hitem:", 1, true)
+
+    if isConfirm then
+        req.gotReply = true
+        if DungeonBots.pendingInventoryRefresh and DungeonBots.pendingInventoryRefresh[cleanSender] then
+            DungeonBots.pendingInventoryRefresh[cleanSender] = math.min(
+                DungeonBots.pendingInventoryRefresh[cleanSender],
+                now + 0.45
+            )
+        end
+        return true
+    end
+
+    return false
+end
+
+function DB_Internal.ParseInventoryCaptureWhisper(cleanSender, message)
     local now = NowTime()
+    local cap = DungeonBots.pendingInventoryCapture and DungeonBots.pendingInventoryCapture[cleanSender]
+    if not cap then
+        return HandleDestroyFeedbackWhisper(cleanSender, message, now)
+    end
+
     if now > (cap.expiresAt or 0) then
         DungeonBots.pendingInventoryCapture[cleanSender] = nil
-        return false
+        return HandleDestroyFeedbackWhisper(cleanSender, message, now)
     end
 
     if not message or message == "" or IsInventoryNoiseOrWrongResponse(message) then
@@ -304,10 +455,42 @@ function DB_Internal.TickInventoryCapture(now)
                 if data then
                     data.loading = false
                     data.done = true
-                    if DungeonBots.UpdateInventoryDialog then
+                    if DungeonBots.UpdateInventoryDialog and DungeonBots.inventoryFrame and DungeonBots.inventoryFrame:IsShown() and DungeonBots.inventoryFrame.currentBot == botName then
                         DungeonBots:UpdateInventoryDialog(botName)
                     end
                 end
+
+                local req = DungeonBots.pendingDestroyRequests and DungeonBots.pendingDestroyRequests[botName]
+                local waitingForRefresh = DungeonBots.pendingInventoryRefresh and DungeonBots.pendingInventoryRefresh[botName]
+                if req and not waitingForRefresh then
+                    DungeonBots.pendingDestroyRequests[botName] = nil
+                    if cap.gotAnyLine then
+                        local afterCount = CountInventoryItemsByIdOrName(botName, req.itemId, req.rawName)
+                        if (req.prevTotalCount or 0) > 0 and afterCount < req.prevTotalCount then
+                            DungeonBots:Print("|cffffd200" .. botName .. "|r destruyó: " .. req.displayLink)
+                        elseif req.replyText and req.replyText ~= "" then
+                            DungeonBots:Warn(botName .. ": " .. req.replyText)
+                        else
+                            DungeonBots:Warn(botName .. " no pudo destruir " .. req.displayLink .. " (es posible que esté equipado o bloqueado).")
+                        end
+                    elseif req.gotReply then
+                        DungeonBots:Print("|cffffd200" .. botName .. "|r destruyó: " .. req.displayLink)
+                    else
+                        DungeonBots:Warn("No se pudo confirmar si " .. botName .. " destruyó " .. req.displayLink .. " (sin respuesta al refrescar inventario).")
+                    end
+                end
+            else
+                hasAny = true
+            end
+        end
+    end
+
+    if DungeonBots.pendingDestroyRequests then
+        for botName, req in pairs(DungeonBots.pendingDestroyRequests) do
+            local hasPendingRefresh = DungeonBots.pendingInventoryRefresh and DungeonBots.pendingInventoryRefresh[botName]
+            local hasPendingCapture = DungeonBots.pendingInventoryCapture and DungeonBots.pendingInventoryCapture[botName]
+            if now >= (req.expiresAt or 0) and not hasPendingRefresh and not hasPendingCapture then
+                DungeonBots.pendingDestroyRequests[botName] = nil
             else
                 hasAny = true
             end
@@ -359,45 +542,44 @@ function DungeonBots:QueryBotInventory(botName, isSilent)
     DungeonBots:SendWhisperCommand(cleanBot, "c")
 end
 
+function DungeonBots:CycleNextInventoryBot(currentBot)
+    if not DungeonBots.GetTalkBotCycleInfo then return nil end
+    local _, total, nextBot = DungeonBots:GetTalkBotCycleInfo(currentBot)
+    if not nextBot or total < 2 then
+        return nil
+    end
+    DungeonBots:QueryBotInventory(nextBot, false)
+    return nextBot
+end
+
 function DungeonBots:DestroyBotItem(botName, itemEntry)
     local cleanBot = NormalizePlayerName(botName)
     if not cleanBot or not itemEntry then return end
 
-    local cmdLink = itemEntry.rawLink or itemEntry.plainLink or ("[" .. (itemEntry.rawName or "item") .. "]")
-    if string.len("destroy " .. cmdLink) > 250 then
-        if itemEntry.plainLink and string.len("destroy " .. itemEntry.plainLink) <= 250 then
-            cmdLink = itemEntry.plainLink
-        else
-            cmdLink = "[" .. (itemEntry.rawName or "item") .. "]"
-        end
-    end
+    local cmdLink = BuildDestroyCommandLink(itemEntry)
+    if not cmdLink or cmdLink == "" then return end
+
+    local now = NowTime()
+    local displayLink = (itemEntry.displayLink and itemEntry.displayLink ~= "") and itemEntry.displayLink or ("[" .. (itemEntry.name or itemEntry.rawName or "Objeto") .. "]")
+    local prevTotalCount = CountInventoryItemsByIdOrName(cleanBot, itemEntry.itemId, itemEntry.rawName)
+
+    DungeonBots.pendingDestroyRequests = DungeonBots.pendingDestroyRequests or {}
+    DungeonBots.pendingDestroyRequests[cleanBot] = {
+        itemId = itemEntry.itemId,
+        rawName = itemEntry.rawName,
+        prevTotalCount = prevTotalCount,
+        displayLink = displayLink,
+        startedAt = now,
+        expiresAt = now + 5.5,
+        gotReply = false,
+        replyText = nil,
+    }
 
     DungeonBots:SendWhisperCommand(cleanBot, "destroy " .. cmdLink)
     PlaySound("igMainMenuOptionCheckBoxOff")
+    DungeonBots:Print("Enviando orden de destruir a |cffffd200" .. cleanBot .. "|r: " .. displayLink)
 
-    local displayLink = (itemEntry.displayLink and itemEntry.displayLink ~= "") and itemEntry.displayLink or ("[" .. (itemEntry.name or itemEntry.rawName or "Objeto") .. "]")
-    DungeonBots:Print("|cffffd200" .. cleanBot .. "|r destruyó: " .. displayLink)
-
-    local data = DungeonBots.inventoryDialogData and DungeonBots.inventoryDialogData[cleanBot]
-    if data and type(data.items) == "table" then
-        for idx = #data.items, 1, -1 do
-            local candidate = data.items[idx]
-            if candidate == itemEntry or (itemEntry.slotId and candidate.slotId == itemEntry.slotId) then
-                table.remove(data.items, idx)
-                break
-            end
-        end
-    end
-
-    if DungeonBots.inventoryFrame and DungeonBots.inventoryFrame.selectedItem == itemEntry then
-        DungeonBots.inventoryFrame.selectedItem = nil
-    end
-
-    if DungeonBots.UpdateInventoryDialog and DungeonBots.inventoryFrame and DungeonBots.inventoryFrame:IsShown() and DungeonBots.inventoryFrame.currentBot == cleanBot then
-        DungeonBots:UpdateInventoryDialog(cleanBot)
-    end
-
-    DungeonBots.pendingInventoryRefresh[cleanBot] = NowTime() + 0.65
+    DungeonBots.pendingInventoryRefresh[cleanBot] = now + 1.15
     if DungeonBots.uiCaptureFrame then
         DungeonBots.uiCaptureFrame:Show()
     end

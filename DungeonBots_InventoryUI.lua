@@ -94,7 +94,7 @@ local function UpdateSlotSelectionUI()
         inv.destroyBtn:Enable()
         inv.destroyBtn:SetAlpha(1.0)
     else
-        inv.selectedLabel:SetText("|cff888888Clic izq.: seleccionar  |  Clic der.: destruir|r")
+        inv.selectedLabel:SetText("|cff888888Clic izq.: sel. | Clic der.: destruir|r")
         inv.destroyBtn:Disable()
         inv.destroyBtn:SetAlpha(0.45)
     end
@@ -330,28 +330,32 @@ function DungeonBots:BuildInventoryDialog()
     emptyLabel:SetText("Esperando respuesta del bot...")
     inv.emptyLabel = emptyLabel
 
-    local botPickerBtn = CreateFrame("Button", nil, inv, "UIPanelButtonTemplate")
-    botPickerBtn:SetSize(112, 24)
-    botPickerBtn:SetPoint("BOTTOMLEFT", inv, "BOTTOMLEFT", 12, 10)
-    botPickerBtn:SetText("Cambiar Bot")
-    botPickerBtn:SetScript("OnClick", function(self)
+    local nextBotBtn = CreateFrame("Button", nil, inv, "UIPanelButtonTemplate")
+    nextBotBtn:SetSize(120, 24)
+    nextBotBtn:SetPoint("BOTTOMLEFT", inv, "BOTTOMLEFT", 12, 10)
+    nextBotBtn:SetText("Siguiente Bot")
+    nextBotBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
-        if DB_Internal.OpenPartyBotDropdown then
-            DB_Internal.OpenPartyBotDropdown(
-                self,
-                "-- Elegir Bot (Inventario) --",
-                "No hay bots detectados en el grupo.",
-                function(chosenName)
-                    if DungeonBots.QueryBotInventory then
-                        inv.selectedItem = nil
-                        DungeonBots:QueryBotInventory(chosenName)
-                    end
-                end,
-                false
-            )
+        inv.selectedItem = nil
+        if DungeonBots.CycleNextInventoryBot then
+            DungeonBots:CycleNextInventoryBot(inv.currentBot)
         end
     end)
-    inv.botPickerBtn = botPickerBtn
+    nextBotBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Siguiente Bot", 1, 0.82, 0)
+        GameTooltip:AddLine("Pasa al siguiente bot del grupo para ver su inventario.", 0.85, 0.85, 0.85, true)
+        GameTooltip:Show()
+    end)
+    nextBotBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    inv.nextBotBtn = nextBotBtn
+
+    local botCycleLabel = inv:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    botCycleLabel:SetPoint("LEFT", nextBotBtn, "RIGHT", 8, 0)
+    botCycleLabel:SetWidth(42)
+    botCycleLabel:SetJustifyH("LEFT")
+    botCycleLabel:SetText("|cff888888(0/0)|r")
+    inv.botCycleLabel = botCycleLabel
 
     local destroyBtn = CreateRedIconButton(inv, 112, 24, "Destruir", "Interface\\Icons\\Spell_ChargeNegative")
     destroyBtn:SetPoint("BOTTOMRIGHT", inv, "BOTTOMRIGHT", -12, 10)
@@ -371,11 +375,11 @@ function DungeonBots:BuildInventoryDialog()
     inv.destroyBtn = destroyBtn
 
     local selectedLabel = inv:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    selectedLabel:SetPoint("LEFT", botPickerBtn, "RIGHT", 10, 0)
-    selectedLabel:SetPoint("RIGHT", destroyBtn, "LEFT", -10, 0)
+    selectedLabel:SetPoint("LEFT", botCycleLabel, "RIGHT", 6, 0)
+    selectedLabel:SetPoint("RIGHT", destroyBtn, "LEFT", -8, 0)
     selectedLabel:SetJustifyH("CENTER")
     selectedLabel:SetWordWrap(false)
-    selectedLabel:SetText("|cff888888Clic izq.: seleccionar  |  Clic der.: destruir|r")
+    selectedLabel:SetText("|cff888888Clic izq.: sel. | Clic der.: destruir|r")
     inv.selectedLabel = selectedLabel
 
     DungeonBots.inventoryFrame = inv
@@ -496,6 +500,21 @@ function DungeonBots:UpdateInventoryDialog(botName)
 
     local totalRows = math.max(1, math.ceil(totalSlotsToShow / GRID_COLS))
     inv.scrollChild:SetHeight((GRID_PAD_Y * 2) + (totalRows * SLOT_PITCH) - SLOT_GAP)
+
+    if inv.nextBotBtn and inv.botCycleLabel and DungeonBots.GetTalkBotCycleInfo then
+        local curIdx, total = DungeonBots:GetTalkBotCycleInfo(targetBot)
+        if total > 0 then
+            inv.botCycleLabel:SetText(string.format("|cff888888(%d/%d)|r", curIdx, total))
+        else
+            inv.botCycleLabel:SetText("|cff888888(0/0)|r")
+        end
+        if total >= 2 then
+            inv.nextBotBtn:Enable()
+        else
+            inv.nextBotBtn:Disable()
+        end
+    end
+
     UpdateSlotSelectionUI()
 end
 

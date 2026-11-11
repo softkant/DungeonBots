@@ -158,6 +158,8 @@ DB_Internal.OpenPartyBotDropdown = OpenHudBotDropdown
 
 local function HandleHudTalkClick(anchorBtn)
     if DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
+        PlaySound("igQuestFailed")
+        DungeonBots:Warn("Selecciona primero un PNJ válido (los bots no cuentan).")
         return
     end
     OpenHudBotDropdown(
@@ -203,8 +205,10 @@ function DungeonBots:UpdateHUDTalkButtonState()
     if not hudTalkBtn then return end
     local canTalk = (DungeonBots.HasValidNpcTarget and DungeonBots:HasValidNpcTarget()) and true or false
     local c = (hudTalkBtn.actionDef and hudTalkBtn.actionDef.color) or { 0.2, 0.8, 1.0 }
+    -- Mantener el boton habilitado para que OnEnter/OnLeave muestren el tooltip en 3.3.5a
+    hudTalkBtn:Enable()
+    hudTalkBtn.isTalkReady = canTalk
     if canTalk then
-        hudTalkBtn:Enable()
         hudTalkBtn:SetAlpha(1.0)
         if hudTalkBtn.icon then
             hudTalkBtn.icon:SetDesaturated(false)
@@ -215,7 +219,6 @@ function DungeonBots:UpdateHUDTalkButtonState()
             hudTalkBtn.highlightTex:Show()
         end
     else
-        hudTalkBtn:Disable()
         hudTalkBtn:SetAlpha(0.45)
         if hudTalkBtn.icon then
             hudTalkBtn.icon:SetDesaturated(true)
@@ -375,6 +378,10 @@ local function CreateFloatingToolbar(cfg)
         end
 
         btn:SetScript("OnClick", function(self)
+            if action.isTalkPicker and DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
+                cfg.onActionClick(self, action)
+                return
+            end
             PlaySound("igMainMenuOptionCheckBoxOn")
             cfg.onActionClick(self, action)
         end)

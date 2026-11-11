@@ -68,9 +68,9 @@ Compact bar (plus quick lock toggle and main panel book button) with 6 party com
 
 #### Floating Utility Bar (`Barra de Utilidades`)
 Positioned cleanly above the Tactical HUD by default:
-1. **Hablar PNJ:** `talk` (opens a bot selector dropdown if 2+ party bots are present, or queries the single bot directly and opens the interactive NPC Talk dialog; disabled when no living non-player NPC is targeted).
+1. **Hablar PNJ:** `talk` (opens a bot selector dropdown if 2+ party bots are present, or queries the single bot directly and opens the interactive NPC Talk dialog; visually dimmed when no living non-player NPC is targeted while keeping its hover tooltip active).
 2. **Bots en el Grupo:** Opens the main `DungeonBots` window directly onto Tab 2 (`Bots en el grupo`).
-3. **Inventario de Bot:** Opens a party bot dropdown selector (`c`) and opens the **Bot Inventory / Bag Viewer**, rendering bag items in a visual grid with quality-colored borders, stack counts, search filter, localized tooltips, and confirmed item destruction (`destroy [itemLink]` whispered to the bot; no trade UI).
+3. **Inventario de Bot:** Opens a party bot dropdown selector (`c`) and opens the **Bot Inventory / Bag Viewer**, rendering bag items in a visual grid with quality-colored borders, stack counts, search filter, localized tooltips, sequential party bot cycling (**`Siguiente Bot`** with `(index/total)` indicator), and verified item destruction (`destroy [itemLink]` normalized to client 3.3.5a link format; no trade UI).
 
 ---
 
