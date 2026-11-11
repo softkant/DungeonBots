@@ -1879,7 +1879,7 @@ function DungeonBots:ShouldSuppressChatEvent(event, message, sender)
         or event == "CHAT_MSG_PARTY_LEADER"
         or event == "CHAT_MSG_SAY"
         or event == "CHAT_MSG_YELL" then
-        if not muteGroup then
+        if whisperMode == "off" or not muteGroup then
             return false
         end
         return DungeonBots:ShouldTreatAsBot(cleanName)

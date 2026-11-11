@@ -13,7 +13,7 @@
 * **Global Group Controls & Chat Hiding:**
   * Toggle auto-invite for newly summoned bots.
   * Toggle whether the floating Combat HUD appears only inside 5-player dungeons (`IsInInstance()` == `"party"`).
-  * **Bot Whisper Hiding (`Activado` / `Desactivado`):** Hides all incoming and outgoing whispers with known bots (compatible with Blizzard chat and WIM without touching WIM's SavedVariables), plus an optional toggle to hide bot messages in `/p`, `/y`, and `/s`. Real human players (`[JUGADOR]` or unknown players) are never filtered.
+  * **Bot Whisper Hiding (Checkbox):** Toggle hiding all incoming and outgoing whispers with known bots (compatible with Blizzard chat and WIM without touching WIM's SavedVariables); when enabled, reveals an additional checkbox to also hide bot messages in `/p`, `/y`, and `/s`. Real human players (`[JUGADOR]` or unknown players) are never filtered.
   * **`Reinvocar Grupo`:** Runs `.playerbots bot add *` to recall absent bots that are still in your party.
   * **`Despedir a Todos`:** Runs `.playerbots bot remove *` and removes confirmed bots from the party while preserving human players.
   * **`Reparar Equipo`:** Sends `/p repair`.
