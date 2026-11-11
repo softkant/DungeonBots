@@ -20,19 +20,14 @@ local function CreateRedIconButton(parent, width, height, text, iconPath, center
 end
 
 local MODE_TABS = {
-    { id = "spells",  label = "Hechizos" },
-    { id = "glyphs",  label = "Glifos" },
-    { id = "trainer", label = "Entrenador" },
-    { id = "stats",   label = "Stats" },
+    { id = "spells", label = "Hechizos" },
+    { id = "glyphs", label = "Glifos" },
 }
 
 local SPELL_ROW_HEIGHT = 40
 local SPELL_ROW_PITCH = 43
-local TEXT_ROW_HEIGHT = 24
-local TEXT_ROW_PITCH = 26
 
 local spellRowButtons = {}
-local textRowButtons = {}
 
 local function FormatReagentsSummary(reagents)
     if type(reagents) ~= "table" or #reagents == 0 then
@@ -87,8 +82,10 @@ local function UpdateSpellSelectionUI()
     local selected = sp.selectedSpell
     for _, row in ipairs(spellRowButtons) do
         if row:IsShown() and row.spellEntry then
-            local isSel = (selected ~= nil and row.spellEntry == selected)
-            if isSel then
+            if row.spellEntry.kind == "glyph" then
+                row.selOverlay:Hide()
+                row:SetBackdropBorderColor(0.25, 0.52, 0.85, 0.90)
+            elseif selected ~= nil and row.spellEntry == selected then
                 row.selOverlay:Show()
                 row:SetBackdropBorderColor(1.0, 0.85, 0.15, 1.0)
             else
@@ -176,16 +173,36 @@ local function CreateSpellRowButton(parent, idx)
         local entry = self.spellEntry
         if not entry then return end
 
+        local isGlyph = (entry.kind == "glyph")
+        local linkToShow = entry.displayLink or entry.rawLink
+
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         local loadedRich = false
-        if entry.spellId and GameTooltip.SetHyperlink then
-            loadedRich = pcall(GameTooltip.SetHyperlink, GameTooltip, "spell:" .. entry.spellId)
-        elseif entry.itemId and GameTooltip.SetHyperlink then
-            loadedRich = pcall(GameTooltip.SetHyperlink, GameTooltip, "item:" .. entry.itemId)
+        if isGlyph and linkToShow and string.find(linkToShow, "|H", 1, true) and GameTooltip.SetHyperlink then
+            loadedRich = pcall(GameTooltip.SetHyperlink, GameTooltip, linkToShow)
+        end
+        if not loadedRich then
+            if entry.spellId and GameTooltip.SetHyperlink then
+                loadedRich = pcall(GameTooltip.SetHyperlink, GameTooltip, "spell:" .. entry.spellId)
+            elseif entry.itemId and GameTooltip.SetHyperlink then
+                loadedRich = pcall(GameTooltip.SetHyperlink, GameTooltip, "item:" .. entry.itemId)
+            elseif linkToShow and string.find(linkToShow, "|H", 1, true) and GameTooltip.SetHyperlink then
+                loadedRich = pcall(GameTooltip.SetHyperlink, GameTooltip, linkToShow)
+            end
         end
         if not loadedRich or (GameTooltip.NumLines and GameTooltip:NumLines() == 0) then
             GameTooltip:ClearLines()
-            GameTooltip:AddLine(entry.name or entry.rawName or "Hechizo", 0.45, 0.85, 1.0)
+            GameTooltip:AddLine(entry.name or entry.rawName or (isGlyph and "Glifo" or "Hechizo"), 0.45, 0.85, 1.0)
+        end
+
+        if isGlyph then
+            if entry.categoryTag then
+                GameTooltip:AddLine("Tipo: " .. entry.categoryTag, 0.44, 0.84, 1.0)
+            end
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("Shift + Clic: |cffffffffInsertar enlace en el chat|r", 0.8, 0.8, 0.8)
+            GameTooltip:Show()
+            return
         end
 
         if entry.reagents and #entry.reagents > 0 then
@@ -223,6 +240,7 @@ local function CreateSpellRowButton(parent, idx)
         if not sp or not entry then return end
 
         if mouseBtn == "RightButton" then
+            if entry.kind == "glyph" then return end
             sp.selectedSpell = entry
             UpdateSpellSelectionUI()
             if DungeonBots.QueryBotSpellDetail then
@@ -238,6 +256,8 @@ local function CreateSpellRowButton(parent, idx)
             end
         end
 
+        if entry.kind == "glyph" then return end
+
         PlaySound("igMainMenuOptionCheckBoxOn")
         if sp.selectedSpell == entry then
             sp.selectedSpell = nil
@@ -248,56 +268,6 @@ local function CreateSpellRowButton(parent, idx)
     end)
 
     spellRowButtons[idx] = row
-    return row
-end
-
-local function CreateTextRowButton(parent, idx)
-    local row = CreateFrame("Button", "DungeonBots_SpellTextRow_" .. idx, parent)
-    row:SetSize(492, TEXT_ROW_HEIGHT)
-    row:SetPoint("TOPLEFT", parent, "TOPLEFT", 4, -((idx - 1) * TEXT_ROW_PITCH) - 4)
-    row:RegisterForClicks("LeftButtonUp")
-
-    local icon = row:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(18, 18)
-    icon:SetPoint("LEFT", row, "LEFT", 6, 0)
-    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    icon:Hide()
-    row.icon = icon
-
-    local label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    label:SetPoint("LEFT", row, "LEFT", 8, 0)
-    label:SetPoint("RIGHT", row, "RIGHT", -8, 0)
-    label:SetJustifyH("LEFT")
-    label:SetWordWrap(false)
-    row.label = label
-
-    local hl = row:CreateTexture(nil, "HIGHLIGHT")
-    hl:SetAllPoints()
-    hl:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
-    hl:SetBlendMode("ADD")
-    hl:SetAlpha(0.12)
-
-    row:SetScript("OnEnter", function(self)
-        local data = self.lineData
-        if not data then return end
-        if data.firstLink and GameTooltip.SetHyperlink then
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            local ok = pcall(GameTooltip.SetHyperlink, GameTooltip, data.firstLink)
-            if ok and (not GameTooltip.NumLines or GameTooltip:NumLines() > 0) then
-                GameTooltip:Show()
-                return
-            end
-        end
-        if data.cleanText and data.cleanText ~= "" then
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:ClearLines()
-            GameTooltip:AddLine(data.cleanText, 1, 1, 1, true)
-            GameTooltip:Show()
-        end
-    end)
-    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
-    textRowButtons[idx] = row
     return row
 end
 
@@ -377,12 +347,12 @@ function DungeonBots:BuildSpellsDialog()
     statusLabel:SetJustifyH("RIGHT")
     sp.statusLabel = statusLabel
 
-    -- Subpestanas de modo: Hechizos / Glifos / Entrenador / Stats
+    -- Subpestanas de modo: Hechizos / Glifos
     sp.modeButtons = {}
     for idx, tabDef in ipairs(MODE_TABS) do
         local mBtn = CreateFrame("Button", "DungeonBots_SpellsModeTab_" .. tabDef.id, sp, "UIPanelButtonTemplate")
-        mBtn:SetSize(132, 22)
-        mBtn:SetPoint("TOPLEFT", sp, "TOPLEFT", 10 + ((idx - 1) * 136), -40)
+        mBtn:SetSize(266, 22)
+        mBtn:SetPoint("TOPLEFT", sp, "TOPLEFT", 10 + ((idx - 1) * 274), -40)
         mBtn:SetText(tabDef.label)
         mBtn:SetScript("OnClick", function()
             PlaySound("igMainMenuOptionCheckBoxOn")
@@ -654,7 +624,8 @@ function DungeonBots:UpdateSpellsDialog(botName)
     if not targetBot then return end
     sp.currentBot = targetBot
 
-    local mode = sp.activeMode or "spells"
+    local mode = (sp.activeMode == "glyphs") and "glyphs" or "spells"
+    sp.activeMode = mode
     local tab, rec = DB_Internal.GetBotSpellTabData(targetBot, mode)
 
     local unit = DungeonBots.FindPartyUnitByName and DungeonBots:FindPartyUnitByName(targetBot)
@@ -691,6 +662,10 @@ function DungeonBots:UpdateSpellsDialog(botName)
     sp.listBg:SetPoint("TOPLEFT", sp, "TOPLEFT", 10, -96)
     sp.listBg:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", -10, hasDetail and 106 or 42)
 
+    local allItems = (tab and tab.items) or {}
+    local visibleEntries = {}
+    local filterRaw = ""
+
     if mode == "spells" then
         sp.filterBar:Show()
         sp.modeHintLabel:Hide()
@@ -698,13 +673,11 @@ function DungeonBots:UpdateSpellsDialog(botName)
         sp.castBtn:Show()
         sp.modeRefreshBtn:Hide()
 
-        local allSpells = (tab and tab.items) or {}
-        local filterRaw = sp.localSearchBox and sp.localSearchBox:GetText() or ""
+        filterRaw = sp.localSearchBox and sp.localSearchBox:GetText() or ""
         local filterText = string.lower(string.gsub(filterRaw, "^%s*(.-)%s*$", "%1"))
 
-        local visibleSpells = {}
         local selectedVisible = false
-        for _, entry in ipairs(allSpells) do
+        for _, entry in ipairs(allItems) do
             local match = true
             if filterText ~= "" then
                 local lName = string.lower(entry.name or "")
@@ -727,7 +700,7 @@ function DungeonBots:UpdateSpellsDialog(botName)
                 end
             end
             if match then
-                table.insert(visibleSpells, entry)
+                table.insert(visibleEntries, entry)
                 if sp.selectedSpell and sp.selectedSpell == entry then
                     selectedVisible = true
                 end
@@ -738,45 +711,69 @@ function DungeonBots:UpdateSpellsDialog(botName)
         end
 
         if tab and tab.loading then
-            sp.statusLabel:SetText("|cffffd200Consultando...|r (" .. #allSpells .. ")")
-        elseif #allSpells == 0 then
+            sp.statusLabel:SetText("|cffffd200Consultando...|r (" .. #allItems .. ")")
+        elseif #allItems == 0 then
             sp.statusLabel:SetText("|cff8888880 hechizos|r")
         elseif filterText ~= "" then
-            sp.statusLabel:SetText("|cff34c759" .. #visibleSpells .. "/" .. #allSpells .. "|r")
+            sp.statusLabel:SetText("|cff34c759" .. #visibleEntries .. "/" .. #allItems .. "|r")
         else
-            sp.statusLabel:SetText("|cff34c759" .. #allSpells .. "|r poderes")
+            sp.statusLabel:SetText("|cff34c759" .. #allItems .. "|r poderes")
         end
+    else
+        sp.filterBar:Hide()
+        sp.modeHintLabel:Show()
+        sp.detailBtn:Hide()
+        sp.castBtn:Hide()
+        sp.modeRefreshBtn:Show()
+        sp.modeHintLabel:SetText("|cff71d5ffGlifos equipados ('glyphs'):|r Cada glifo se muestra en su fila; pasa el ratón para ver detalles.")
+        sp.selectedSpell = nil
 
-        for _, tRow in ipairs(textRowButtons) do
-            tRow:Hide()
+        visibleEntries = allItems
+        if tab and tab.loading then
+            sp.statusLabel:SetText("|cffffd200Consultando...|r (" .. #allItems .. ")")
+        elseif #allItems == 0 then
+            sp.statusLabel:SetText("|cff8888880 glifos|r")
+        else
+            sp.statusLabel:SetText("|cff34c759" .. #allItems .. "|r glifo(s)")
         end
+    end
 
-        if #visibleSpells == 0 then
-            sp.emptyLabel:Show()
-            if tab and tab.loading then
-                sp.emptyLabel:SetText("Consultando poderes de |cffffd200" .. targetBot .. "|r...")
-            elseif tab and tab.emptyHint then
-                sp.emptyLabel:SetText(tab.emptyHint)
-            elseif #allSpells == 0 then
-                sp.emptyLabel:SetText("No se recibieron poderes para |cffffd200" .. targetBot .. "|r.")
+    if #visibleEntries == 0 then
+        sp.emptyLabel:Show()
+        if tab and tab.loading then
+            sp.emptyLabel:SetText("Consultando " .. (mode == "glyphs" and "glifos" or "poderes") .. " de |cffffd200" .. targetBot .. "|r...")
+        elseif tab and tab.emptyHint then
+            sp.emptyLabel:SetText(tab.emptyHint)
+        elseif #allItems == 0 then
+            if mode == "glyphs" then
+                sp.emptyLabel:SetText("No se recibieron glifos para |cffffd200" .. targetBot .. "|r.")
             else
-                sp.emptyLabel:SetText("Ningún poder coincide con \"" .. filterRaw .. "\".")
+                sp.emptyLabel:SetText("No se recibieron poderes para |cffffd200" .. targetBot .. "|r.")
             end
         else
-            sp.emptyLabel:Hide()
+            sp.emptyLabel:SetText("Ningún poder coincide con \"" .. filterRaw .. "\".")
         end
+    else
+        sp.emptyLabel:Hide()
+    end
 
-        for i, entry in ipairs(visibleSpells) do
-            local row = spellRowButtons[i] or CreateSpellRowButton(sp.scrollChild, i)
-            row.spellEntry = entry
-            row.icon:SetTexture(entry.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+    for i, entry in ipairs(visibleEntries) do
+        local row = spellRowButtons[i] or CreateSpellRowButton(sp.scrollChild, i)
+        row.spellEntry = entry
+        row.icon:SetTexture(entry.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
 
-            local titleTxt = entry.name or entry.rawName or "Hechizo"
-            if entry.rank and entry.rank ~= "" then
-                titleTxt = titleTxt .. " |cff888888(" .. entry.rank .. ")|r"
-            end
-            row.nameLabel:SetText(titleTxt)
+        local isGlyph = (entry.kind == "glyph")
+        local titleTxt = entry.name or entry.rawName or (isGlyph and "Glifo" or "Hechizo")
+        if entry.rank and entry.rank ~= "" then
+            titleTxt = titleTxt .. " |cff888888(" .. entry.rank .. ")|r"
+        end
+        row.nameLabel:SetText(titleTxt)
 
+        if isGlyph then
+            local glyphType = entry.categoryTag or "Glifo"
+            row.diffBadge:SetText("|cff71d5ff" .. glyphType .. " #" .. i .. "|r")
+            row.subLabel:SetText("|cff8899aaGlifo equipado  |  Pasa el ratón para ver detalles|r")
+        else
             local badgeParts = {}
             if entry.craftableCount then
                 table.insert(badgeParts, "|cff34c759x" .. entry.craftableCount .. "|r")
@@ -789,81 +786,17 @@ function DungeonBots:UpdateSpellsDialog(botName)
             local regText = FormatReagentsSummary(entry.reagents)
             local metaText = FormatPowerAndCastMeta(entry)
             row.subLabel:SetText(regText or metaText or "|cff667788Clic izq.: sel.  |  Clic der.: 'spell'|r")
-            row:Show()
         end
-
-        for i = #visibleSpells + 1, #spellRowButtons do
-            spellRowButtons[i].spellEntry = nil
-            spellRowButtons[i]:Hide()
-        end
-
-        local totalHeight = math.max(1, (#visibleSpells * SPELL_ROW_PITCH) + 8)
-        sp.scrollChild:SetHeight(totalHeight)
-        UpdateSpellSelectionUI()
-    else
-        sp.filterBar:Hide()
-        sp.modeHintLabel:Show()
-        sp.detailBtn:Hide()
-        sp.castBtn:Hide()
-        sp.modeRefreshBtn:Show()
-
-        if mode == "glyphs" then
-            sp.modeHintLabel:SetText("|cff71d5ffGlifos equipados ('glyphs'):|r Pasa el ratón por las líneas con enlaces para ver su descripción.")
-        elseif mode == "trainer" then
-            sp.modeHintLabel:SetText("|cff71d5ffEntrenador ('trainer'):|r Muestra los hechizos aprendibles si el bot tiene un instructor cerca/seleccionado.")
-        else
-            sp.modeHintLabel:SetText("|cff71d5ffEstadísticas ('stats'):|r Resumen de atributos, equipo y estado reportado por el bot.")
-        end
-
-        for _, sRow in ipairs(spellRowButtons) do
-            sRow.spellEntry = nil
-            sRow:Hide()
-        end
-
-        local lines = (tab and tab.lines) or {}
-        if tab and tab.loading then
-            sp.statusLabel:SetText("|cffffd200Consultando...|r")
-        else
-            sp.statusLabel:SetText("|cff34c759" .. #lines .. "|r línea(s)")
-        end
-
-        if #lines == 0 then
-            sp.emptyLabel:Show()
-            if tab and tab.loading then
-                sp.emptyLabel:SetText("Consultando '" .. mode .. "' a |cffffd200" .. targetBot .. "|r...")
-            else
-                sp.emptyLabel:SetText("No se recibieron líneas para '" .. mode .. "' de |cffffd200" .. targetBot .. "|r.")
-            end
-        else
-            sp.emptyLabel:Hide()
-        end
-
-        for i, lData in ipairs(lines) do
-            local row = textRowButtons[i] or CreateTextRowButton(sp.scrollChild, i)
-            row.lineData = lData
-            if lData.icon then
-                row.icon:SetTexture(lData.icon)
-                row.icon:Show()
-                row.label:ClearAllPoints()
-                row.label:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
-                row.label:SetPoint("RIGHT", row, "RIGHT", -8, 0)
-            else
-                row.icon:Hide()
-                row.label:ClearAllPoints()
-                row.label:SetPoint("LEFT", row, "LEFT", 8, 0)
-                row.label:SetPoint("RIGHT", row, "RIGHT", -8, 0)
-            end
-            row.label:SetText(lData.text or "")
-            row:Show()
-        end
-
-        for i = #lines + 1, #textRowButtons do
-            textRowButtons[i].lineData = nil
-            textRowButtons[i]:Hide()
-        end
-
-        sp.scrollChild:SetHeight(math.max(1, (#lines * TEXT_ROW_PITCH) + 8))
+        row:Show()
     end
+
+    for i = #visibleEntries + 1, #spellRowButtons do
+        spellRowButtons[i].spellEntry = nil
+        spellRowButtons[i]:Hide()
+    end
+
+    sp.scrollChild:SetHeight(math.max(1, (#visibleEntries * SPELL_ROW_PITCH) + 8))
+    UpdateSpellSelectionUI()
 
     if sp.nextBotBtn and sp.botCycleLabel and DungeonBots.GetTalkBotCycleInfo then
         local curIdx, total = DungeonBots:GetTalkBotCycleInfo(targetBot)
@@ -891,8 +824,10 @@ function DungeonBots:OpenSpellsDialog(botName, mode)
             sp.localSearchBox:SetText("")
         end
     end
-    if mode then
+    if mode == "spells" or mode == "glyphs" then
         sp.activeMode = mode
+    elseif sp.activeMode ~= "spells" and sp.activeMode ~= "glyphs" then
+        sp.activeMode = "spells"
     end
     local _, rec = DB_Internal.GetBotSpellTabData(botName, sp.activeMode)
     if sp.serverFilterBox and rec then

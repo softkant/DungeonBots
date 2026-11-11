@@ -194,7 +194,6 @@ function DB_Internal.IsBotDetectionText(message)
         or string.find(lowerMsg, "=== inventory ===")
         or string.find(lowerMsg, "=== spells ===")
         or string.find(lowerMsg, "=== glyphs ===")
-        or string.find(lowerMsg, "=== trainer ===")
         or string.find(lowerMsg, "inventory is empty")
         or string.match(lowerMsg, "%d+[-/]%d+[-/]%d+")) and true or false
 end

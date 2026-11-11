@@ -26,10 +26,8 @@ local DIFFICULTY_INFO = {
 }
 
 local MODE_COMMANDS = {
-    spells  = "spells",
-    glyphs  = "glyphs",
-    trainer = "trainer",
-    stats   = "stats",
+    spells = "spells",
+    glyphs = "glyphs",
 }
 
 local function GetOrCreateBotSpellsRecord(cleanBot)
@@ -202,17 +200,19 @@ end
 function DB_Internal.RefreshSpellVisuals(skipQueue)
     if not DungeonBots.spellsDialogData then return end
     for botName, rec in pairs(DungeonBots.spellsDialogData) do
-        local spellsTab = rec and rec.tabs and rec.tabs.spells
-        if spellsTab and type(spellsTab.items) == "table" then
-            local changed = false
-            for _, entry in ipairs(spellsTab.items) do
-                if ResolveSpellEntryVisuals(entry, skipQueue) then
-                    changed = true
+        local changed = false
+        for _, modeKey in ipairs({ "spells", "glyphs" }) do
+            local modeTab = rec and rec.tabs and rec.tabs[modeKey]
+            if modeTab and type(modeTab.items) == "table" then
+                for _, entry in ipairs(modeTab.items) do
+                    if ResolveSpellEntryVisuals(entry, skipQueue) then
+                        changed = true
+                    end
                 end
             end
-            if changed and DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == botName then
-                DungeonBots:UpdateSpellsDialog(botName)
-            end
+        end
+        if changed and DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == botName then
+            DungeonBots:UpdateSpellsDialog(botName)
         end
     end
 end
@@ -351,8 +351,7 @@ local function IsSpellsNoiseMessage(message, activeMode)
     end
     if string.find(message, "|Hquest:", 1, true)
         and not string.find(message, "|Hspell:", 1, true)
-        and not string.find(message, "|Hglyph:", 1, true)
-        and activeMode ~= "stats" then
+        and not string.find(message, "|Hglyph:", 1, true) then
         return true
     end
     local lowerClean = string.lower(TrimText(StripWowFormatting(message)))
@@ -405,6 +404,73 @@ local function ParseSpellDetailWhisper(cleanSender, message, now)
     return true
 end
 
+local function ParseGlyphEntriesFromLine(line, cleanLine, tab)
+    if not line or line == "" then return false end
+
+    local lowerClean = string.lower(cleanLine or "")
+    local prefixRaw = string.match(cleanLine or "", "^%s*([^:%[]+)%s*:")
+    local lowerPrefix = string.lower(TrimText(prefixRaw or ""))
+    local categoryTag = nil
+    if string.find(lowerPrefix, "major", 1, true) or string.find(lowerPrefix, "sublim", 1, true) then
+        categoryTag = "Sublime"
+    elseif string.find(lowerPrefix, "minor", 1, true) or string.find(lowerPrefix, "menor", 1, true) then
+        categoryTag = "Menor"
+    end
+
+    local lineLinks = ExtractOrderedHyperlinks(line)
+    if #lineLinks > 0 then
+        for _, l in ipairs(lineLinks) do
+            local itemId = (l.linkType == "item") and tonumber(string.match(l.payload, "^(%d+)")) or nil
+            local spellId = (l.linkType == "spell" or l.linkType == "enchant") and tonumber(string.match(l.payload, "^(%d+)")) or nil
+            local entry = {
+                kind = "glyph",
+                linkType = l.linkType,
+                spellId = spellId,
+                itemId = itemId,
+                rawName = l.rawName,
+                name = l.rawName,
+                rawLink = l.safeLink,
+                plainLink = l.plainH,
+                displayLink = l.safeLink,
+                categoryTag = categoryTag,
+                index = #tab.items + 1,
+            }
+            ResolveSpellEntryVisuals(entry, false)
+            table.insert(tab.items, entry)
+        end
+        return true
+    end
+
+    local addedPlain = false
+    for bracketText in string.gmatch(cleanLine or "", "%[([^%]]+)%]") do
+        local trimmed = TrimText(bracketText)
+        if trimmed ~= "" then
+            addedPlain = true
+            table.insert(tab.items, {
+                kind = "glyph",
+                linkType = "text",
+                rawName = trimmed,
+                name = trimmed,
+                categoryTag = categoryTag,
+                index = #tab.items + 1,
+            })
+        end
+    end
+    if addedPlain then
+        return true
+    end
+
+    if string.find(lowerClean, "no glyph", 1, true)
+        or string.find(lowerClean, "glyphs: none", 1, true)
+        or lowerClean == "none"
+        or tab.sawHeader then
+        tab.emptyHint = cleanLine
+        return true
+    end
+
+    return false
+end
+
 function DB_Internal.ParseSpellsCaptureWhisper(cleanSender, message)
     local now = NowTime()
     local cap = DungeonBots.pendingSpellsCapture and DungeonBots.pendingSpellsCapture[cleanSender]
@@ -435,9 +501,6 @@ function DB_Internal.ParseSpellsCaptureWhisper(cleanSender, message)
             if headerText and headerText ~= "" then
                 matchedRelevant = true
                 tab.sawHeader = true
-                if cap.mode ~= "spells" then
-                    table.insert(tab.lines, { text = "|cffffd200=== " .. headerText .. " ===|r", isHeader = true })
-                end
             elseif cap.mode == "spells" then
                 local tailDiff = ExtractDifficultySuffix(line)
                 if string.find(line, "|Hspell:", 1, true)
@@ -460,29 +523,10 @@ function DB_Internal.ParseSpellsCaptureWhisper(cleanSender, message)
                         tab.emptyHint = cleanLine
                     end
                 end
-            else
-                -- Modos complementarios: glyphs / trainer / stats
-                local lineLinks = ExtractOrderedHyperlinks(line)
-                local firstLink = lineLinks[1]
-                local firstSpellId = firstLink and (firstLink.linkType == "spell" or firstLink.linkType == "enchant") and tonumber(string.match(firstLink.payload, "^(%d+)")) or nil
-                local firstItemId = firstLink and (firstLink.linkType == "item" or firstLink.linkType == "glyph") and tonumber(string.match(firstLink.payload, "^(%d+)")) or nil
-                local iconPath = nil
-                if firstSpellId and GetSpellInfo then
-                    local _, _, sIcon = GetSpellInfo(firstSpellId)
-                    iconPath = sIcon
-                elseif firstItemId and GetItemInfo then
-                    local _, _, _, _, _, _, _, _, _, iIcon = GetItemInfo(firstItemId)
-                    iconPath = iIcon
+            elseif cap.mode == "glyphs" then
+                if ParseGlyphEntriesFromLine(line, cleanLine, tab) then
+                    matchedRelevant = true
                 end
-                matchedRelevant = true
-                table.insert(tab.lines, {
-                    text = line,
-                    cleanText = cleanLine,
-                    firstLink = firstLink and firstLink.safeLink or nil,
-                    firstSpellId = firstSpellId,
-                    firstItemId = firstItemId,
-                    icon = iconPath,
-                })
             end
         end
     end
@@ -497,7 +541,7 @@ function DB_Internal.ParseSpellsCaptureWhisper(cleanSender, message)
     tab.updatedAt = now
     tab.dirty = true
 
-    local totalCount = (cap.mode == "spells") and #tab.items or #tab.lines
+    local totalCount = #tab.items
     local shouldRenderNow = (totalCount <= 20) or ((now - (tab.lastUiRefresh or 0)) >= 0.15)
     if shouldRenderNow and DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == cleanSender then
         tab.dirty = false
