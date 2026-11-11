@@ -35,7 +35,7 @@ Displays one tactical card per party slot (`party1` to `party4`):
   * **`Misiones`:** Silently queries `quests all` and opens the interactive **Quest Dialog** showing all active quests (or an empty notice when none are active). Click any quest to inspect its details, or click `Abandonar` to send `drop` and automatically refresh the list.
   * **`Despedir`:** Dismisses the bot (`.playerbots bot remove <name>`) and uninvites it from the party if needed.
 * **NPC Talk Dialog (`talk`):**
-  * Selecting an NPC and whispering `talk` to a bot (`/w <bot> talk`, `/p talk`, `/s talk`, or `/db talk [bot]`) captures the bot's reply cleanly out of chat/WIM and opens an interactive **NPC Dialog** window with clickable quest/item hyperlinks, clean 1-click gossip option buttons (`talk 0` / `talk #n`), quest accept/turn-in buttons (`accept` / `accept *`), and a direct follow-up command bar.
+  * Selecting an NPC and whispering `talk` to a bot (`/w <bot> talk`, `/p talk`, `/s talk`, or `/db talk [bot]`) captures the bot's reply cleanly out of chat/WIM and opens an interactive **NPC Dialog** window listing clickable gossip options (`talk 0` / `talk #n`), quest links and accept/turn-in buttons (`accept` / `accept *`), and a direct follow-up command bar.
 
 ---
 

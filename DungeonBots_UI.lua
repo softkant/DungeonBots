@@ -1188,7 +1188,7 @@ function DungeonBots:BuildTalkDialog()
     if DungeonBots.talkFrame then return end
 
     local tf = CreateFrame("Frame", "DungeonBots_TalkFrame", UIParent)
-    tf:SetSize(540, 470)
+    tf:SetSize(540, 390)
     tf:SetPoint("CENTER", UIParent, "CENTER", 0, 20)
     tf:SetFrameStrata("DIALOG")
     tf:SetFrameLevel(25)
@@ -1263,70 +1263,22 @@ function DungeonBots:BuildTalkDialog()
         end
     end)
 
-    -- Zona superior: texto enriquecido del PNJ con enlaces clicables
-    local msgBg = CreateFrame("Frame", nil, tf)
-    msgBg:SetPoint("TOPLEFT", tf, "TOPLEFT", 10, -68)
-    msgBg:SetPoint("TOPRIGHT", tf, "TOPRIGHT", -10, -68)
-    msgBg:SetHeight(130)
-    ApplyDarkBackdrop(msgBg, 10)
-    msgBg:SetBackdropColor(0.02, 0.03, 0.05, 1.0)
-    msgBg:SetBackdropBorderColor(0.30, 0.34, 0.42, 1.0)
-
-    local msgSolidBg = msgBg:CreateTexture(nil, "BACKGROUND")
-    msgSolidBg:SetPoint("TOPLEFT", msgBg, "TOPLEFT", 3, -3)
-    msgSolidBg:SetPoint("BOTTOMRIGHT", msgBg, "BOTTOMRIGHT", -3, 3)
-    msgSolidBg:SetTexture(0.02, 0.03, 0.05, 1.0)
-
-    local msgFrame = CreateFrame("ScrollingMessageFrame", "DungeonBots_TalkMessageFrame", msgBg)
-    msgFrame:SetPoint("TOPLEFT", msgBg, "TOPLEFT", 10, -8)
-    msgFrame:SetPoint("BOTTOMRIGHT", msgBg, "BOTTOMRIGHT", -30, 8)
-    msgFrame:SetFontObject(GameFontHighlight)
-    msgFrame:SetJustifyH("LEFT")
-    msgFrame:SetFading(false)
-    msgFrame:SetMaxLines(250)
-    msgFrame:SetHyperlinksEnabled(true)
-    msgFrame:EnableMouseWheel(true)
-    msgFrame:SetScript("OnMouseWheel", function(self, delta)
-        if delta > 0 then
-            self:ScrollUp()
-        else
-            self:ScrollDown()
-        end
-    end)
-    msgFrame:SetScript("OnHyperlinkClick", function(self, link, text, button)
-        SafeShowLinkTooltip(self, link, text, nil, text)
-    end)
-    tf.msgFrame = msgFrame
-
-    local scrollUpBtn = CreateFrame("Button", nil, msgBg, "UIPanelButtonTemplate")
-    scrollUpBtn:SetSize(20, 20)
-    scrollUpBtn:SetPoint("TOPRIGHT", msgBg, "TOPRIGHT", -6, -6)
-    scrollUpBtn:SetText("^")
-    scrollUpBtn:SetScript("OnClick", function() msgFrame:ScrollUp() end)
-
-    local scrollDownBtn = CreateFrame("Button", nil, msgBg, "UIPanelButtonTemplate")
-    scrollDownBtn:SetSize(20, 20)
-    scrollDownBtn:SetPoint("BOTTOMRIGHT", msgBg, "BOTTOMRIGHT", -6, 6)
-    scrollDownBtn:SetText("v")
-    scrollDownBtn:SetScript("OnClick", function() msgFrame:ScrollDown() end)
-
-    local emptyMsgLabel = msgBg:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    emptyMsgLabel:SetPoint("CENTER", msgBg, "CENTER", -8, 0)
-    emptyMsgLabel:SetWidth(440)
-    emptyMsgLabel:SetText("Esperando respuesta del PNJ...")
-    tf.emptyMsgLabel = emptyMsgLabel
-
-    -- Zona intermedia: opciones y misiones detectadas (1 clic)
+    -- Lista principal de opciones y misiones detectadas (1 clic)
     local optTitle = tf:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    optTitle:SetPoint("TOPLEFT", tf, "TOPLEFT", 14, -204)
-    optTitle:SetText("|cffffd200Opciones y Misiones Detectadas:|r |cff888888(1 clic para interactuar)|r")
+    optTitle:SetPoint("TOPLEFT", tf, "TOPLEFT", 14, -68)
+    optTitle:SetText("|cffffd200Opciones y Misiones Disponibles:|r |cff888888(1 clic para interactuar)|r")
 
     local optBg = CreateFrame("Frame", nil, tf)
-    optBg:SetPoint("TOPLEFT", tf, "TOPLEFT", 10, -220)
+    optBg:SetPoint("TOPLEFT", tf, "TOPLEFT", 10, -84)
     optBg:SetPoint("BOTTOMRIGHT", tf, "BOTTOMRIGHT", -10, 74)
     ApplyDarkBackdrop(optBg, 10)
-    optBg:SetBackdropColor(0.03, 0.04, 0.06, 1.0)
+    optBg:SetBackdropColor(0.02, 0.03, 0.05, 1.0)
     optBg:SetBackdropBorderColor(0.28, 0.32, 0.40, 1.0)
+
+    local optSolidBg = optBg:CreateTexture(nil, "BACKGROUND")
+    optSolidBg:SetPoint("TOPLEFT", optBg, "TOPLEFT", 3, -3)
+    optSolidBg:SetPoint("BOTTOMRIGHT", optBg, "BOTTOMRIGHT", -3, 3)
+    optSolidBg:SetTexture(0.02, 0.03, 0.05, 1.0)
 
     local optScroll = CreateFrame("ScrollFrame", "DungeonBots_TalkOptScroll", optBg, "UIPanelScrollFrameTemplate")
     optScroll:SetPoint("TOPLEFT", optBg, "TOPLEFT", 6, -6)
@@ -1337,10 +1289,10 @@ function DungeonBots:BuildTalkDialog()
     optScroll:SetScrollChild(optChild)
     tf.optChild = optChild
 
-    local emptyOptLabel = optBg:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local emptyOptLabel = optBg:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     emptyOptLabel:SetPoint("CENTER", optBg, "CENTER", -8, 0)
     emptyOptLabel:SetWidth(430)
-    emptyOptLabel:SetText("|cff888888No se detectaron opciones ni misiones disponibles.\nPuedes hacer clic en los enlaces de arriba o escribir un comando abajo.|r")
+    emptyOptLabel:SetText("Esperando respuesta del PNJ...")
     tf.emptyOptLabel = emptyOptLabel
 
     -- Zona inferior: barra de comando directo + cerrar
@@ -1412,29 +1364,20 @@ function DungeonBots:UpdateTalkDialog(botName)
 
     local lines = (data and data.lines) or {}
     local actions = (data and data.actions) or {}
-    tf.msgFrame:Clear()
-    if #lines == 0 then
-        if data and data.loading then
-            tf.emptyMsgLabel:SetText("|cff71d5ffConsultando lo que tiene el PNJ con " .. targetBot .. "...|r")
-        elseif #actions > 0 then
-            tf.emptyMsgLabel:SetText("|cffccccccSelecciona una opción o misión en la lista de abajo.|r")
-        else
-            tf.emptyMsgLabel:SetText("No se recibió texto del PNJ.\nAsegúrate de tener seleccionado un PNJ cerca de " .. targetBot .. " y pulsa 'Reconsultar'.")
-        end
-        tf.emptyMsgLabel:Show()
-    else
-        tf.emptyMsgLabel:Hide()
-        for _, line in ipairs(lines) do
-            tf.msgFrame:AddMessage(line, 1.0, 0.96, 0.86)
-        end
-        tf.msgFrame:ScrollToBottom()
-    end
 
     for _, row in ipairs(talkActionRows) do
         row:Hide()
     end
 
     if #actions == 0 then
+        if data and data.loading then
+            tf.emptyOptLabel:SetText("|cff71d5ffConsultando opciones y misiones del PNJ con " .. targetBot .. "...|r")
+        elseif #lines > 0 then
+            local cleanFallback = DungeonBots:StripChatFormatting(lines[#lines])
+            tf.emptyOptLabel:SetText("No se detectaron opciones ni misiones disponibles.\n\n|cffaaaaaa(" .. cleanFallback .. ")|r")
+        else
+            tf.emptyOptLabel:SetText("No se detectaron opciones ni misiones disponibles.\nAsegúrate de tener seleccionado un PNJ cerca de " .. targetBot .. " y pulsa 'Reconsultar'.")
+        end
         tf.emptyOptLabel:Show()
     else
         tf.emptyOptLabel:Hide()
