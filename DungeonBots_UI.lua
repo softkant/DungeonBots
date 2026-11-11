@@ -933,7 +933,8 @@ function DungeonBots:BuildQuestDialog()
     qf:SetSize(540, 420)
     qf:SetPoint("CENTER", UIParent, "CENTER", 0, 20)
     qf:SetFrameStrata("DIALOG")
-    qf:SetFrameLevel(24)
+    qf:SetFrameLevel(28)
+    qf:SetToplevel(true)
     qf:SetMovable(true)
     qf:EnableMouse(true)
     qf:SetClampedToScreen(true)
@@ -1141,6 +1142,9 @@ function DungeonBots:OpenQuestDialog(botName)
     DungeonBots.questFrame.currentBot = botName
     DungeonBots:UpdateQuestDialog(botName)
     DungeonBots.questFrame:Show()
+    if DungeonBots.questFrame.Raise then
+        pcall(DungeonBots.questFrame.Raise, DungeonBots.questFrame)
+    end
 end
 
 -- =========================================================================
@@ -1181,10 +1185,11 @@ function DungeonBots:BuildTalkDialog()
     if DungeonBots.talkFrame then return end
 
     local tf = CreateFrame("Frame", "DungeonBots_TalkFrame", UIParent)
-    tf:SetSize(540, 390)
+    tf:SetSize(540, 360)
     tf:SetPoint("CENTER", UIParent, "CENTER", 0, 20)
     tf:SetFrameStrata("DIALOG")
     tf:SetFrameLevel(25)
+    tf:SetToplevel(true)
     tf:SetMovable(true)
     tf:EnableMouse(true)
     tf:SetClampedToScreen(true)
@@ -1262,7 +1267,7 @@ function DungeonBots:BuildTalkDialog()
 
     local optBg = CreateFrame("Frame", nil, tf)
     optBg:SetPoint("TOPLEFT", tf, "TOPLEFT", 10, -84)
-    optBg:SetPoint("BOTTOMRIGHT", tf, "BOTTOMRIGHT", -10, 74)
+    optBg:SetPoint("BOTTOMRIGHT", tf, "BOTTOMRIGHT", -10, 40)
     ApplyDarkBackdrop(optBg, 10)
     optBg:SetBackdropColor(0.02, 0.03, 0.05, 1.0)
     optBg:SetBackdropBorderColor(0.28, 0.32, 0.40, 1.0)
@@ -1287,44 +1292,35 @@ function DungeonBots:BuildTalkDialog()
     emptyOptLabel:SetText("Esperando respuesta del PNJ...")
     tf.emptyOptLabel = emptyOptLabel
 
-    -- Zona inferior: barra de comando directo + cerrar
-    local cmdLabel = tf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    cmdLabel:SetPoint("BOTTOMLEFT", tf, "BOTTOMLEFT", 14, 44)
-    cmdLabel:SetText("Comando:")
-
-    local cmdBox = CreateFrame("EditBox", "DungeonBots_TalkReplyBox", tf, "InputBoxTemplate")
-    cmdBox:SetSize(344, 22)
-    cmdBox:SetPoint("LEFT", cmdLabel, "RIGHT", 10, 0)
-    cmdBox:SetAutoFocus(false)
-    cmdBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-    cmdBox:SetScript("OnEnterPressed", function(self)
-        local val = self:GetText()
-        if val and val ~= "" and tf.currentBot then
-            PlaySound("igMainMenuOptionCheckBoxOn")
-            self:SetText("")
-            self:ClearFocus()
-            DungeonBots:SendTalkCommand(tf.currentBot, val)
-        end
-    end)
-    tf.cmdBox = cmdBox
-
-    local sendBtn = CreateFrame("Button", nil, tf, "UIPanelButtonTemplate")
-    sendBtn:SetSize(86, 22)
-    sendBtn:SetPoint("LEFT", cmdBox, "RIGHT", 8, 0)
-    sendBtn:SetText("Enviar")
-    sendBtn:SetScript("OnClick", function()
-        local val = cmdBox:GetText()
-        if val and val ~= "" and tf.currentBot then
-            PlaySound("igMainMenuOptionCheckBoxOn")
-            cmdBox:SetText("")
-            cmdBox:ClearFocus()
-            DungeonBots:SendTalkCommand(tf.currentBot, val)
-        end
-    end)
-
+    -- Zona inferior: pista + acceso a Registro Misiones + Cerrar
     local footerHint = tf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     footerHint:SetPoint("BOTTOMLEFT", 14, 15)
-    footerHint:SetText("|cffaaaaaaTambién puedes enviar |cffffd200/w Bot talk|r o |cffffd200/db talk|r tras seleccionar un PNJ.|r")
+    footerHint:SetWidth(268)
+    footerHint:SetJustifyH("LEFT")
+    footerHint:SetWordWrap(false)
+    footerHint:SetText("|cffaaaaaaUsa |cffffd200/w Bot talk|r o |cffffd200/db talk|r tras elegir un PNJ.|r")
+
+    local questLogBtn = CreateFrame("Button", nil, tf, "UIPanelButtonTemplate")
+    questLogBtn:SetSize(134, 24)
+    questLogBtn:SetPoint("BOTTOMRIGHT", tf, "BOTTOMRIGHT", -108, 10)
+    questLogBtn:SetText("Registro Misiones")
+    questLogBtn:SetScript("OnClick", function()
+        PlaySound("igMainMenuOptionCheckBoxOn")
+        if tf.currentBot then
+            DungeonBots:QueryQuests(tf.currentBot)
+        end
+    end)
+    questLogBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Registro de Misiones del Bot", 1, 0.85, 0.2)
+        if tf.currentBot then
+            GameTooltip:AddLine("Abre la ventana de misiones activas de " .. tf.currentBot .. " (quests all).", 0.8, 0.9, 1.0, true)
+        else
+            GameTooltip:AddLine("Abre las misiones activas del bot seleccionado.", 0.8, 0.9, 1.0, true)
+        end
+        GameTooltip:Show()
+    end)
+    questLogBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     local closeFooterBtn = CreateFrame("Button", nil, tf, "UIPanelButtonTemplate")
     closeFooterBtn:SetSize(90, 24)
@@ -1451,6 +1447,9 @@ function DungeonBots:OpenTalkDialog(botName)
     DungeonBots.talkFrame.currentBot = botName
     DungeonBots:UpdateTalkDialog(botName)
     DungeonBots.talkFrame:Show()
+    if DungeonBots.talkFrame.Raise then
+        pcall(DungeonBots.talkFrame.Raise, DungeonBots.talkFrame)
+    end
 end
 
 -- =========================================================================
