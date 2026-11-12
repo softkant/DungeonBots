@@ -304,30 +304,23 @@ function DungeonBots:BuildQuestDialog()
 
             if self.memberStatuses and #self.memberStatuses > 0 then
                 GameTooltip:AddLine(" ", 1, 1, 1)
-                GameTooltip:AddLine("Estado del grupo:", 1, 0.82, 0)
+                GameTooltip:AddLine("Estado de los bots:", 1, 0.82, 0)
                 local curKey = self.currentBot and string.lower(string.match(self.currentBot, "^([^%-]+)") or self.currentBot) or ""
                 for _, m in ipairs(self.memberStatuses) do
-                    local mShort = string.match(m.name or "", "^([^%-]+)") or (m.name or "Miembro")
+                    local mShort = string.match(m.name or "", "^([^%-]+)") or (m.name or "Bot")
                     local mKey = string.lower(mShort)
                     local nameLabel
-                    if m.isSelf then
-                        nameLabel = "|cff00ccff" .. m.name .. " (Tú)|r"
-                    elseif curKey ~= "" and mKey == curKey then
-                        nameLabel = "|cffffd200" .. m.name .. "|r |cff88ccff(Actual)|r"
+                    if curKey ~= "" and mKey == curKey then
+                        nameLabel = "|cffffd200" .. mShort .. "|r |cff88ccff(Actual)|r"
                     else
-                        nameLabel = "|cffffd200" .. m.name .. "|r"
+                        nameLabel = "|cffffd200" .. mShort .. "|r"
                     end
                     local statusStr = m.canEnter and "|cff00ff00Puede ir|r" or "|cffff5555Falta misión|r"
                     GameTooltip:AddLine("  • " .. nameLabel .. ": " .. statusStr, 1, 1, 1, true)
                 end
-            elseif self.reasons and #self.reasons > 0 then
+            else
                 GameTooltip:AddLine(" ", 1, 1, 1)
-                GameTooltip:AddLine("Miembros sin la misión necesaria:", 1, 0.82, 0)
-                for _, r in ipairs(self.reasons) do
-                    local pColor = r.isSelf and "|cff00ccff" or "|cffffd200"
-                    local displayName = r.isSelf and (r.playerName .. " (Tú)") or r.playerName
-                    GameTooltip:AddLine("  • " .. pColor .. displayName .. ":|r |cffff7777" .. (r.text or "no ha completado la misión necesaria.") .. "|r", 1, 1, 1, true)
-                end
+                GameTooltip:AddLine("|cff888888No hay bots en el grupo actual.|r", 0.7, 0.7, 0.7)
             end
 
             GameTooltip:AddLine(" ", 1, 1, 1)

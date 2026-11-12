@@ -1581,53 +1581,56 @@ function DungeonBots:CheckDungeonQuestStatus(def)
         return nil, { { text = "Consultando datos al servidor..." } }, {}
     end
 
-    -- Construir el estado completo de cada miembro actual del grupo (Tú + bots en grupo)
+    -- Construir el estado únicamente de los bots actuales del grupo (excluir al jugador y otros jugadores reales)
     local memberStatuses = {}
     local seenKeys = {}
 
-    local myName = UnitName("player") or "Tú"
-    local myKey = NormalizeMemberKey(myName)
-    seenKeys[myKey] = true
-    table.insert(memberStatuses, {
-        name = myName,
-        isSelf = true,
-        canEnter = (lockedByKey[myKey] == nil),
-        reason = lockedByKey[myKey],
-    })
+    local function IsBotMemberName(name)
+        if not name or name == "" then return false end
+        local short = string.match(name, "^([^%-]+)") or name
+        local myName = UnitName and UnitName("player")
+        if myName and NormalizeMemberKey(short) == NormalizeMemberKey(myName) then
+            return false
+        end
+        if DungeonBots.ShouldTreatAsBot then
+            return DungeonBots:ShouldTreatAsBot(short) or DungeonBots:ShouldTreatAsBot(name)
+        end
+        if DungeonBots.IsBot then
+            return DungeonBots:IsBot(short) == true
+        end
+        return true
+    end
 
     for p = 1, 4 do
         local unit = "party" .. p
         if UnitExists(unit) then
             local pName = UnitName(unit)
             if pName and pName ~= "" and pName ~= "Desconocido" and pName ~= UNKNOWN and pName ~= "Unknown" then
-                local pKey = NormalizeMemberKey(pName)
-                if not seenKeys[pKey] then
-                    seenKeys[pKey] = true
-                    table.insert(memberStatuses, {
-                        name = pName,
-                        isSelf = false,
-                        canEnter = (lockedByKey[pKey] == nil),
-                        reason = lockedByKey[pKey],
-                    })
+                if IsBotMemberName(pName) then
+                    local pKey = NormalizeMemberKey(pName)
+                    if not seenKeys[pKey] then
+                        seenKeys[pKey] = true
+                        table.insert(memberStatuses, {
+                            name = pName,
+                            isSelf = false,
+                            canEnter = (lockedByKey[pKey] == nil),
+                            reason = lockedByKey[pKey],
+                        })
+                    end
                 end
             end
         end
     end
 
-    for key, r in pairs(lockedByKey) do
-        if not seenKeys[key] then
-            seenKeys[key] = true
-            table.insert(memberStatuses, {
-                name = r.playerName,
-                isSelf = r.isSelf,
-                canEnter = false,
-                reason = r,
-            })
+    local botReasons = {}
+    for _, m in ipairs(memberStatuses) do
+        if not m.canEnter and m.reason then
+            table.insert(botReasons, m.reason)
         end
     end
 
-    local canEnter = (#reasons == 0)
-    return canEnter, reasons, memberStatuses
+    local canEnter = (#botReasons == 0)
+    return canEnter, botReasons, memberStatuses
 end
 
 local lastLockReqTime = 0
