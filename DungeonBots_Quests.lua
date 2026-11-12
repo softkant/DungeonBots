@@ -30,10 +30,42 @@ end
 -- =========================================================================
 -- Consulta y Abandono de Misiones del Bot (quests all / drop)
 -- =========================================================================
-function DungeonBots:QueryQuests(botName, isSilent)
+DungeonBots.botQuestCounts = DungeonBots.botQuestCounts or {}
+
+local pendingQuestCountQueue = {}
+local nextQuestCountDispatchAt = 0
+
+local function RemoveQueuedQuestCount(cleanBot)
+    if not cleanBot then return end
+    for i = #pendingQuestCountQueue, 1, -1 do
+        if pendingQuestCountQueue[i].botName == cleanBot then
+            table.remove(pendingQuestCountQueue, i)
+        end
+    end
+end
+
+local function UpdateBotQuestCountCache(cleanBot, count, timestamp)
+    if not cleanBot or count == nil then return end
+    DungeonBots.botQuestCounts = DungeonBots.botQuestCounts or {}
+    local prev = DungeonBots.botQuestCounts[cleanBot]
+    local normalized = math.max(0, tonumber(count) or 0)
+    local changed = (not prev) or (prev.count ~= normalized)
+    DungeonBots.botQuestCounts[cleanBot] = {
+        count = normalized,
+        updatedAt = timestamp or NowTime(),
+    }
+    if changed and DungeonBots.UpdatePartyUI then
+        DungeonBots:UpdatePartyUI()
+    end
+end
+
+function DungeonBots:QueryQuests(botName, isSilent, suppressDialog)
     local cleanBot = NormalizePlayerName(botName)
     if not cleanBot then return end
     local now = NowTime()
+    if not suppressDialog then
+        RemoveQueuedQuestCount(cleanBot)
+    end
     DungeonBots.pendingTalkCapture[cleanBot] = nil
     DungeonBots.pendingTalkRefresh[cleanBot] = nil
     DungeonBots.pendingQuestCapture[cleanBot] = {
@@ -41,6 +73,7 @@ function DungeonBots:QueryQuests(botName, isSilent)
         expiresAt = now + 3.5,
         finalizeAt = now + 2.2,
         gotAnyLine = false,
+        silent = (suppressDialog == true),
     }
     DungeonBots.questDialogData[cleanBot] = {
         botName = cleanBot,
@@ -56,8 +89,10 @@ function DungeonBots:QueryQuests(botName, isSilent)
     if DungeonBots.uiCaptureFrame then
         DungeonBots.uiCaptureFrame:Show()
     end
-    if DungeonBots.OpenQuestDialog then
-        DungeonBots:OpenQuestDialog(cleanBot)
+    if not suppressDialog or (DungeonBots.questFrame and DungeonBots.questFrame:IsShown() and DungeonBots.questFrame.currentBot == cleanBot) then
+        if DungeonBots.OpenQuestDialog then
+            DungeonBots:OpenQuestDialog(cleanBot)
+        end
     end
     if not isSilent then
         local muteMode = (DungeonBotsDB and DungeonBotsDB.whisperMuteMode) or "auto"
@@ -66,6 +101,57 @@ function DungeonBots:QueryQuests(botName, isSilent)
         end
     end
     DungeonBots:SendWhisperCommand(cleanBot, "quests all")
+end
+
+function DungeonBots:QueryBotQuestCount(botName, force, delaySeconds)
+    local cleanBot = NormalizePlayerName(botName)
+    if not cleanBot then return end
+    if DungeonBots.FindPartyUnitByName and not DungeonBots:FindPartyUnitByName(cleanBot) then return end
+    if DungeonBots.ShouldTreatAsBot and not DungeonBots:ShouldTreatAsBot(cleanBot) then return end
+
+    local now = NowTime()
+    local cached = DungeonBots.botQuestCounts and DungeonBots.botQuestCounts[cleanBot]
+    if not force and cached and (now - (cached.updatedAt or 0)) < 10.0 then
+        return
+    end
+    if DungeonBots.pendingQuestCapture and DungeonBots.pendingQuestCapture[cleanBot] then
+        return
+    end
+
+    local sendAt = now + (delaySeconds or 0.25)
+    for _, entry in ipairs(pendingQuestCountQueue) do
+        if entry.botName == cleanBot then
+            if force then
+                entry.sendAt = math.min(entry.sendAt, sendAt)
+            end
+            if DungeonBots.uiCaptureFrame then
+                DungeonBots.uiCaptureFrame:Show()
+            end
+            return
+        end
+    end
+
+    table.insert(pendingQuestCountQueue, {
+        botName = cleanBot,
+        sendAt = sendAt,
+    })
+    if DungeonBots.uiCaptureFrame then
+        DungeonBots.uiCaptureFrame:Show()
+    end
+end
+
+function DungeonBots:QueryPartyBotQuestCounts(forceAll)
+    local delay = 0.25
+    for i = 1, 4 do
+        local unit = "party" .. i
+        if UnitExists(unit) then
+            local name = UnitName(unit)
+            if name and name ~= "" and DungeonBots:ShouldTreatAsBot(name) then
+                DungeonBots:QueryBotQuestCount(name, forceAll, delay)
+                delay = delay + 0.15
+            end
+        end
+    end
 end
 
 -- Abandonar una misión de un bot y refrescar la ventana correspondiente
@@ -90,6 +176,9 @@ function DungeonBots:DropBotQuest(botName, questEntry, fromTalkDialog)
         if data.seenKeys and qKey then
             data.seenKeys[qKey] = nil
         end
+        UpdateBotQuestCountCache(cleanBot, #(data.quests), now)
+    elseif DungeonBots.botQuestCounts and DungeonBots.botQuestCounts[cleanBot] then
+        UpdateBotQuestCountCache(cleanBot, math.max(0, (DungeonBots.botQuestCounts[cleanBot].count or 0) - 1), now)
     end
 
     local talkData = DungeonBots.talkDialogData and DungeonBots.talkDialogData[cleanBot]
@@ -433,7 +522,8 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
     for botName, refreshAt in pairs(DungeonBots.pendingQuestRefresh) do
         if now >= refreshAt then
             DungeonBots.pendingQuestRefresh[botName] = nil
-            DungeonBots:QueryQuests(botName, true)
+            local keepClosed = not (DungeonBots.questFrame and DungeonBots.questFrame:IsShown() and DungeonBots.questFrame.currentBot == botName)
+            DungeonBots:QueryQuests(botName, true, keepClosed)
         else
             hasAny = true
         end
@@ -453,12 +543,18 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
     for botName, cap in pairs(DungeonBots.pendingQuestCapture) do
         if now >= (cap.finalizeAt or cap.expiresAt or 0) or now >= (cap.expiresAt or 0) then
             DungeonBots.pendingQuestCapture[botName] = nil
+            nextQuestCountDispatchAt = math.max(nextQuestCountDispatchAt, now + 0.15)
             local data = DungeonBots.questDialogData[botName]
             if data then
                 data.loading = false
                 data.done = true
-                if DungeonBots.UpdateQuestDialog then
-                    DungeonBots:UpdateQuestDialog(botName)
+                if cap.gotAnyLine or data.emptyHint or #(data.quests or {}) > 0 then
+                    UpdateBotQuestCountCache(botName, #(data.quests or {}), now)
+                end
+                if not cap.silent or (DungeonBots.questFrame and DungeonBots.questFrame:IsShown() and DungeonBots.questFrame.currentBot == botName) then
+                    if DungeonBots.UpdateQuestDialog then
+                        DungeonBots:UpdateQuestDialog(botName)
+                    end
                 end
             end
             if DungeonBots.pendingTalkAfterQuest and DungeonBots.pendingTalkAfterQuest[botName] then
@@ -497,6 +593,9 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
                             local acceptDisplay = DungeonBots.LocalizeHyperlinksInText and DungeonBots:LocalizeHyperlinksInText(data.pendingAcceptTarget) or data.pendingAcceptTarget
                             DungeonBots:Print("|cffffd200" .. botName .. "|r aceptó la misión: " .. acceptDisplay)
                         end
+                        if DungeonBots.QueryBotQuestCount then
+                            DungeonBots:QueryBotQuestCount(botName, true, 0.90)
+                        end
                         if DungeonBots.talkFrame and DungeonBots.talkFrame:IsShown() and DungeonBots.talkFrame.currentBot == botName then
                             DungeonBots.pendingTalkRefresh[botName] = now + 0.15
                             hasAny = true
@@ -508,6 +607,35 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
                 end
             end
         else
+            hasAny = true
+        end
+    end
+
+    if #pendingQuestCountQueue > 0 then
+        local hasActiveQuestCap = next(DungeonBots.pendingQuestCapture) ~= nil
+        local hasActiveTalkCap = next(DungeonBots.pendingTalkCapture) ~= nil
+        local hasActiveSpellsCap = DungeonBots.pendingSpellsCapture and (next(DungeonBots.pendingSpellsCapture) ~= nil)
+        if not hasActiveQuestCap and not hasActiveTalkCap and not hasActiveSpellsCap and now >= nextQuestCountDispatchAt then
+            local bestIdx = nil
+            local bestSendAt = nil
+            for idx = 1, #pendingQuestCountQueue do
+                local item = pendingQuestCountQueue[idx]
+                local sAt = item.sendAt or 0
+                if now >= sAt and (not bestSendAt or sAt < bestSendAt) then
+                    bestIdx = idx
+                    bestSendAt = sAt
+                end
+            end
+            if bestIdx then
+                local item = table.remove(pendingQuestCountQueue, bestIdx)
+                if (not DungeonBots.FindPartyUnitByName or DungeonBots:FindPartyUnitByName(item.botName))
+                    and (not DungeonBots.ShouldTreatAsBot or DungeonBots:ShouldTreatAsBot(item.botName)) then
+                    nextQuestCountDispatchAt = now + 0.85
+                    DungeonBots:QueryQuests(item.botName, true, true)
+                end
+            end
+        end
+        if #pendingQuestCountQueue > 0 then
             hasAny = true
         end
     end
@@ -538,7 +666,8 @@ function DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
     if not data then return false end
 
     if (DB_Internal.IsPureTalentResponse and DB_Internal.IsPureTalentResponse(message))
-        or (DB_Internal.IsInventoryDumpMessage and DB_Internal.IsInventoryDumpMessage(message)) then
+        or (DB_Internal.IsInventoryDumpMessage and DB_Internal.IsInventoryDumpMessage(message))
+        or (DB_Internal.ParseBotStatsWhisper and DB_Internal.ParseBotStatsWhisper(message)) then
         return false
     end
 
@@ -565,6 +694,7 @@ function DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
             elseif not hasQuestLink and (
                 string.find(lowerClean, "no active quests", 1, true)
                 or string.find(lowerClean, "0 active quests", 1, true)
+                or string.find(lowerClean, "you have no quests", 1, true)
                 or lowerClean == "no quests"
                 or (lowerClean == "none" and #(data.quests) == 0)
             ) then
@@ -681,8 +811,13 @@ function DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
         end
     end
 
-    if DungeonBots.UpdateQuestDialog then
-        DungeonBots:UpdateQuestDialog(cleanSender)
+    if data.emptyHint or #(data.quests) > 0 then
+        UpdateBotQuestCountCache(cleanSender, #(data.quests), now)
+    end
+    if not cap.silent or (DungeonBots.questFrame and DungeonBots.questFrame:IsShown() and DungeonBots.questFrame.currentBot == cleanSender) then
+        if DungeonBots.UpdateQuestDialog then
+            DungeonBots:UpdateQuestDialog(cleanSender)
+        end
     end
     return true
 end

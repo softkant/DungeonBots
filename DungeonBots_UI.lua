@@ -791,8 +791,8 @@ function DungeonBots:BuildTab2(parent)
     end)
     refreshStatsBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Actualizar Armadura y Bolsas (stats)", 1, 1, 1)
-        GameTooltip:AddLine("Consulta |cffffd200stats|r a todos los bots del grupo para refrescar su durabilidad de armadura y espacio en bolsas.", 0.7, 0.8, 1.0, true)
+        GameTooltip:AddLine("Actualizar Estado del Grupo", 1, 1, 1)
+        GameTooltip:AddLine("Consulta |cffffd200stats|r y el conteo de misiones (|cffffd200quests all|r) a todos los bots del grupo para refrescar armadura, bolsas y misiones.", 0.7, 0.8, 1.0, true)
         GameTooltip:Show()
     end)
     refreshStatsBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -855,23 +855,27 @@ function DungeonBots:BuildTab2(parent)
         humanNotice:Hide()
         card.humanNotice = humanNotice
 
-        local specDropDown = CreateFrame("Frame", "DungeonBots_SpecDropDown_" .. i, card, "UIDropDownMenuTemplate")
-        specDropDown:SetPoint("TOPLEFT", card, "TOPLEFT", 175, -6)
-        UIDropDownMenu_SetWidth(specDropDown, 185)
-        UIDropDownMenu_JustifyText(specDropDown, "LEFT")
-        card.specDropDown = specDropDown
+        local specDisplay = CreateFrame("Frame", "DungeonBots_SpecDisplay_" .. i, card)
+        specDisplay:SetSize(246, 28)
+        specDisplay:SetPoint("TOPLEFT", card, "TOPLEFT", 196, -18)
+        ApplyHeaderBackdrop(specDisplay)
+        specDisplay:SetBackdropColor(0.06, 0.08, 0.12, 0.90)
+        specDisplay:SetBackdropBorderColor(0.32, 0.36, 0.44, 0.70)
+        card.specDisplay = specDisplay
 
-        local matchGearBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
-        matchGearBtn:SetSize(118, 22)
-        matchGearBtn:SetPoint("TOPLEFT", card, "TOPLEFT", 193, -38)
-        matchGearBtn:SetText("Adaptar Equipo")
-        card.matchGearBtn = matchGearBtn
+        local specIcon = specDisplay:CreateTexture(nil, "ARTWORK")
+        specIcon:SetSize(16, 16)
+        specIcon:SetPoint("LEFT", specDisplay, "LEFT", 8, 0)
+        specIcon:SetTexture("Interface\\Icons\\Ability_Marksmanship")
+        specIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        card.specIcon = specIcon
 
-        local blueGearBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
-        blueGearBtn:SetSize(114, 22)
-        blueGearBtn:SetPoint("LEFT", matchGearBtn, "RIGHT", 6, 0)
-        blueGearBtn:SetText("Equipar Azul")
-        card.blueGearBtn = blueGearBtn
+        local specText = specDisplay:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        specText:SetPoint("LEFT", specIcon, "RIGHT", 7, 0)
+        specText:SetPoint("RIGHT", specDisplay, "RIGHT", -8, 0)
+        specText:SetJustifyH("LEFT")
+        specText:SetText("Rama: |cff888888Sin detectar|r")
+        card.specText = specText
 
         local questsBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
         questsBtn:SetSize(120, 22)
@@ -915,7 +919,7 @@ function DungeonBots:BuildTab2(parent)
 
         local bagIcon = statusBtn:CreateTexture(nil, "ARTWORK")
         bagIcon:SetSize(14, 14)
-        bagIcon:SetPoint("LEFT", statusBtn, "LEFT", 290, 0)
+        bagIcon:SetPoint("LEFT", statusBtn, "LEFT", 185, 0)
         bagIcon:SetTexture("Interface\\Icons\\INV_Misc_Bag_08")
         bagIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         card.bagIcon = bagIcon
@@ -925,6 +929,19 @@ function DungeonBots:BuildTab2(parent)
         bagText:SetJustifyH("LEFT")
         bagText:SetText("Bolsas: |cff888888Consultando...|r")
         card.bagText = bagText
+
+        local questsCountText = statusBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        questsCountText:SetPoint("RIGHT", statusBtn, "RIGHT", -6, 0)
+        questsCountText:SetJustifyH("RIGHT")
+        questsCountText:SetText("Misiones (|cff888888...|r)")
+        card.questsCountText = questsCountText
+
+        local questsCountIcon = statusBtn:CreateTexture(nil, "ARTWORK")
+        questsCountIcon:SetSize(14, 14)
+        questsCountIcon:SetPoint("RIGHT", questsCountText, "LEFT", -5, 0)
+        questsCountIcon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
+        questsCountIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        card.questsCountIcon = questsCountIcon
 
         card:Hide()
         botCards[i] = card
@@ -950,14 +967,7 @@ local function FormatBotCardStats(botName)
         end
     end
 
-    local armorStr
-    if dmgPct == 0 then
-        armorStr = "Armadura: " .. durColor .. "100%|r |cff9aa5b4(0% daño)|r"
-    elseif st.durExtra and st.durExtra ~= "" and st.durExtra ~= "0" then
-        armorStr = "Armadura: " .. durColor .. intactPct .. "%|r |cff9aa5b4(" .. dmgPct .. "% daño, " .. st.durExtra .. ")|r"
-    else
-        armorStr = "Armadura: " .. durColor .. intactPct .. "%|r |cff9aa5b4(" .. dmgPct .. "% daño)|r"
-    end
+    local armorStr = "Armadura: " .. durColor .. intactPct .. "%|r"
 
     local bagColor = st.bagColorHex
     if not bagColor or bagColor == "" then
@@ -965,6 +975,22 @@ local function FormatBotCardStats(botName)
     end
     local bagStr = "Bolsas: " .. bagColor .. tostring(st.bagUsed) .. "/" .. tostring(st.bagTotal) .. "|r"
     return armorStr, bagStr, st
+end
+
+local function FormatBotCardQuestCount(botName)
+    local rec = DungeonBots.botQuestCounts and DungeonBots.botQuestCounts[botName]
+    if not rec or rec.count == nil then
+        local qData = DungeonBots.questDialogData and DungeonBots.questDialogData[botName]
+        if qData and qData.done and qData.quests then
+            local cnt = #(qData.quests)
+            local numColor = cnt > 0 and "|cffffff00" or "|cff888888"
+            return "Misiones (" .. numColor .. cnt .. "|r)", cnt
+        end
+        return "Misiones (|cff888888...|r)", nil
+    end
+    local cnt = tonumber(rec.count) or 0
+    local numColor = cnt > 0 and "|cffffff00" or "|cff888888"
+    return "Misiones (" .. numColor .. cnt .. "|r)", cnt
 end
 
 -- Actualiza la lista de miembros y sus tarjetas
@@ -1041,39 +1067,41 @@ function DungeonBots:UpdatePartyUI()
                     card.botBadge:SetBackdropBorderColor(0.2, 0.8, 1.0, 0.9)
                     card.botBadge:SetBackdropColor(0.08, 0.16, 0.22, 0.95)
                     card.humanNotice:Hide()
-                    card.specDropDown:Show()
-                    card.matchGearBtn:Show()
-                    card.blueGearBtn:Show()
+                    card.specDisplay:Show()
                     card.questsBtn:Show()
                     card.kickBtn:Show()
                     card.statusRule:Show()
                     card.statusBtn:Show()
 
                     local armorStr, bagStr, st = FormatBotCardStats(name)
+                    local questsCountStr, questsCountVal = FormatBotCardQuestCount(name)
                     card.armorText:SetText(armorStr)
                     card.bagText:SetText(bagStr)
+                    card.questsCountText:SetText(questsCountStr)
                     card.statusBtn:SetScript("OnClick", function()
                         PlaySound("igMainMenuOptionCheckBoxOn")
                         if DungeonBots.QueryBotStats then
                             DungeonBots:QueryBotStats(name, true)
                         end
+                        if DungeonBots.QueryBotQuestCount then
+                            DungeonBots:QueryBotQuestCount(name, true, 0.15)
+                        end
                     end)
                     card.statusBtn:SetScript("OnEnter", function(self)
                         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                        GameTooltip:AddLine("Estado de " .. name .. " (stats)", 1, 1, 1)
+                        GameTooltip:AddLine("Estado de " .. name, 1, 1, 1)
                         if st then
                             GameTooltip:AddLine(armorStr, 1, 1, 1)
                             GameTooltip:AddLine(bagStr, 1, 1, 1)
-                            if st.goldText and st.goldText ~= "" then
-                                GameTooltip:AddLine("Oro: |cffffd200" .. st.goldText .. "|r", 1, 1, 1)
-                            end
-                            if st.rawText and st.rawText ~= "" then
-                                GameTooltip:AddLine("\nRespuesta: " .. st.rawText, 0.7, 0.8, 1.0, true)
-                            end
                         else
                             GameTooltip:AddLine("Consultando estado de armadura y bolsas...", 0.75, 0.75, 0.78)
                         end
-                        GameTooltip:AddLine("\nHaz clic para actualizar ahora (/w " .. name .. " stats).", 1, 0.82, 0.2)
+                        if questsCountVal ~= nil then
+                            GameTooltip:AddLine(questsCountStr, 1, 1, 1)
+                        else
+                            GameTooltip:AddLine("Consultando número de misiones...", 0.75, 0.75, 0.78)
+                        end
+                        GameTooltip:AddLine("\nHaz clic para actualizar stats y misiones ahora.", 1, 0.82, 0.2)
                         GameTooltip:Show()
                     end)
                     card.statusBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1082,9 +1110,7 @@ function DungeonBots:UpdatePartyUI()
                     card.botBadge:SetBackdropBorderColor(1.0, 0.7, 0.2, 0.9)
                     card.botBadge:SetBackdropColor(0.20, 0.14, 0.08, 0.95)
                     card.humanNotice:Show()
-                    card.specDropDown:Hide()
-                    card.matchGearBtn:Hide()
-                    card.blueGearBtn:Hide()
+                    card.specDisplay:Hide()
                     card.questsBtn:Hide()
                     card.kickBtn:Hide()
                     card.statusRule:Hide()
@@ -1111,85 +1137,22 @@ function DungeonBots:UpdatePartyUI()
                 end)
                 card.botBadge:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-                -- Configurar DropDown dinámico de ramas oficiales (con etiqueta localizada y valor canónico)
+                -- Mostrar rama de talentos actual en formato solo lectura (el cambio está en Información del Personaje -> Equipo)
                 local currentBotName = name
                 local activeSpec = DungeonBotsDB and DungeonBotsDB.botActiveSpec and DungeonBotsDB.botActiveSpec[currentBotName]
                 if activeSpec and activeSpec ~= "" and DungeonBots.CanonicalizeSpec then
                     activeSpec = DungeonBots:CanonicalizeSpec(currentBotName, activeSpec)
                 end
 
-                UIDropDownMenu_Initialize(card.specDropDown, function(self, level)
-                    local specs = (DungeonBots.botSpecs and DungeonBots.botSpecs[currentBotName])
-                    if (not specs or #specs == 0) and classToken and DungeonBots.DEFAULT_CLASS_SPECS then
-                        specs = DungeonBots.DEFAULT_CLASS_SPECS[classToken]
-                    end
-
-                    local currentActive = DungeonBotsDB and DungeonBotsDB.botActiveSpec and DungeonBotsDB.botActiveSpec[currentBotName]
-                    if currentActive and currentActive ~= "" and DungeonBots.CanonicalizeSpec then
-                        currentActive = DungeonBots:CanonicalizeSpec(currentBotName, currentActive)
-                    end
-                    local optionList = {}
-                    local seen = {}
-                    if currentActive and currentActive ~= "" then
-                        table.insert(optionList, currentActive)
-                        seen[string.lower(currentActive)] = true
-                    end
-                    if specs then
-                        for _, s in ipairs(specs) do
-                            local ls = string.lower(s)
-                            if not seen[ls] then
-                                table.insert(optionList, s)
-                                seen[ls] = true
-                            end
-                        end
-                    end
-
-                    if #optionList == 0 then
-                        local infoHint = UIDropDownMenu_CreateInfo()
-                        infoHint.text = "Sin ramas cargadas"
-                        infoHint.disabled = true
-                        UIDropDownMenu_AddButton(infoHint, level)
-                        return
-                    end
-
-                    local infoHeader = UIDropDownMenu_CreateInfo()
-                    infoHeader.text = "-- Ramas Disponibles --"
-                    infoHeader.isTitle = true
-                    UIDropDownMenu_AddButton(infoHeader, level)
-
-                    for _, specName in ipairs(optionList) do
-                        local info = UIDropDownMenu_CreateInfo()
-                        local displaySpec = DungeonBots.LocalizeSpecText
-                            and DungeonBots:LocalizeSpecText(specName)
-                            or specName
-                        info.text = displaySpec
-                        info.value = specName
-                        info.checked = (currentActive and string.lower(specName) == string.lower(currentActive)) or false
-                        info.func = function()
-                            UIDropDownMenu_SetSelectedValue(card.specDropDown, specName)
-                            UIDropDownMenu_SetText(card.specDropDown, displaySpec)
-                            if DungeonBotsDB then
-                                DungeonBotsDB.botActiveSpec = DungeonBotsDB.botActiveSpec or {}
-                                DungeonBotsDB.botActiveSpec[currentBotName] = specName
-                            end
-                            DungeonBots:SetBotSpec(currentBotName, specName)
-                        end
-                        UIDropDownMenu_AddButton(info, level)
-                    end
-                end)
-
                 if activeSpec and activeSpec ~= "" then
                     local activeDisplay = DungeonBots.LocalizeSpecText
                         and DungeonBots:LocalizeSpecText(activeSpec)
                         or activeSpec
-                    UIDropDownMenu_SetSelectedValue(card.specDropDown, activeSpec)
-                    UIDropDownMenu_SetText(card.specDropDown, activeDisplay)
+                    card.specText:SetText("Rama: |cff71d5ff" .. activeDisplay .. "|r")
                 elseif DungeonBots.pendingSpecReset and DungeonBots.pendingSpecReset[currentBotName] then
-                    UIDropDownMenu_SetSelectedValue(card.specDropDown, nil)
-                    UIDropDownMenu_SetText(card.specDropDown, "Consultando talentos...")
+                    card.specText:SetText("Rama: |cff888888Consultando talentos...|r")
                 else
-                    UIDropDownMenu_SetSelectedValue(card.specDropDown, nil)
-                    UIDropDownMenu_SetText(card.specDropDown, "Sin detectar")
+                    card.specText:SetText("Rama: |cff888888Sin detectar|r")
                 end
 
                 card.questsBtn:SetScript("OnClick", function()
@@ -1203,31 +1166,6 @@ function DungeonBots:UpdatePartyUI()
                     GameTooltip:Show()
                 end)
                 card.questsBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
-                card.matchGearBtn:SetScript("OnClick", function()
-                    PlaySound("igMainMenuOptionCheckBoxOn")
-                    DungeonBots:AutogearMatch(name)
-                end)
-                card.matchGearBtn:SetScript("OnEnter", function(self)
-                    GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                    GameTooltip:AddLine("Adaptar Equipo (Autogear Match)", 1, 0.8, 0.2)
-                    GameTooltip:AddLine("Ajusta su armadura a la rama de talentos activa.", 1, 1, 1)
-                    GameTooltip:AddLine("\n|cffff3b30CUIDADO:|r Esto puede reducir drásticamente el Item Level de varias o todas sus piezas.", 1, 0.3, 0.3, true)
-                    GameTooltip:Show()
-                end)
-                card.matchGearBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
-                card.blueGearBtn:SetScript("OnClick", function()
-                    PlaySound("igMainMenuOptionCheckBoxOn")
-                    DungeonBots:AutogearBlue(name)
-                end)
-                card.blueGearBtn:SetScript("OnEnter", function(self)
-                    GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                    GameTooltip:AddLine("Equipar Objetos Azules (Autogear Blue)", 0.2, 0.8, 1.0)
-                    GameTooltip:AddLine("Equipa al bot con un conjunto completo de calidad rara (azul).", 0.7, 0.7, 0.7, true)
-                    GameTooltip:Show()
-                end)
-                card.blueGearBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
                 card.kickBtn:SetScript("OnClick", function()
                     PlaySound("igMainMenuOptionCheckBoxOff")

@@ -239,6 +239,9 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             parsedStats.updatedAt = NowTime()
             DungeonBots.botStats = DungeonBots.botStats or {}
             DungeonBots.botStats[cleanSender] = parsedStats
+            if DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == cleanSender then
+                DungeonBots:UpdateSpellsDialog(cleanSender)
+            end
         end
 
         -- Parser dinámico de ramas de talentos y especialización activa en vivo

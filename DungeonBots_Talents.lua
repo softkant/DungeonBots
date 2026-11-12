@@ -557,6 +557,9 @@ function DungeonBots:QueryBotLiveInfo(botName)
     if not DungeonBots:ShouldTreatAsBot(botName) then return end
     StartTalentQuery(botName, false)
     DungeonBots:QueueWhisperCommand(botName, "stats")
+    if DungeonBots.QueryBotQuestCount then
+        DungeonBots:QueryBotQuestCount(botName, true, 0.90)
+    end
 end
 
 function DungeonBots:QueryBotStats(botName, force)
@@ -579,6 +582,9 @@ function DungeonBots:QueryPartyBotStats(forceAll)
                 DungeonBots:QueryBotStats(name, forceAll)
             end
         end
+    end
+    if DungeonBots.QueryPartyBotQuestCounts then
+        DungeonBots:QueryPartyBotQuestCounts(forceAll)
     end
 end
 
@@ -607,6 +613,9 @@ function DungeonBots:CheckPartyForNewBots()
             if DungeonBots.botStats then
                 DungeonBots.botStats[queriedName] = nil
             end
+            if DungeonBots.botQuestCounts then
+                DungeonBots.botQuestCounts[queriedName] = nil
+            end
         end
     end
     for pendingName in pairs(pendingJoinQueries) do
@@ -634,6 +643,12 @@ function DungeonBots:SetBotSpec(botName, specId)
     DungeonBots:RecordBotHistory(botName, nil, cleanSpec, nil)
     if DungeonBots.UpdateHistoryUI and DungeonBots.historyFrame and DungeonBots.historyFrame:IsShown() then
         DungeonBots:UpdateHistoryUI()
+    end
+    if DungeonBots.UpdatePartyUI then
+        DungeonBots:UpdatePartyUI()
+    end
+    if DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == botName then
+        DungeonBots:UpdateSpellsDialog(botName)
     end
     local displaySpec = DungeonBots.LocalizeSpecText and DungeonBots:LocalizeSpecText(cleanSpec) or cleanSpec
     DungeonBots:Print("Talentos de |cffffd200" .. botName .. "|r fueron cambiados a |cff71d5ff" .. displaySpec .. "|r.")

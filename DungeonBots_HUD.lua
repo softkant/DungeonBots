@@ -225,7 +225,7 @@ local function HandleUtilActionClick(anchorBtn, action)
             "No hay bots detectados en el grupo para ver su información.",
             function(chosenName)
                 if DungeonBots.QueryBotSpells then
-                    DungeonBots:QueryBotSpells(chosenName, "spells", "", false)
+                    DungeonBots:QueryBotSpells(chosenName, "gear", "", false)
                 end
             end,
             false,

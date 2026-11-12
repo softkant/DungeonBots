@@ -27,6 +27,7 @@ local DIFFICULTY_INFO = {
 }
 
 local MODE_COMMANDS = {
+    gear = "gear",
     spells = "spells",
     glyphs = "glyphs",
     talents = "talents",
@@ -849,12 +850,24 @@ function DungeonBots:QueryBotSpells(botName, mode, filterText, isSilent)
         return
     end
 
-    local targetMode = MODE_COMMANDS[mode] and mode or "spells"
+    local targetMode = MODE_COMMANDS[mode] and mode or "gear"
     local cleanFilter = TrimText(filterText or "")
     local now = NowTime()
 
     local tab, rec = GetOrCreateModeTab(cleanBot, targetMode)
     rec.activeMode = targetMode
+    if targetMode == "gear" then
+        tab.loading = false
+        tab.done = true
+        tab.updatedAt = now
+        DungeonBots.pendingSpellsCapture[cleanBot] = nil
+        if not isSilent and DungeonBots.OpenSpellsDialog then
+            DungeonBots:OpenSpellsDialog(cleanBot, "gear")
+        elseif DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == cleanBot then
+            DungeonBots:UpdateSpellsDialog(cleanBot)
+        end
+        return
+    end
     if targetMode == "talents" then
         StartTalentInspectQuery(cleanBot, tab, rec, isSilent)
         return
@@ -947,7 +960,7 @@ function DungeonBots:CycleNextSpellsBot(currentBot, activeMode, serverFilter)
     if not nextBot or total < 2 then
         return nil
     end
-    local targetMode = MODE_COMMANDS[activeMode] and activeMode or "spells"
+    local targetMode = MODE_COMMANDS[activeMode] and activeMode or "gear"
     DungeonBots:QueryBotSpells(nextBot, targetMode, serverFilter, false)
     return nextBot
 end

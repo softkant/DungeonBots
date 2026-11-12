@@ -20,10 +20,181 @@ local function CreateRedIconButton(parent, width, height, text, iconPath, center
 end
 
 local MODE_TABS = {
+    { id = "gear",    label = "Equipo",   icon = "Interface\\Icons\\INV_Chest_Plate01" },
     { id = "spells",  label = "Hechizos", icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
     { id = "glyphs",  label = "Glifos",   icon = "Interface\\Icons\\INV_Inscription_Tradeskill01" },
     { id = "talents", label = "Talentos", icon = "Interface\\Icons\\Ability_Marksmanship" },
 }
+
+local function BuildGearPanel(sp)
+    local gearPanel = CreateFrame("Frame", "DungeonBots_GearPanel", sp)
+    gearPanel:SetPoint("TOPLEFT", sp, "TOPLEFT", 10, -68)
+    gearPanel:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", -10, 42)
+    gearPanel:Hide()
+    sp.gearPanel = gearPanel
+
+    -- Seccion 1: Cambio de rama de talentos
+    local specCard = CreateFrame("Frame", "DungeonBots_GearSpecCard", gearPanel)
+    specCard:SetPoint("TOPLEFT", gearPanel, "TOPLEFT", 0, 0)
+    specCard:SetPoint("TOPRIGHT", gearPanel, "TOPRIGHT", 0, 0)
+    specCard:SetHeight(168)
+    specCard:SetBackdrop({
+        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 10,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    })
+    specCard:SetBackdropColor(0.03, 0.04, 0.07, 1.0)
+    specCard:SetBackdropBorderColor(0.28, 0.32, 0.40, 1.0)
+    gearPanel.specCard = specCard
+
+    local specHeaderIcon = specCard:CreateTexture(nil, "ARTWORK")
+    specHeaderIcon:SetSize(18, 18)
+    specHeaderIcon:SetPoint("TOPLEFT", specCard, "TOPLEFT", 12, -10)
+    specHeaderIcon:SetTexture("Interface\\Icons\\Ability_Marksmanship")
+    specHeaderIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    local specTitle = specCard:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    specTitle:SetPoint("LEFT", specHeaderIcon, "RIGHT", 7, 0)
+    specTitle:SetText("|cff71d5ffRama de Talentos|r")
+
+    local activeSpecLabel = specCard:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    activeSpecLabel:SetPoint("TOPRIGHT", specCard, "TOPRIGHT", -12, -12)
+    activeSpecLabel:SetJustifyH("RIGHT")
+    activeSpecLabel:SetText("Rama actual: |cff888888Sin detectar|r")
+    gearPanel.activeSpecLabel = activeSpecLabel
+
+    local specSubLabel = specCard:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    specSubLabel:SetPoint("TOPLEFT", specCard, "TOPLEFT", 12, -33)
+    specSubLabel:SetText("|cff9aa5b4Elige la especialización que utilizará el bot (talents spec):|r")
+
+    gearPanel.specButtons = {}
+    local btnW, btnH = 164, 26
+    local gapX, gapY = 8, 6
+    local startX, startY = 14, -54
+    for idx = 1, 9 do
+        local col = (idx - 1) % 3
+        local row = math.floor((idx - 1) / 3)
+        local sBtn = CreateFrame("Button", "DungeonBots_GearSpecBtn_" .. idx, specCard)
+        sBtn:SetSize(btnW, btnH)
+        sBtn:SetPoint("TOPLEFT", specCard, "TOPLEFT", startX + (col * (btnW + gapX)), startY - (row * (btnH + gapY)))
+        sBtn:SetBackdrop({
+            bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = true, tileSize = 16, edgeSize = 8,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 }
+        })
+        sBtn:SetBackdropColor(0.07, 0.09, 0.14, 0.95)
+        sBtn:SetBackdropBorderColor(0.28, 0.32, 0.42, 0.85)
+        sBtn:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+
+        local accentBar = sBtn:CreateTexture(nil, "OVERLAY")
+        accentBar:SetHeight(2)
+        accentBar:SetPoint("BOTTOMLEFT", sBtn, "BOTTOMLEFT", 4, 2)
+        accentBar:SetPoint("BOTTOMRIGHT", sBtn, "BOTTOMRIGHT", -4, 2)
+        accentBar:SetTexture(0.0, 0.85, 1.0, 1.0)
+        accentBar:Hide()
+        sBtn.accentBar = accentBar
+
+        local label = sBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        label:SetPoint("LEFT", sBtn, "LEFT", 8, 0)
+        label:SetPoint("RIGHT", sBtn, "RIGHT", -8, 0)
+        label:SetJustifyH("CENTER")
+        sBtn.label = label
+        sBtn:Hide()
+        gearPanel.specButtons[idx] = sBtn
+    end
+
+    local emptySpecsLabel = specCard:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    emptySpecsLabel:SetPoint("CENTER", specCard, "CENTER", 0, -18)
+    emptySpecsLabel:SetWidth(460)
+    emptySpecsLabel:SetText("|cff888888Sin ramas cargadas todavía. Pulsa 'Actualizar' arriba para consultar talentos.|r")
+    emptySpecsLabel:Hide()
+    gearPanel.emptySpecsLabel = emptySpecsLabel
+
+    -- Seccion 2: Cambio y adaptacion de equipo (Autogear Match / Blue)
+    local autogearCard = CreateFrame("Frame", "DungeonBots_GearAutogearCard", gearPanel)
+    autogearCard:SetPoint("TOPLEFT", specCard, "BOTTOMLEFT", 0, -10)
+    autogearCard:SetPoint("TOPRIGHT", specCard, "BOTTOMRIGHT", 0, -10)
+    autogearCard:SetPoint("BOTTOMRIGHT", gearPanel, "BOTTOMRIGHT", 0, 0)
+    autogearCard:SetBackdrop({
+        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 10,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    })
+    autogearCard:SetBackdropColor(0.03, 0.04, 0.07, 1.0)
+    autogearCard:SetBackdropBorderColor(0.28, 0.32, 0.40, 1.0)
+    gearPanel.autogearCard = autogearCard
+
+    local gearHeaderIcon = autogearCard:CreateTexture(nil, "ARTWORK")
+    gearHeaderIcon:SetSize(18, 18)
+    gearHeaderIcon:SetPoint("TOPLEFT", autogearCard, "TOPLEFT", 12, -10)
+    gearHeaderIcon:SetTexture("Interface\\Icons\\INV_Chest_Plate01")
+    gearHeaderIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    local gearTitle = autogearCard:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    gearTitle:SetPoint("LEFT", gearHeaderIcon, "RIGHT", 7, 0)
+    gearTitle:SetText("|cffffd200Gestión de Equipo|r")
+
+    local gearStatsSummary = autogearCard:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    gearStatsSummary:SetPoint("TOPRIGHT", autogearCard, "TOPRIGHT", -12, -12)
+    gearStatsSummary:SetJustifyH("RIGHT")
+    gearStatsSummary:SetText("")
+    gearPanel.gearStatsSummary = gearStatsSummary
+
+    local gearSubLabel = autogearCard:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    gearSubLabel:SetPoint("TOPLEFT", autogearCard, "TOPLEFT", 12, -33)
+    gearSubLabel:SetText("|cff9aa5b4Adapta el equipo del bot según su rama o equípale un conjunto raro:|r")
+
+    local matchBox = CreateFrame("Frame", nil, autogearCard)
+    matchBox:SetSize(248, 108)
+    matchBox:SetPoint("TOPLEFT", autogearCard, "TOPLEFT", 14, -56)
+    matchBox:SetBackdrop({
+        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 8,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 }
+    })
+    matchBox:SetBackdropColor(0.06, 0.08, 0.12, 0.90)
+    matchBox:SetBackdropBorderColor(0.30, 0.34, 0.42, 0.80)
+
+    local matchBtn = CreateFrame("Button", "DungeonBots_GearMatchBtn", matchBox, "UIPanelButtonTemplate")
+    matchBtn:SetSize(224, 26)
+    matchBtn:SetPoint("TOP", matchBox, "TOP", 0, -10)
+    matchBtn:SetText("Adaptar Equipo")
+    gearPanel.matchBtn = matchBtn
+
+    local matchDesc = matchBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    matchDesc:SetPoint("TOPLEFT", matchBtn, "BOTTOMLEFT", 2, -8)
+    matchDesc:SetPoint("TOPRIGHT", matchBtn, "BOTTOMRIGHT", -2, -8)
+    matchDesc:SetJustifyH("CENTER")
+    matchDesc:SetText("|cffccccccAjusta su armadura a la rama activa.|r\n|cffff3b30CUIDADO:|r Puede reducir drásticamente el Item Level de sus piezas.")
+
+    local blueBox = CreateFrame("Frame", nil, autogearCard)
+    blueBox:SetSize(248, 108)
+    blueBox:SetPoint("TOPRIGHT", autogearCard, "TOPRIGHT", -14, -56)
+    blueBox:SetBackdrop({
+        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 8,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 }
+    })
+    blueBox:SetBackdropColor(0.06, 0.08, 0.12, 0.90)
+    blueBox:SetBackdropBorderColor(0.30, 0.34, 0.42, 0.80)
+
+    local blueBtn = CreateFrame("Button", "DungeonBots_GearBlueBtn", blueBox, "UIPanelButtonTemplate")
+    blueBtn:SetSize(224, 26)
+    blueBtn:SetPoint("TOP", blueBox, "TOP", 0, -10)
+    blueBtn:SetText("Equipar Azul")
+    gearPanel.blueBtn = blueBtn
+
+    local blueDesc = blueBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    blueDesc:SetPoint("TOPLEFT", blueBtn, "BOTTOMLEFT", 2, -8)
+    blueDesc:SetPoint("TOPRIGHT", blueBtn, "BOTTOMRIGHT", -2, -8)
+    blueDesc:SetJustifyH("CENTER")
+    blueDesc:SetText("|cffccccccEquipa al bot con un conjunto completo de calidad rara (|cff0070ddazul|r|cffcccccc).|r")
+end
 
 local SPELL_ROW_HEIGHT = 40
 local SPELL_ROW_PITCH = 43
@@ -368,17 +539,26 @@ function DungeonBots:BuildSpellsDialog()
     refreshBtn:SetText("Actualizar")
     refreshBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
-        if sp.currentBot and DungeonBots.QueryBotSpells then
-            DungeonBots:QueryBotSpells(sp.currentBot, sp.activeMode, "", false)
+        if sp.currentBot then
+            if sp.activeMode == "gear" then
+                if DungeonBots.QueryBotSpecs then
+                    DungeonBots:QueryBotSpecs(sp.currentBot)
+                end
+                if DungeonBots.QueryBotStats then
+                    DungeonBots:QueryBotStats(sp.currentBot, true)
+                end
+            elseif DungeonBots.QueryBotSpells then
+                DungeonBots:QueryBotSpells(sp.currentBot, sp.activeMode, "", false)
+            end
         end
     end)
     sp.refreshBtn = refreshBtn
 
-    -- Subpestanas de modo: Hechizos / Glifos / Talentos (tamano compacto y equilibrado)
+    -- Subpestanas de modo: Equipo / Hechizos / Glifos / Talentos (tamano compacto y equilibrado)
     sp.modeButtons = {}
-    local modeBtnW = 124
-    local modeBtnGap = 10
-    local modeStartX = math.floor((560 - (3 * modeBtnW + 2 * modeBtnGap)) / 2)
+    local modeBtnW = 122
+    local modeBtnGap = 8
+    local modeStartX = math.floor((560 - (4 * modeBtnW + 3 * modeBtnGap)) / 2)
     for idx, tabDef in ipairs(MODE_TABS) do
         local mBtn = CreateFrame("Button", "DungeonBots_SpellsModeTab_" .. tabDef.id, sp, "UIPanelButtonTemplate")
         mBtn:SetSize(modeBtnW, 22)
@@ -514,6 +694,8 @@ function DungeonBots:BuildSpellsDialog()
     emptyLabel:SetText("Esperando respuesta del bot...")
     sp.emptyLabel = emptyLabel
 
+    BuildGearPanel(sp)
+
     -- Barra inferior: Siguiente Bot + (idx/total)  |  Lanzar (cast)
     local nextBotBtn = CreateFrame("Button", nil, sp, "UIPanelButtonTemplate")
     nextBotBtn:SetSize(118, 24)
@@ -558,7 +740,144 @@ function DungeonBots:BuildSpellsDialog()
 end
 
 local function IsValidMode(mode)
-    return mode == "spells" or mode == "glyphs" or mode == "talents"
+    return mode == "gear" or mode == "spells" or mode == "glyphs" or mode == "talents"
+end
+
+local function UpdateCycleFooter(sp, targetBot)
+    if sp.nextBotBtn and sp.botCycleLabel and DungeonBots.GetTalkBotCycleInfo then
+        local curIdx, total = DungeonBots:GetTalkBotCycleInfo(targetBot)
+        if total > 0 then
+            sp.botCycleLabel:SetText(string.format("|cff888888(%d/%d)|r", curIdx, total))
+        else
+            sp.botCycleLabel:SetText("|cff888888(0/0)|r")
+        end
+        if total >= 2 then
+            sp.nextBotBtn:Enable()
+        else
+            sp.nextBotBtn:Disable()
+        end
+    end
+end
+
+local function RenderGearPanel(sp, targetBot, classToken)
+    local gp = sp.gearPanel
+    if not gp then return end
+
+    local activeSpec = DungeonBotsDB and DungeonBotsDB.botActiveSpec and DungeonBotsDB.botActiveSpec[targetBot]
+    if activeSpec and activeSpec ~= "" and DungeonBots.CanonicalizeSpec then
+        activeSpec = DungeonBots:CanonicalizeSpec(targetBot, activeSpec)
+    end
+    if activeSpec and activeSpec ~= "" then
+        local activeDisplay = DungeonBots.LocalizeSpecText and DungeonBots:LocalizeSpecText(activeSpec) or activeSpec
+        gp.activeSpecLabel:SetText("Rama actual: |cff00e5ff" .. activeDisplay .. "|r")
+    elseif DungeonBots.pendingSpecReset and DungeonBots.pendingSpecReset[targetBot] then
+        gp.activeSpecLabel:SetText("Rama actual: |cff888888Consultando talentos...|r")
+    else
+        gp.activeSpecLabel:SetText("Rama actual: |cff888888Sin detectar|r")
+    end
+
+    local specs = (DungeonBots.botSpecs and DungeonBots.botSpecs[targetBot])
+    if (not specs or #specs == 0) and classToken and DungeonBots.DEFAULT_CLASS_SPECS then
+        specs = DungeonBots.DEFAULT_CLASS_SPECS[classToken]
+    end
+    local optionList = {}
+    local seen = {}
+    if specs then
+        for _, s in ipairs(specs) do
+            local ls = string.lower(s)
+            if not seen[ls] then
+                table.insert(optionList, s)
+                seen[ls] = true
+            end
+        end
+    end
+    if activeSpec and activeSpec ~= "" and not seen[string.lower(activeSpec)] then
+        table.insert(optionList, 1, activeSpec)
+    end
+
+    if #optionList == 0 then
+        gp.emptySpecsLabel:Show()
+    else
+        gp.emptySpecsLabel:Hide()
+    end
+
+    for idx, sBtn in ipairs(gp.specButtons) do
+        local specName = optionList[idx]
+        if specName then
+            local displaySpec = DungeonBots.LocalizeSpecText and DungeonBots:LocalizeSpecText(specName) or specName
+            local isActive = (activeSpec and string.lower(specName) == string.lower(activeSpec)) and true or false
+            if isActive then
+                sBtn.label:SetText("|cff00e5ff" .. displaySpec .. " (Activa)|r")
+                sBtn:SetBackdropColor(0.08, 0.22, 0.34, 0.96)
+                sBtn:SetBackdropBorderColor(0.25, 0.80, 1.0, 0.95)
+                sBtn.accentBar:Show()
+            else
+                sBtn.label:SetText("|cffe6ecf5" .. displaySpec .. "|r")
+                sBtn:SetBackdropColor(0.07, 0.09, 0.14, 0.95)
+                sBtn:SetBackdropBorderColor(0.28, 0.32, 0.42, 0.85)
+                sBtn.accentBar:Hide()
+            end
+            sBtn.specValue = specName
+            sBtn.isActiveSpec = isActive
+            sBtn:SetScript("OnClick", function()
+                PlaySound("igMainMenuOptionCheckBoxOn")
+                if DungeonBots.SetBotSpec then
+                    DungeonBots:SetBotSpec(targetBot, specName)
+                end
+            end)
+            sBtn:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                GameTooltip:AddLine("Cambiar rama a " .. displaySpec, 0.45, 0.85, 1.0)
+                GameTooltip:AddLine("Envía '/w " .. targetBot .. " talents spec " .. specName .. "'.", 0.85, 0.85, 0.85, true)
+                GameTooltip:Show()
+            end)
+            sBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+            sBtn:Show()
+        else
+            sBtn.specValue = nil
+            sBtn.isActiveSpec = false
+            sBtn:Hide()
+        end
+    end
+
+    local st = DungeonBots.botStats and DungeonBots.botStats[targetBot]
+    if st then
+        local intactPct = math.max(0, math.min(100, 100 - (st.durPct or 0)))
+        local durColor = (st.durColorHex and st.durColorHex ~= "") and st.durColorHex or "|cff34c759"
+        local bagColor = (st.bagColorHex and st.bagColorHex ~= "") and st.bagColorHex or "|cffe6ecf5"
+        gp.gearStatsSummary:SetText("Armadura: " .. durColor .. intactPct .. "%|r  |  Bolsas: " .. bagColor .. tostring(st.bagUsed) .. "/" .. tostring(st.bagTotal) .. "|r")
+    else
+        gp.gearStatsSummary:SetText("Armadura: |cff888888N/D|r  |  Bolsas: |cff888888N/D|r")
+    end
+
+    gp.matchBtn:SetScript("OnClick", function()
+        PlaySound("igMainMenuOptionCheckBoxOn")
+        if DungeonBots.AutogearMatch then
+            DungeonBots:AutogearMatch(targetBot)
+        end
+    end)
+    gp.matchBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Adaptar Equipo (Autogear Match)", 1, 0.8, 0.2)
+        GameTooltip:AddLine("Ajusta su armadura a la rama de talentos activa.", 1, 1, 1)
+        GameTooltip:AddLine("\n|cffff3b30CUIDADO:|r Esto puede reducir drásticamente el Item Level de varias o todas sus piezas.", 1, 0.3, 0.3, true)
+        GameTooltip:Show()
+    end)
+    gp.matchBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    gp.blueBtn:SetScript("OnClick", function()
+        PlaySound("igMainMenuOptionCheckBoxOn")
+        if DungeonBots.AutogearBlue then
+            DungeonBots:AutogearBlue(targetBot)
+        end
+    end)
+    gp.blueBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Equipar Objetos Azules (Autogear Blue)", 0.2, 0.8, 1.0)
+        GameTooltip:AddLine("Equipa al bot con un conjunto completo de calidad rara (azul).", 0.7, 0.7, 0.7, true)
+        GameTooltip:Show()
+    end)
+    gp.blueBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
 local function FormatCachedTalentSummary(botName)
@@ -640,14 +959,16 @@ function DungeonBots:UpdateSpellsDialog(botName)
     if not targetBot then return end
     sp.currentBot = targetBot
 
-    local mode = IsValidMode(sp.activeMode) and sp.activeMode or "spells"
+    local mode = IsValidMode(sp.activeMode) and sp.activeMode or "gear"
     sp.activeMode = mode
     local tab = DB_Internal.GetBotSpellTabData(targetBot, mode)
 
     local unit = DungeonBots.FindPartyUnitByName and DungeonBots:FindPartyUnitByName(targetBot)
+    local targetClassToken = nil
     local classHex = "|cffffd200"
     if unit and UnitClass and RAID_CLASS_COLORS then
         local _, classToken = UnitClass(unit)
+        targetClassToken = classToken
         local c = classToken and RAID_CLASS_COLORS[classToken]
         if c then
             classHex = string.format("|cff%02x%02x%02x", math.floor(c.r * 255), math.floor(c.g * 255), math.floor(c.b * 255))
@@ -663,6 +984,28 @@ function DungeonBots:UpdateSpellsDialog(botName)
             mBtn:SetAlpha(0.75)
             mBtn:UnlockHighlight()
         end
+    end
+
+    if mode == "gear" then
+        sp.filterBar:Hide()
+        sp.talentTreeBar:Hide()
+        sp.modeHintLabel:Hide()
+        sp.listBg:Hide()
+        sp.castBtn:Hide()
+        sp.emptyLabel:Hide()
+        if sp.gearPanel then
+            sp.gearPanel:Show()
+            RenderGearPanel(sp, targetBot, targetClassToken)
+        end
+        UpdateCycleFooter(sp, targetBot)
+        return
+    end
+
+    if sp.gearPanel then
+        sp.gearPanel:Hide()
+    end
+    if sp.listBg then
+        sp.listBg:Show()
     end
 
     local allItems = (tab and tab.items) or {}
@@ -814,20 +1157,7 @@ function DungeonBots:UpdateSpellsDialog(botName)
 
     sp.scrollChild:SetHeight(math.max(1, (#visibleEntries * SPELL_ROW_PITCH) + 8))
     UpdateSpellSelectionUI()
-
-    if sp.nextBotBtn and sp.botCycleLabel and DungeonBots.GetTalkBotCycleInfo then
-        local curIdx, total = DungeonBots:GetTalkBotCycleInfo(targetBot)
-        if total > 0 then
-            sp.botCycleLabel:SetText(string.format("|cff888888(%d/%d)|r", curIdx, total))
-        else
-            sp.botCycleLabel:SetText("|cff888888(0/0)|r")
-        end
-        if total >= 2 then
-            sp.nextBotBtn:Enable()
-        else
-            sp.nextBotBtn:Disable()
-        end
-    end
+    UpdateCycleFooter(sp, targetBot)
 end
 
 function DungeonBots:OpenSpellsDialog(botName, mode)
@@ -844,7 +1174,7 @@ function DungeonBots:OpenSpellsDialog(botName, mode)
     if IsValidMode(mode) then
         sp.activeMode = mode
     elseif not IsValidMode(sp.activeMode) then
-        sp.activeMode = "spells"
+        sp.activeMode = "gear"
     end
     sp.currentBot = botName
     DungeonBots:UpdateSpellsDialog(botName)
