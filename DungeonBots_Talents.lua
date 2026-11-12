@@ -598,7 +598,7 @@ function DungeonBots:QueryBotLiveInfo(botName)
     if IsMainFrameCurrentlyVisible() then
         DungeonBots:QueryBotStats(botName, false)
         if DungeonBots.QueryBotQuestCount then
-            DungeonBots:QueryBotQuestCount(botName, false, 0.90)
+            DungeonBots:QueryBotQuestCount(botName, false, 0.35)
         end
     end
 end

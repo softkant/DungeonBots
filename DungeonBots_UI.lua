@@ -1007,12 +1007,6 @@ function DungeonBots:BuildTab2(parent)
     scanHelp:Hide()
     DungeonBots.tab2ScanHelp = scanHelp
 
-    parent:HookScript("OnShow", function()
-        if DungeonBots.QueryPartyBotStats then
-            DungeonBots:QueryPartyBotStats(false)
-        end
-    end)
-
     -- Crear 4 tarjetas de bots para las unidades party1 a party4
     for i = 1, 4 do
         local card = CreateFrame("Frame", "DungeonBots_BotCard_" .. i, cardContainer)
@@ -1133,7 +1127,7 @@ local function FormatBotCardQuestsLabel(botName)
     local cnt = rec and rec.count or nil
     if cnt == nil then
         local qData = DungeonBots.questDialogData and DungeonBots.questDialogData[botName]
-        if qData and qData.done and qData.quests then
+        if qData and qData.done and not qData.timedOut and qData.quests then
             cnt = #(qData.quests)
         end
     end
