@@ -1632,163 +1632,538 @@ function DungeonBots:UpdateDungeonAccessUI()
 end
 
 -- =========================================================================
--- Tarjetas de Consejos de la Guía
+-- Guía Interactiva Estilo WoW (Índice + Tomo / Registro de Misiones)
 -- =========================================================================
-local function CreateGuideCard(scrollChild, prevCard, minHeight, iconPath, titleText, bodyText, borderR, borderG, borderB)
-    local card = CreateFrame("Frame", nil, scrollChild)
-    card:SetWidth(520)
-    card:SetHeight(minHeight)
-    card.minHeight = minHeight
-    if prevCard then
-        card:SetPoint("TOPLEFT", prevCard, "BOTTOMLEFT", 0, -7)
-    else
-        card:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 2, -2)
-    end
-    ApplyInsetPanelBackdrop(card)
-    if borderR then
-        card:SetBackdropBorderColor(borderR, borderG, borderB, 0.85)
-    end
+local GUIDE_TOPICS = {
+    {
+        shortTitle = "1. Misiones previas",
+        title = "Mazmorras que requieren misiones previas",
+        category = "REQUISITOS DE ACCESO",
+        icon = "Interface\\Icons\\Achievement_Dungeon_Icecrown_PitOfSaron",
+        summary = "Algunas mazmorras (como Forja de Almas, Foso de Saron y Cámaras de Reflexión) exigen que tanto tú como cada bot tengan completada su cadena previa para poder entrar.",
+        steps = {
+            "En la pestaña |cffffd200Grupo de Bots|r, revisa los iconos de acceso de |cffffd200Foso de Saron|r y |cffffd200Cámaras de Reflexión|r en el pie de la ventana de Misiones.",
+            "Haz clic en esos botones de acceso para consultar desde el servidor si el bot ya cumple con la misión previa.",
+            "Si le falta, acércate al PNJ con el bot y usa la ventana de |cffffd200Misiones|r o |cffffd200Hablar|r para aceptar y entregar las misiones.",
+        },
+        note = "Si el bot acaba de entrar por primera vez, sus misiones y acceso se consultan automáticamente; si ves datos incompletos, pulsa Actualizar.",
+    },
+    {
+        shortTitle = "2. Bot tarda en entrar",
+        title = "Bot agregado que susurra, pero tarda en entrar",
+        category = "INVOCACIÓN E INGRESO",
+        icon = "Interface\\Icons\\INV_Misc_GroupLooking",
+        summary = "A veces agregas un bot y te susurra al aparecer, pero no entra de inmediato al grupo porque todavía está terminando de cargar en el servidor.",
+        steps = {
+            "El addon reintenta invitar automáticamente varias veces tras detectar el susurro o llamarlo desde el historial.",
+            "Comprueba que |cffffd200eres el líder|r del grupo, que no estás en banda y que tienes cupo libre (máximo 5 en grupo).",
+            "Si tras los reintentos sigue fuera, el addon consulta |cffffd200who|r en silencio y te muestra en qué zona se encuentra.",
+        },
+        note = "También puedes abrir |cffffd200Ver Historial de bots|r en Armar Grupo y pulsar Invitar manualmente.",
+    },
+    {
+        shortTitle = "3. Otra estancia / fase",
+        title = "Bot en otra estancia o faseado dentro de mazmorra",
+        category = "INSTANCIAS Y FASES",
+        icon = "Interface\\Icons\\Spell_Arcane_PortalDalaran",
+        summary = "Al invocar o reinvocar un bot dentro de una mazmorra, puede quedar afuera, en otra copia de la estancia o faseado (\"no está en tu estancia\").",
+        steps = {
+            "El addon consulta |cffffd200who|r al bot para indicarte su zona exacta sin confundirlo con un bot usado por otro jugador.",
+            "Utiliza |cffffd200Summon|r y/o |cffffd200Follow|r en la barra táctica (HUD) para traerlo contigo.",
+            "Si continúa en otra fase, sal un momento de la mazmorra para reagrupar o reinicia las estancias afuera y usa |cffffd200Reinvocar Grupo|r.",
+        },
+        note = "Al pasar directo entre mazmorras enlazadas (Forja -> Foso -> Cámaras), salir y reinvocar suele alinear la estancia.",
+    },
+    {
+        shortTitle = "4. Bot usado por otro",
+        title = "Bots usados por otro jugador vs. \"ya conectado\"",
+        category = "DISPONIBILIDAD DE BOTS",
+        icon = "Interface\\Icons\\Spell_Shadow_Charm",
+        summary = "Un bot puede estar jugando con otro usuario en el servidor o simplemente terminando de desconectarse tras una sesión reciente.",
+        steps = {
+            "Si otro jugador lo tiene en su grupo, el addon cancela la auto-invitación y muestra una alerta con el |cffffd200nombre del jugador|r y la |cffffd200zona|r donde está.",
+            "Si el servidor solo indica \"ya conectado\" sin dueño confirmado, el addon consulta |cffffd200who|r y reintenta invitarlo si está libre.",
+            "Cuando quede disponible o lo suelte el otro jugador, vuelve a llamarlo desde el historial.",
+        },
+    },
+    {
+        shortTitle = "5. No expulsar con WoW",
+        title = "Nunca expulses bots con \"Sacar del grupo\" de WoW",
+        category = "ADVERTENCIA IMPORTANTE",
+        critical = true,
+        icon = "Interface\\Icons\\Ability_Kick",
+        summary = "No |cffff3b30DEBES|r retirar a un bot usando clic derecho -> \"Sacar del grupo\" como harías con un jugador normal.",
+        steps = {
+            "Despídelos siempre desde el addon usando |cffffd200Despedir|r en su tarjeta o |cffffd200Despedir a Todos|r en Armar Grupo.",
+            "Si los expulsas por el menú estándar de WoW, el bot quedará conectado alrededor de |cffffd2001 minuto|r y el sistema pensará que sigues teniendo ese bot ocupado.",
+            "Si lo hiciste por error, espera ese minuto antes de invocar un reemplazo.",
+        },
+        note = "Despedir desde el addon desconecta al bot limpiamente y libera su cupo al instante.",
+    },
+    {
+        shortTitle = "6. Hechizos y Cancelar",
+        title = "Hechizos, glifos, materiales y botón Cancelar",
+        category = "COMBATE Y CONTROL",
+        icon = "Interface\\Icons\\Spell_Frost_IceShock",
+        summary = "En la pestaña |cffffd200Hechizos|r de cada bot puedes consultar sus facultades, glifos equipados, componentes necesarios y detener un lanzamiento en curso.",
+        steps = {
+            "Cuando el bot esté casteando algo, se iluminará el botón |cffffd200Cancelar|r junto a Lanzar para interrumpirlo de inmediato.",
+            "Los conjuros que consumen componentes (como runas de portales) muestran directamente qué material requieren.",
+            "Si al cambiar rápido de pestañas ves algún glifo u objeto cargando, espera un instante o pulsa |cffffd200Actualizar|r.",
+        },
+    },
+    {
+        shortTitle = "7. PNJs e Inventario",
+        title = "Hablar con PNJs e inspeccionar Inventario",
+        category = "UTILIDADES DEL ADDON",
+        icon = "Interface\\Icons\\INV_Misc_Bag_08",
+        summary = "El addon centraliza los diálogos con PNJs y la gestión de bolsas/equipo de tus bots ocultando los susurros automáticos del chat.",
+        steps = {
+            "Lleva al bot junto al PNJ con |cffffd200Follow|r o |cffffd200Summon|r y pulsa |cffffd200Hablar|r desde la barra HUD o desde Misiones.",
+            "Desde el diálogo del PNJ puedes interactuar y aceptar o entregar misiones del bot con un clic.",
+            "En |cffffd200Inventario|r revisas equipamiento, bolsas, oro y durabilidad sin escribir comandos manuales.",
+        },
+    },
+}
 
-    local icon = card:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(20, 20)
-    icon:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -8)
-    icon:SetTexture(iconPath)
-    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    card.icon = icon
+local function ApplyBlizzardStonePanel(frame, borderR, borderG, borderB)
+    frame:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 14,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    })
+    frame:SetBackdropColor(0.08, 0.07, 0.06, 0.96)
+    frame:SetBackdropBorderColor(borderR or 0.65, borderG or 0.54, borderB or 0.30, 0.95)
 
-    local title = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    title:SetPoint("LEFT", icon, "RIGHT", 8, 0)
-    title:SetPoint("RIGHT", card, "RIGHT", -10, 0)
-    title:SetJustifyH("LEFT")
-    title:SetText(titleText)
-    card.titleText = title
+    local stone = frame:CreateTexture(nil, "BACKGROUND")
+    stone:SetPoint("TOPLEFT", frame, "TOPLEFT", 3, -3)
+    stone:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -3, 3)
+    stone:SetTexture("Interface\\AchievementFrame\\UI-Achievement-AchievementBackground")
+    stone:SetVertexColor(0.75, 0.70, 0.62, 0.38)
 
-    local sep = card:CreateTexture(nil, "ARTWORK")
-    sep:SetHeight(1)
-    sep:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -31)
-    sep:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -31)
-    sep:SetTexture(0.55, 0.48, 0.32, 0.40)
+    local tint = frame:CreateTexture(nil, "BORDER")
+    tint:SetAllPoints(stone)
+    tint:SetTexture(0.03, 0.025, 0.02, 0.58)
+end
 
-    -- En WoW 3.3.5a fijamos ancla + SetWidth para texto multilínea sin desbordar
-    local body = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    body:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -37)
-    body:SetWidth(496)
-    body:SetJustifyH("LEFT")
-    body:SetJustifyV("TOP")
-    body:SetWordWrap(true)
-    body:SetText(bodyText)
-    card.bodyText = body
+local function ApplyBlizzardGoldTomeFrame(frame)
+    frame:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+        tile = true, tileSize = 32, edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    })
+    frame:SetBackdropColor(0.09, 0.08, 0.06, 0.98)
 
-    return card
+    local stone = frame:CreateTexture(nil, "BACKGROUND")
+    stone:SetPoint("TOPLEFT", frame, "TOPLEFT", 5, -5)
+    stone:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -5, 5)
+    stone:SetTexture("Interface\\AchievementFrame\\UI-Achievement-AchievementBackground")
+    stone:SetVertexColor(0.92, 0.86, 0.74, 0.45)
+
+    local tint = frame:CreateTexture(nil, "BORDER")
+    tint:SetAllPoints(stone)
+    tint:SetTexture(0.05, 0.04, 0.025, 0.52)
 end
 
 function DungeonBots:RefreshGuideLayout()
-    local cards = DungeonBots.guideCards
-    local scrollFrame = DungeonBots.guideScrollFrame
-    local scrollChild = _G["DungeonBots_GuideScrollChild"]
-    if not cards or not scrollFrame or not scrollChild then return end
+    local view = DungeonBots.guideDetailView
+    if not view or not view.scrollChild or not view.scrollFrame then return end
 
-    local totalHeight = 4
-    for _, card in ipairs(cards) do
-        local textH = 0
-        if card.bodyText then
-            card.bodyText:SetWidth(496)
-            if card.bodyText.GetStringHeight then
-                textH = tonumber(card.bodyText:GetStringHeight()) or 0
+    local y = 4
+    local textW = 324
+    if view.summaryText then
+        view.summaryText:SetWidth(textW)
+        local h = tonumber(view.summaryText:GetStringHeight()) or 0
+        y = y + math.max(24, math.ceil(h)) + 14
+    end
+
+    if view.stepsHeader and view.stepsHeader:IsShown() then
+        view.stepsHeader:ClearAllPoints()
+        view.stepsHeader:SetPoint("TOPLEFT", view.scrollChild, "TOPLEFT", 4, -y)
+        y = y + 20
+    end
+
+    if view.stepRows then
+        for _, row in ipairs(view.stepRows) do
+            if row:IsShown() and row.text then
+                row:ClearAllPoints()
+                row:SetPoint("TOPLEFT", view.scrollChild, "TOPLEFT", 4, -y)
+                row.text:SetWidth(textW - 22)
+                local sh = tonumber(row.text:GetStringHeight()) or 0
+                local rh = math.max(18, math.ceil(sh) + 4)
+                row:SetHeight(rh)
+                y = y + rh + 6
             end
         end
-        local cardH = math.max(card.minHeight or 82, math.ceil(textH) + 46)
-        card:SetHeight(cardH)
-        totalHeight = totalHeight + cardH + 7
     end
 
-    scrollChild:SetHeight(math.max(1, totalHeight))
-    if scrollFrame.UpdateScrollChildRect then
-        scrollFrame:UpdateScrollChildRect()
+    if view.noteBox and view.noteBox:IsShown() and view.noteText then
+        y = y + 6
+        view.noteBox:ClearAllPoints()
+        view.noteBox:SetPoint("TOPLEFT", view.scrollChild, "TOPLEFT", 2, -y)
+        view.noteText:SetWidth(textW - 20)
+        local nh = tonumber(view.noteText:GetStringHeight()) or 0
+        local bh = math.max(36, math.ceil(nh) + 18)
+        view.noteBox:SetHeight(bh)
+        y = y + bh + 8
     end
+
+    view.scrollChild:SetHeight(math.max(1, y))
+    if view.scrollFrame.UpdateScrollChildRect then
+        view.scrollFrame:UpdateScrollChildRect()
+    end
+end
+
+function DungeonBots:SelectGuideTopic(index)
+    local total = #GUIDE_TOPICS
+    if total == 0 then return end
+    local idx = math.max(1, math.min(total, tonumber(index) or 1))
+    DungeonBots.selectedGuideTopic = idx
+
+    local topic = GUIDE_TOPICS[idx]
+    local view = DungeonBots.guideDetailView
+    if not view or not topic then return end
+
+    -- Actualizar filas del índice izquierdo
+    if DungeonBots.guideIndexButtons then
+        for i, btn in ipairs(DungeonBots.guideIndexButtons) do
+            local isSelected = (i == idx)
+            local t = GUIDE_TOPICS[i]
+            if isSelected then
+                btn.selectedBg:Show()
+                if t and t.critical then
+                    btn.selectedBg:SetVertexColor(0.85, 0.25, 0.20, 0.55)
+                else
+                    btn.selectedBg:SetVertexColor(0.95, 0.72, 0.22, 0.45)
+                end
+                btn.titleText:SetTextColor(1.0, 1.0, 1.0)
+                if btn.slotBorder then
+                    btn.slotBorder:SetVertexColor(1.0, 0.82, 0.25, 1.0)
+                end
+            else
+                btn.selectedBg:Hide()
+                if t and t.critical then
+                    btn.titleText:SetTextColor(1.0, 0.42, 0.38)
+                else
+                    btn.titleText:SetTextColor(1.0, 0.82, 0.0)
+                end
+                if btn.slotBorder then
+                    btn.slotBorder:SetVertexColor(0.75, 0.65, 0.42, 0.85)
+                end
+            end
+        end
+    end
+
+    -- Actualizar detalle del tomo derecho
+    view.headerIcon:SetTexture(topic.icon)
+    if topic.critical then
+        view.categoryText:SetText("|cffff5544" .. (topic.category or "ADVERTENCIA") .. "|r")
+        view.titleText:SetText(topic.title)
+        view.titleText:SetTextColor(1.0, 0.48, 0.42)
+        if view.headerSlotBorder then
+            view.headerSlotBorder:SetVertexColor(0.95, 0.35, 0.30, 1.0)
+        end
+    else
+        view.categoryText:SetText("|cffc9a96e" .. (topic.category or "GUÍA") .. "|r")
+        view.titleText:SetText(topic.title)
+        view.titleText:SetTextColor(1.0, 0.84, 0.16)
+        if view.headerSlotBorder then
+            view.headerSlotBorder:SetVertexColor(1.0, 0.82, 0.32, 1.0)
+        end
+    end
+
+    view.summaryText:SetText(topic.summary or "")
+
+    local steps = topic.steps or {}
+    if #steps > 0 then
+        view.stepsHeader:Show()
+    else
+        view.stepsHeader:Hide()
+    end
+
+    for i, row in ipairs(view.stepRows) do
+        local stepText = steps[i]
+        if stepText and stepText ~= "" then
+            row.numText:SetText(i .. ".")
+            row.text:SetText(stepText)
+            row:Show()
+        else
+            row:Hide()
+        end
+    end
+
+    if topic.note and topic.note ~= "" then
+        view.noteText:SetText("|cffffd200Nota:|r " .. topic.note)
+        view.noteBox:Show()
+    else
+        view.noteBox:Hide()
+    end
+
+    if view.pageText then
+        view.pageText:SetText("Tema " .. idx .. " de " .. total)
+    end
+    if view.prevBtn then
+        if idx > 1 then view.prevBtn:Enable() else view.prevBtn:Disable() end
+    end
+    if view.nextBtn then
+        if idx < total then view.nextBtn:Enable() else view.nextBtn:Disable() end
+    end
+
+    if view.scrollFrame then
+        view.scrollFrame:SetVerticalScroll(0)
+    end
+    DungeonBots:RefreshGuideLayout()
 end
 
 function DungeonBots:BuildTab3(parent)
     DungeonBots.dalaranTimerBar = nil
     DungeonBots.guideParentTab = parent
 
-    -- ScrollFrame de las 4 tarjetas de consejos (ocupa todo el espacio de Tab 3)
-    local scrollWrap = CreateFrame("Frame", nil, parent)
-    scrollWrap:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -4)
-    scrollWrap:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -6, 6)
-    ApplyDarkBackdrop(scrollWrap, 8)
-    scrollWrap:SetBackdropColor(0.04, 0.05, 0.08, 0.92)
-    scrollWrap:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.90)
-    DungeonBots.guideScrollWrap = scrollWrap
+    -- Panel Izquierdo: Índice de temas (estilo Registro de Misiones de WoW)
+    local indexPanel = CreateFrame("Frame", nil, parent)
+    indexPanel:SetPoint("TOPLEFT", parent, "TOPLEFT", 4, -2)
+    indexPanel:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 4, 4)
+    indexPanel:SetWidth(208)
+    ApplyBlizzardStonePanel(indexPanel, 0.68, 0.56, 0.32)
 
-    local scrollFrame = CreateFrame("ScrollFrame", "DungeonBots_GuideScrollFrame", scrollWrap, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", scrollWrap, "TOPLEFT", 6, -6)
-    scrollFrame:SetPoint("BOTTOMRIGHT", scrollWrap, "BOTTOMRIGHT", -24, 6)
+    local idxHeaderIcon = indexPanel:CreateTexture(nil, "ARTWORK")
+    idxHeaderIcon:SetSize(18, 18)
+    idxHeaderIcon:SetPoint("TOPLEFT", indexPanel, "TOPLEFT", 11, -10)
+    idxHeaderIcon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
+    idxHeaderIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    local idxHeaderTitle = indexPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    idxHeaderTitle:SetPoint("LEFT", idxHeaderIcon, "RIGHT", 7, 0)
+    idxHeaderTitle:SetText("Índice de la Guía")
+    idxHeaderTitle:SetTextColor(1.0, 0.82, 0.0)
+
+    local idxRule = indexPanel:CreateTexture(nil, "ARTWORK")
+    idxRule:SetHeight(1)
+    idxRule:SetPoint("TOPLEFT", indexPanel, "TOPLEFT", 10, -33)
+    idxRule:SetPoint("TOPRIGHT", indexPanel, "TOPRIGHT", -10, -33)
+    idxRule:SetTexture(0.75, 0.62, 0.34, 0.55)
+
+    local idxScroll = CreateFrame("ScrollFrame", "DungeonBots_GuideIndexScroll", indexPanel, "UIPanelScrollFrameTemplate")
+    idxScroll:SetPoint("TOPLEFT", indexPanel, "TOPLEFT", 6, -38)
+    idxScroll:SetPoint("BOTTOMRIGHT", indexPanel, "BOTTOMRIGHT", -24, 8)
+    local idxChild = CreateFrame("Frame", "DungeonBots_GuideIndexChild", idxScroll)
+    idxChild:SetSize(176, 1)
+    idxScroll:SetScrollChild(idxChild)
+
+    DungeonBots.guideIndexButtons = {}
+    local rowHeight = 48
+    local totalIdxHeight = 4
+    for i, topic in ipairs(GUIDE_TOPICS) do
+        local row = CreateFrame("Button", nil, idxChild)
+        row:SetSize(174, rowHeight)
+        row:SetPoint("TOPLEFT", idxChild, "TOPLEFT", 2, -totalIdxHeight)
+
+        local selectedBg = row:CreateTexture(nil, "BACKGROUND")
+        selectedBg:SetAllPoints(row)
+        selectedBg:SetTexture("Interface\\QuestFrame\\UI-QuestLogTitleHighlight")
+        selectedBg:SetBlendMode("ADD")
+        selectedBg:Hide()
+        row.selectedBg = selectedBg
+
+        local hl = row:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetAllPoints(row)
+        hl:SetTexture("Interface\\QuestFrame\\UI-QuestLogTitleHighlight")
+        hl:SetBlendMode("ADD")
+        hl:SetVertexColor(1.0, 0.85, 0.35, 0.45)
+
+        local iconHolder = CreateFrame("Frame", nil, row)
+        iconHolder:SetSize(24, 24)
+        iconHolder:SetPoint("LEFT", row, "LEFT", 6, 0)
+
+        local rIcon = iconHolder:CreateTexture(nil, "ARTWORK")
+        rIcon:SetAllPoints(iconHolder)
+        rIcon:SetTexture(topic.icon)
+        rIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        row.slotBorder = AddQuickSlotBorder(iconHolder, 36, 0.75, 0.65, 0.42, 0.85)
+
+        local rTitle = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        rTitle:SetPoint("TOPLEFT", iconHolder, "TOPRIGHT", 8, -2)
+        rTitle:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+        rTitle:SetJustifyH("LEFT")
+        rTitle:SetText(topic.shortTitle)
+        row.titleText = rTitle
+
+        local rCat = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        rCat:SetPoint("TOPLEFT", rTitle, "BOTTOMLEFT", 0, -2)
+        rCat:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+        rCat:SetJustifyH("LEFT")
+        if topic.critical then
+            rCat:SetText("|cffff6655Advertencia clave|r")
+        else
+            rCat:SetText("|cff9d9585" .. (topic.category or "") .. "|r")
+        end
+
+        local sep = row:CreateTexture(nil, "ARTWORK")
+        sep:SetHeight(1)
+        sep:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 6, 0)
+        sep:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -6, 0)
+        sep:SetTexture(0.55, 0.46, 0.28, 0.25)
+
+        row:SetScript("OnClick", function()
+            PlaySound("igMainMenuOptionCheckBoxOn")
+            DungeonBots:SelectGuideTopic(i)
+        end)
+
+        DungeonBots.guideIndexButtons[i] = row
+        totalIdxHeight = totalIdxHeight + rowHeight + 2
+    end
+    idxChild:SetHeight(math.max(1, totalIdxHeight))
+
+    -- Panel Derecho: Detalle del Tomo con marco dorado Blizzard
+    local detailPanel = CreateFrame("Frame", nil, parent)
+    detailPanel:SetPoint("TOPLEFT", indexPanel, "TOPRIGHT", 8, 0)
+    detailPanel:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -4, 4)
+    ApplyBlizzardGoldTomeFrame(detailPanel)
+
+    local headerIconFrame = CreateFrame("Frame", nil, detailPanel)
+    headerIconFrame:SetSize(38, 38)
+    headerIconFrame:SetPoint("TOPLEFT", detailPanel, "TOPLEFT", 16, -15)
+
+    local headerIcon = headerIconFrame:CreateTexture(nil, "ARTWORK")
+    headerIcon:SetAllPoints(headerIconFrame)
+    headerIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    local headerSlotBorder = AddQuickSlotBorder(headerIconFrame, 58, 1.0, 0.82, 0.32, 1.0)
+
+    local categoryText = detailPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    categoryText:SetPoint("TOPLEFT", headerIconFrame, "TOPRIGHT", 12, -1)
+    categoryText:SetPoint("RIGHT", detailPanel, "RIGHT", -16, 0)
+    categoryText:SetJustifyH("LEFT")
+
+    local titleText = detailPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    titleText:SetPoint("TOPLEFT", categoryText, "BOTTOMLEFT", 0, -2)
+    titleText:SetWidth(298)
+    titleText:SetJustifyH("LEFT")
+    titleText:SetWordWrap(true)
+
+    local headerRule = detailPanel:CreateTexture(nil, "ARTWORK")
+    headerRule:SetHeight(1)
+    headerRule:SetPoint("TOPLEFT", detailPanel, "TOPLEFT", 14, -68)
+    headerRule:SetPoint("TOPRIGHT", detailPanel, "TOPRIGHT", -14, -68)
+    headerRule:SetTexture(0.82, 0.68, 0.36, 0.60)
+
+    local scrollFrame = CreateFrame("ScrollFrame", "DungeonBots_GuideScrollFrame", detailPanel, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", detailPanel, "TOPLEFT", 14, -76)
+    scrollFrame:SetPoint("BOTTOMRIGHT", detailPanel, "BOTTOMRIGHT", -28, 42)
     if scrollFrame.EnableMouseWheel then
         scrollFrame:EnableMouseWheel(true)
         scrollFrame:SetScript("OnMouseWheel", function(self, delta)
             local cur = self:GetVerticalScroll() or 0
             local maxScroll = self:GetVerticalScrollRange() or 0
-            local nextVal = math.max(0, math.min(maxScroll, cur - (delta * 28)))
-            self:SetVerticalScroll(nextVal)
+            self:SetVerticalScroll(math.max(0, math.min(maxScroll, cur - (delta * 26))))
         end)
     end
 
     local scrollChild = CreateFrame("Frame", "DungeonBots_GuideScrollChild", scrollFrame)
-    scrollChild:SetSize(522, 390)
+    scrollChild:SetSize(330, 200)
     scrollFrame:SetScrollChild(scrollChild)
     DungeonBots.guideScrollFrame = scrollFrame
 
-    local guideEntries = {
-        {
-            height = 82,
-            icon = "Interface\\Icons\\INV_Misc_Key_03",
-            title = "|cff00ccff1. Mazmorras que requieren misiones previas|r",
-            body = "Hay mazmorras que exigen completar misiones previas antes de poder entrar (tanto tú como tus bots). Por ejemplo, |cffffd200Foso de Saron|r y |cffffd200Cámaras de Reflexión|r requieren tener hecha su cadena previa para poder ingresar.",
-            border = { 0.28, 0.48, 0.68 },
-        },
-        {
-            height = 98,
-            icon = "Interface\\Icons\\Spell_Arcane_PortalDalaran",
-            title = "|cff00ccff2. Un bot agregado dentro de mazmorra no entra al instante|r",
-            body = "A veces agregas un bot estando dentro de la mazmorra y no ingresa inmediatamente. Sal de la mazmorra un momento para que aparezcan afuera; si no aparecen, utiliza |cffffd200Summon|r y/o |cffffd200Follow|r varias veces. Si sigue sin aparecer, quítalo del grupo desde el addon y vuélvelo a llamar.",
-            border = { 0.30, 0.46, 0.62 },
-        },
-        {
-            height = 96,
-            icon = "Interface\\Icons\\Ability_Kick",
-            title = "|cffff55553. Nunca expulses bots con \"Sacar del grupo\" de WoW|r",
-            body = "No |cffff3b30DEBES|r sacar los bots usando \"Sacar del grupo\" como harías con un jugador normal. Lo ideal es retirarlos siempre desde el addon (|cffffd200Despedir|r o |cffffd200Despedir a Todos|r). Si no, el bot quedará ahí esperando |cffffd2001 minuto|r y el sistema pensará que sigues teniendo ese bot extra.",
-            border = { 0.72, 0.25, 0.25 },
-        },
-        {
-            height = 84,
-            icon = "Interface\\Icons\\Spell_Shadow_Charm",
-            title = "|cffffd2004. Bots que ya están siendo usados por otro jugador|r",
-            body = "Hay veces que no puedes invocar un bot porque ya lo tiene otra persona en su grupo. Si ocurre al llamarlo o enviarle un comando, el addon cancelará la auto-invitación y te mostrará una alerta indicando quién lo tiene.",
-            border = { 0.66, 0.52, 0.24 },
-        },
-    }
+    local summaryText = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    summaryText:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 4, -4)
+    summaryText:SetWidth(324)
+    summaryText:SetJustifyH("LEFT")
+    summaryText:SetJustifyV("TOP")
+    summaryText:SetWordWrap(true)
+    summaryText:SetTextColor(0.95, 0.91, 0.82)
+    if summaryText.SetSpacing then summaryText:SetSpacing(3) end
 
-    DungeonBots.guideCards = {}
-    local prevCard = nil
-    for i, entry in ipairs(guideEntries) do
-        local card = CreateGuideCard(
-            scrollChild,
-            prevCard,
-            entry.height,
-            entry.icon,
-            entry.title,
-            entry.body,
-            entry.border and entry.border[1],
-            entry.border and entry.border[2],
-            entry.border and entry.border[3]
-        )
-        DungeonBots.guideCards[i] = card
-        prevCard = card
+    local stepsHeader = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    stepsHeader:SetText("Qué debes hacer:")
+    stepsHeader:SetTextColor(1.0, 0.82, 0.0)
+
+    local stepRows = {}
+    for i = 1, 4 do
+        local sRow = CreateFrame("Frame", nil, scrollChild)
+        sRow:SetSize(324, 24)
+        local numText = sRow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        numText:SetPoint("TOPLEFT", sRow, "TOPLEFT", 2, 0)
+        numText:SetWidth(18)
+        numText:SetJustifyH("LEFT")
+        numText:SetTextColor(1.0, 0.82, 0.0)
+        sRow.numText = numText
+
+        local sText = sRow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        sText:SetPoint("TOPLEFT", sRow, "TOPLEFT", 20, 0)
+        sText:SetWidth(302)
+        sText:SetJustifyH("LEFT")
+        sText:SetJustifyV("TOP")
+        sText:SetWordWrap(true)
+        sText:SetTextColor(0.90, 0.88, 0.82)
+        if sText.SetSpacing then sText:SetSpacing(2) end
+        sRow.text = sText
+
+        stepRows[i] = sRow
     end
 
-    DungeonBots:RefreshGuideLayout()
+    local noteBox = CreateFrame("Frame", nil, scrollChild)
+    noteBox:SetSize(324, 44)
+    ApplyInsetPanelBackdrop(noteBox, 10)
+    noteBox:SetBackdropColor(0.10, 0.08, 0.05, 0.88)
+    noteBox:SetBackdropBorderColor(0.70, 0.56, 0.28, 0.85)
+
+    local noteText = noteBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    noteText:SetPoint("TOPLEFT", noteBox, "TOPLEFT", 10, -8)
+    noteText:SetWidth(304)
+    noteText:SetJustifyH("LEFT")
+    noteText:SetJustifyV("TOP")
+    noteText:SetWordWrap(true)
+    noteText:SetTextColor(0.88, 0.84, 0.74)
+
+    -- Pie de página con paginación WoW
+    local footerRule = detailPanel:CreateTexture(nil, "ARTWORK")
+    footerRule:SetHeight(1)
+    footerRule:SetPoint("BOTTOMLEFT", detailPanel, "BOTTOMLEFT", 14, 38)
+    footerRule:SetPoint("BOTTOMRIGHT", detailPanel, "BOTTOMRIGHT", -14, 38)
+    footerRule:SetTexture(0.82, 0.68, 0.36, 0.50)
+
+    local prevBtn = CreateFrame("Button", nil, detailPanel, "UIPanelButtonTemplate")
+    prevBtn:SetSize(96, 22)
+    prevBtn:SetPoint("BOTTOMLEFT", detailPanel, "BOTTOMLEFT", 14, 10)
+    prevBtn:SetText("< Anterior")
+    prevBtn:SetScript("OnClick", function()
+        PlaySound("igMainMenuOptionCheckBoxOn")
+        DungeonBots:SelectGuideTopic((DungeonBots.selectedGuideTopic or 1) - 1)
+    end)
+
+    local nextBtn = CreateFrame("Button", nil, detailPanel, "UIPanelButtonTemplate")
+    nextBtn:SetSize(96, 22)
+    nextBtn:SetPoint("BOTTOMRIGHT", detailPanel, "BOTTOMRIGHT", -14, 10)
+    nextBtn:SetText("Siguiente >")
+    nextBtn:SetScript("OnClick", function()
+        PlaySound("igMainMenuOptionCheckBoxOn")
+        DungeonBots:SelectGuideTopic((DungeonBots.selectedGuideTopic or 1) + 1)
+    end)
+
+    local pageText = detailPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    pageText:SetPoint("CENTER", detailPanel, "BOTTOM", 0, 21)
+    pageText:SetTextColor(0.82, 0.72, 0.48)
+
+    DungeonBots.guideDetailView = {
+        headerIcon = headerIcon,
+        headerSlotBorder = headerSlotBorder,
+        categoryText = categoryText,
+        titleText = titleText,
+        scrollFrame = scrollFrame,
+        scrollChild = scrollChild,
+        summaryText = summaryText,
+        stepsHeader = stepsHeader,
+        stepRows = stepRows,
+        noteBox = noteBox,
+        noteText = noteText,
+        prevBtn = prevBtn,
+        nextBtn = nextBtn,
+        pageText = pageText,
+    }
+
+    DungeonBots:SelectGuideTopic(1)
+
     parent:HookScript("OnShow", function()
         DungeonBots:UpdateDungeonAccessUI()
         if DungeonBots:GetConnectedPartyBotCount() > 0 then
