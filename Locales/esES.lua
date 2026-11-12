@@ -58,7 +58,7 @@ L["CAT_REAGENTS"]          = "Componentes"
 L["CAT_EQUIPMENT"]         = "Equipo"
 L["CAT_KEYS"]              = "Llaves"
 
-L["TAB2_EMPTY_NO_BOTS"]    = "|cffd8e0ecNo hay bots en tu grupo actualmente.|r\n\n|cff9ea6b5Puedes agregar uno en la primera pestaña |cffffd200\"Armar Grupo\"|r|cff9ea6b5\npara gestionar sus talentos, equipo, misiones e inventario.|r"
+L["TAB2_EMPTY_NO_BOTS"]    = "|cffd8e0ecNo hay bots en tu grupo actualmente.|r\n\n|cff9ea6b5Puedes agregar uno en la primera pestaña |cffffd200\"Armar Grupo\"|r|cff9ea6b5\ny luego podrás gestionar sus talentos, equipos, misiones e inventarios acá.|r"
 L["TAB2_FOOTER_NO_BOTS"]   = "|cff9ea6b5No hay bots en tu grupo. Puedes agregar uno en la primera pestaña |cffffd200\"Armar Grupo\"|r|cff9ea6b5.|r"
 
 -- Diccionario visual de ramas y clases devueltas por mod-playerbots

@@ -896,7 +896,7 @@ function DungeonBots:BuildTab2(parent)
     emptyLabel:SetWidth(520)
     emptyLabel:SetJustifyH("CENTER")
     local emptyText = (DungeonBots.L and DungeonBots.L["TAB2_EMPTY_NO_BOTS"])
-        or "|cffd8e0ecNo hay bots en tu grupo actualmente.|r\n\n|cff9ea6b5Puedes agregar uno en la primera pestaña |cffffd200\"Armar Grupo\"|r|cff9ea6b5\npara gestionar sus talentos, equipo, misiones e inventario.|r"
+        or "|cffd8e0ecNo hay bots en tu grupo actualmente.|r\n\n|cff9ea6b5Puedes agregar uno en la primera pestaña |cffffd200\"Armar Grupo\"|r|cff9ea6b5\ny luego podrás gestionar sus talentos, equipos, misiones e inventarios acá.|r"
     emptyLabel:SetText(emptyText)
     DungeonBots.emptyPartyLabel = emptyLabel
 
