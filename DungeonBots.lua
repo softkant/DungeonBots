@@ -389,6 +389,26 @@ function DB_Internal.ApplyRoleIcon(tex, role)
     end
 end
 
+-- Resuelve espacios libres, total y color de bolsas a partir de stats.
+function DB_Internal.GetBotBagFreeInfo(st)
+    if not st or st.bagUsed == nil then
+        return nil, nil, "|cff888888"
+    end
+    local freeSlots = math.max(0, tonumber(st.bagUsed) or 0)
+    local totalSlots = math.max(freeSlots, tonumber(st.bagTotal) or 0)
+    local bagColor = st.bagColorHex
+    if not bagColor or bagColor == "" then
+        if freeSlots <= 5 then
+            bagColor = "|cffff3b30"
+        elseif totalSlots > 0 and (freeSlots / totalSlots) <= 0.35 then
+            bagColor = "|cffffff00"
+        else
+            bagColor = "|cff34c759"
+        end
+    end
+    return freeSlots, totalSlots, bagColor
+end
+
 function DB_Internal.FormatBotStatsDisplay(st, fallbackValueText)
     local fallback = fallbackValueText or "|cff888888Consultando...|r"
     if not st then
@@ -418,8 +438,8 @@ function DB_Internal.FormatBotStatsDisplay(st, fallbackValueText)
     end
 
     local armorStr = "Armadura: " .. durColor .. armorPct .. "%|r"
-    local bagColor = (st.bagColorHex and st.bagColorHex ~= "") and st.bagColorHex or "|cffe6ecf5"
-    local bagStr = "Bolsas: " .. bagColor .. tostring(st.bagUsed) .. "/" .. tostring(st.bagTotal) .. "|r"
+    local freeSlots, totalSlots, bagColor = DB_Internal.GetBotBagFreeInfo(st)
+    local bagStr = "Bolsas: " .. bagColor .. tostring(freeSlots) .. "/" .. tostring(totalSlots) .. "|r"
     return armorStr, bagStr, st
 end
 

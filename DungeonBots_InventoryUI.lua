@@ -287,6 +287,9 @@ function DungeonBots:BuildInventoryDialog()
         if not inv.currentBot then return end
         PlaySound("igMainMenuOptionCheckBoxOn")
         inv.selectedItem = nil
+        if DungeonBots.QueryBotStats then
+            DungeonBots:QueryBotStats(inv.currentBot, true)
+        end
         if DungeonBots.QueryBotInventory then
             DungeonBots:QueryBotInventory(inv.currentBot)
         end
@@ -359,6 +362,21 @@ function DungeonBots:BuildInventoryDialog()
     destroyBtn:SetPoint("BOTTOMRIGHT", inv, "BOTTOMRIGHT", -12, 10)
     destroyBtn:Disable()
     destroyBtn:SetAlpha(0.45)
+
+    local bagSpaceIcon = inv:CreateTexture(nil, "ARTWORK")
+    bagSpaceIcon:SetSize(14, 14)
+    bagSpaceIcon:SetPoint("LEFT", botCycleLabel, "RIGHT", 10, 0)
+    bagSpaceIcon:SetTexture("Interface\\Icons\\INV_Misc_Bag_08")
+    bagSpaceIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    inv.bagSpaceIcon = bagSpaceIcon
+
+    local bagSpaceLabel = inv:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    bagSpaceLabel:SetPoint("LEFT", bagSpaceIcon, "RIGHT", 5, 0)
+    bagSpaceLabel:SetPoint("RIGHT", destroyBtn, "LEFT", -8, 0)
+    bagSpaceLabel:SetJustifyH("LEFT")
+    bagSpaceLabel:SetWordWrap(false)
+    bagSpaceLabel:SetText("Bolsas: |cff888888Consultando...|r")
+    inv.bagSpaceLabel = bagSpaceLabel
     destroyBtn:SetScript("OnClick", function()
         if not inv.currentBot or not inv.selectedItem then return end
         ConfirmDestroyBotItem(inv.currentBot, inv.selectedItem)
@@ -423,6 +441,22 @@ function DungeonBots:UpdateInventoryDialog(botName)
     end
     if not selectedStillVisible then
         inv.selectedItem = nil
+    end
+
+    if inv.bagSpaceLabel then
+        local st = DungeonBots.botStats and DungeonBots.botStats[targetBot]
+        if DB_Internal.GetBotBagFreeInfo and st then
+            local freeSlots, totalSlots, bagColor = DB_Internal.GetBotBagFreeInfo(st)
+            if freeSlots ~= nil then
+                inv.bagSpaceLabel:SetText("Bolsas: " .. bagColor .. tostring(freeSlots) .. "/" .. tostring(totalSlots) .. "|r libres")
+            else
+                inv.bagSpaceLabel:SetText("Bolsas: |cff888888Consultando...|r")
+            end
+        elseif data and data.slotsText and data.slotsText ~= "" then
+            inv.bagSpaceLabel:SetText("|cffe6ecf5" .. data.slotsText .. "|r")
+        else
+            inv.bagSpaceLabel:SetText("Bolsas: |cff888888Consultando...|r")
+        end
     end
 
     if data and data.loading then

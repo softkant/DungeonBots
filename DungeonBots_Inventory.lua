@@ -540,6 +540,9 @@ function DungeonBots:QueryBotInventory(botName, isSilent)
     end
 
     DungeonBots:SendWhisperCommand(cleanBot, "c")
+    if not isSilent and DungeonBots.QueryBotStats then
+        DungeonBots:QueryBotStats(cleanBot, false)
+    end
 end
 
 function DungeonBots:CycleNextInventoryBot(currentBot)
