@@ -1346,7 +1346,8 @@ local FROZEN_HALLS_DATA = {
         icon = "Interface\\Icons\\Spell_Shadow_ShadowPact",
         keywords = { "saron", "foso", "pit" },
         prereq = "La Forja de Almas",
-        fallbackID = 250,
+        fallbackNormalID = 250,
+        fallbackHeroicID = 251,
     },
     {
         key = "camaras",
@@ -1355,7 +1356,8 @@ local FROZEN_HALLS_DATA = {
         icon = "Interface\\Icons\\Spell_Frost_FrostWard",
         keywords = { "refle" },
         prereq = "Foso de Saron",
-        fallbackID = 252,
+        fallbackNormalID = 252,
+        fallbackHeroicID = 253,
     },
 }
 
@@ -1385,17 +1387,22 @@ function DungeonBots:ResolveFrozenHallsIDs()
                 or (difficulty == 1)
                 or (difficulty == 2)
                 or string.find(string.lower(name), "hero") ~= nil
-            if not isHeroic then
-                local lowerName = string.lower(name)
-                for _, def in ipairs(FROZEN_HALLS_DATA) do
-                    for _, kw in ipairs(def.keywords) do
-                        if string.find(lowerName, kw) then
-                            if not def.dungeonID then
-                                def.dungeonID = id
-                                def.realName = name
+            local lowerName = string.lower(name)
+            for _, def in ipairs(FROZEN_HALLS_DATA) do
+                for _, kw in ipairs(def.keywords) do
+                    if string.find(lowerName, kw) then
+                        if isHeroic then
+                            if not def.heroicID then
+                                def.heroicID = id
+                                def.heroicName = name
                             end
-                            break
+                        else
+                            if not def.normalID then
+                                def.normalID = id
+                                def.normalName = name
+                            end
                         end
+                        break
                     end
                 end
             end
@@ -1403,14 +1410,35 @@ function DungeonBots:ResolveFrozenHallsIDs()
     end
 
     for _, def in ipairs(FROZEN_HALLS_DATA) do
-        if not def.dungeonID then def.dungeonID = def.fallbackID end
+        if not def.normalID then def.normalID = def.fallbackNormalID end
+        if not def.heroicID then def.heroicID = def.fallbackHeroicID end
     end
 
     frozenHallsResolved = true
 end
 
-function DungeonBots:CheckDungeonQuestStatus(dungeonID, def)
-    if not dungeonID then
+local function IsQuestLockReason(lockedReason)
+    if not lockedReason or lockedReason == 0 then return false end
+    if lockedReason == 1022 or lockedReason == 1026 then
+        return true
+    end
+    if LFG_INSTANCE_INVALID_CODES then
+        local code = LFG_INSTANCE_INVALID_CODES[lockedReason]
+        if code == "QUEST" or code == "ATTUNEMENT" then
+            return true
+        end
+    end
+    if type(lockedReason) == "string" then
+        local lower = string.lower(lockedReason)
+        if string.find(lower, "misi") or string.find(lower, "quest") or string.find(lower, "attune") then
+            return true
+        end
+    end
+    return false
+end
+
+function DungeonBots:CheckDungeonQuestStatus(def)
+    if not def then
         return nil, { { text = "Mazmorra no identificada." } }
     end
 
@@ -1418,52 +1446,67 @@ function DungeonBots:CheckDungeonQuestStatus(dungeonID, def)
         return nil, { { text = "API de buscador de mazmorras no disponible." } }
     end
 
-    local numPlayers = (GetLFDLockPlayerCount and GetLFDLockPlayerCount()) or 0
-    if numPlayers == 0 then
-        local pName, reason = GetLFDLockInfo(dungeonID, 1)
-        if pName and pName ~= "" then
-            numPlayers = 1
-        end
+    local candidateIDs = {}
+    if def.heroicID then table.insert(candidateIDs, def.heroicID) end
+    if def.normalID and def.normalID ~= def.heroicID then table.insert(candidateIDs, def.normalID) end
+    if #candidateIDs == 0 then
+        if def.fallbackHeroicID then table.insert(candidateIDs, def.fallbackHeroicID) end
+        if def.fallbackNormalID and def.fallbackNormalID ~= def.fallbackHeroicID then table.insert(candidateIDs, def.fallbackNormalID) end
     end
 
-    if numPlayers == 0 then
-        return nil, { { text = "Consultando datos al servidor..." } }
-    end
-
-    local canEnter = true
     local reasons = {}
+    local seenLockedPlayers = {}
+    local hasAnyLockData = false
 
-    for i = 1, numPlayers do
-        local playerName, lockedReason, subReason1, subReason2 = GetLFDLockInfo(dungeonID, i)
-        if not playerName or playerName == "" then
-            playerName = (i == 1) and (UnitName("player") or "Tú") or ("Miembro " .. i)
+    for _, dID in ipairs(candidateIDs) do
+        local numPlayers = (GetLFDLockPlayerCount and GetLFDLockPlayerCount()) or 0
+        if numPlayers == 0 then
+            local pName = GetLFDLockInfo(dID, 1)
+            if pName and pName ~= "" then
+                numPlayers = 1
+            end
         end
 
-        local isSelf = (i == 1)
-        local unit = isSelf and "player" or DungeonBots:FindPartyUnitByName(playerName)
-
-        -- Solo evaluar miembros conectados
-        if isSelf or (unit and UnitIsConnected(unit)) then
-            if lockedReason and lockedReason ~= 0 then
-                canEnter = false
-                local specificMissing
-                if def.key == "foso" then
-                    specificMissing = (isSelf and "No has" or (playerName .. " no ha")) .. " completado las misiones previas de La Forja de Almas."
-                elseif def.key == "camaras" then
-                    specificMissing = (isSelf and "No has" or (playerName .. " no ha")) .. " completado las misiones previas de Foso de Saron."
-                else
-                    specificMissing = (isSelf and "No has" or (playerName .. " no ha")) .. " completado las misiones necesarias."
+        if numPlayers > 0 then
+            hasAnyLockData = true
+            for i = 1, numPlayers do
+                local playerName, lockedReason = GetLFDLockInfo(dID, i)
+                if not playerName or playerName == "" then
+                    playerName = (i == 1) and (UnitName("player") or "Tú") or ("Miembro " .. i)
                 end
-                table.insert(reasons, {
-                    playerName = playerName,
-                    reasonCode = lockedReason,
-                    text = specificMissing,
-                    isSelf = isSelf,
-                })
+
+                local isSelf = (i == 1)
+                local unit = isSelf and "player" or DungeonBots:FindPartyUnitByName(playerName)
+
+                -- Solo evaluar si el miembro está conectado (o es uno mismo)
+                if isSelf or (unit and UnitIsConnected(unit)) then
+                    if IsQuestLockReason(lockedReason) and not seenLockedPlayers[playerName] then
+                        seenLockedPlayers[playerName] = true
+                        local specificMissing
+                        if def.key == "foso" then
+                            specificMissing = (isSelf and "No has" or (playerName .. " no ha")) .. " completado las misiones previas de La Forja de Almas."
+                        elseif def.key == "camaras" then
+                            specificMissing = (isSelf and "No has" or (playerName .. " no ha")) .. " completado las misiones previas de Foso de Saron."
+                        else
+                            specificMissing = (isSelf and "No has" or (playerName .. " no ha")) .. " completado las misiones necesarias."
+                        end
+                        table.insert(reasons, {
+                            playerName = playerName,
+                            reasonCode = lockedReason,
+                            text = specificMissing,
+                            isSelf = isSelf,
+                        })
+                    end
+                end
             end
         end
     end
 
+    if not hasAnyLockData then
+        return nil, { { text = "Consultando datos al servidor..." } }
+    end
+
+    local canEnter = (#reasons == 0)
     return canEnter, reasons
 end
 
@@ -1511,8 +1554,7 @@ function DungeonBots:UpdateDungeonAccessUI()
 
     for i, def in ipairs(FROZEN_HALLS_DATA) do
         local btn = DungeonBots.dungeonButtons and DungeonBots.dungeonButtons[def.key]
-        local dungeonID = def.dungeonID or def.fallbackID
-        local canEnter, reasons = DungeonBots:CheckDungeonQuestStatus(dungeonID, def)
+        local canEnter, reasons = DungeonBots:CheckDungeonQuestStatus(def)
 
         if btn then
             if canEnter == true then
