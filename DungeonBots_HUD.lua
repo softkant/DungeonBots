@@ -437,7 +437,7 @@ local function CreateFloatingToolbar(cfg)
 
         local mainIcon = mainBtn:CreateTexture(nil, "ARTWORK")
         mainIcon:SetAllPoints()
-        mainIcon:SetTexture("Interface\\Icons\\INV_Misc_Eye_02")
+        mainIcon:SetTexture("Interface\\Icons\\Trade_Engineering")
         mainIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         mainBtn.icon = mainIcon
         f.mainPanelBtn = mainBtn
