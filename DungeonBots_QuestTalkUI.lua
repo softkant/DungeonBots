@@ -15,6 +15,14 @@ local function ApplyHeaderBackdrop(frame)
     return DB_Internal.ApplyHeaderBackdrop(frame)
 end
 
+local function ApplyInsetPanelBackdrop(frame, edgeSize)
+    if DB_Internal.ApplyInsetPanelBackdrop then
+        return DB_Internal.ApplyInsetPanelBackdrop(frame, edgeSize)
+    else
+        return ApplyDarkBackdrop(frame, edgeSize)
+    end
+end
+
 local function CreateRedIconButton(parent, width, height, text, iconPath, centerIcon)
     return DB_Internal.CreateRedIconButton(parent, width, height, text, iconPath, centerIcon)
 end

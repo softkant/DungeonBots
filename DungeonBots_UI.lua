@@ -122,6 +122,7 @@ local function ApplyInsetPanelBackdrop(frame, edgeSize)
     frame:SetBackdropColor(0.035, 0.045, 0.068, 0.95)
     frame:SetBackdropBorderColor(0.28, 0.31, 0.39, 0.90)
 end
+DB_Internal.ApplyInsetPanelBackdrop = ApplyInsetPanelBackdrop
 
 local function AddQuickSlotBorder(btn, size, r, g, b, a)
     local border = btn:CreateTexture(nil, "OVERLAY")
