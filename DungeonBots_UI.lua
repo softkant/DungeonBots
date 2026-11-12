@@ -28,7 +28,7 @@ local function ApplyDarkBackdrop(frame, edgeSize)
 end
 DB_Internal.ApplyDarkBackdrop = ApplyDarkBackdrop
 
-local SUB_MODAL_KEYS = { "spellsFrame", "inventoryFrame", "questFrame" }
+local SUB_MODAL_KEYS = { "spellsFrame", "inventoryFrame", "questFrame", "settingsFrame" }
 
 local function ApplyTabButtonsVisualState(isDimmed)
     local baseLevel = (mainFrame and mainFrame.GetFrameLevel and mainFrame:GetFrameLevel()) or 10

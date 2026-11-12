@@ -253,6 +253,9 @@ function DungeonBots:BuildSettingsDialog()
     end)
 
     DungeonBots.settingsFrame = sf
+    if DB_Internal.RegisterSubModalDimmer then
+        DB_Internal.RegisterSubModalDimmer(sf)
+    end
     DungeonBots:UpdateSettingsDialog()
 end
 
