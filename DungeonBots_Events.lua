@@ -380,6 +380,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         HandlePartyChanged(event == "PLAYER_ENTERING_WORLD")
 
     elseif event == "LFG_LOCK_INFO_RECEIVED" then
+        DungeonBots.lfgLockInfoReceived = true
         if DungeonBots.UpdateDungeonAccessUI then
             DungeonBots:UpdateDungeonAccessUI()
         end
