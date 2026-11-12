@@ -1509,77 +1509,23 @@ function DungeonBots:UpdateDungeonAccessUI()
 
     DungeonBots:ResolveFrozenHallsIDs()
 
-    local activeKey = DungeonBots.selectedDungeonCheckKey
-    if activeKey ~= "camaras" then activeKey = "foso" end
-    DungeonBots.selectedDungeonCheckKey = activeKey
-
-    local selectedDef = nil
-    local selectedCanEnter = nil
-    local selectedReasons = nil
-
     for i, def in ipairs(FROZEN_HALLS_DATA) do
         local btn = DungeonBots.dungeonButtons and DungeonBots.dungeonButtons[def.key]
         local dungeonID = def.dungeonID or def.fallbackID
         local canEnter, reasons = DungeonBots:CheckDungeonQuestStatus(dungeonID, def)
 
-        if def.key == activeKey then
-            selectedDef = def
-            selectedCanEnter = canEnter
-            selectedReasons = reasons
-        end
-
         if btn then
             if canEnter == true then
-                btn.statusText:SetText("|cff00ff00✔ Puede ir|r")
+                btn.statusText:SetText("|cff00ff00Puede ir|r")
             elseif canEnter == false then
-                btn.statusText:SetText("|cffff4444✖ Falta misión|r")
+                btn.statusText:SetText("|cffff4444Falta misión|r")
             else
                 btn.statusText:SetText("|cffaaaaaa...|r")
-            end
-
-            if def.key == activeKey then
-                btn:SetBackdropBorderColor(1.0, 0.82, 0.0, 1.0)
-            else
-                btn:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.85)
             end
 
             btn.canEnter = canEnter
             btn.reasons = reasons
             btn.dungeonName = def.name
-        end
-    end
-
-    -- Detalle de la mazmorra seleccionada
-    if panel.detailBox and selectedDef then
-        if selectedCanEnter == true then
-            panel.statusIcon:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
-            panel.detailTitle:SetText("|cffffd200" .. selectedDef.name .. ":|r |cff00ff00PUEDEN IR|r")
-            panel.detailReasons:SetText("|cff55ff55✔ Todo el grupo tiene las misiones completadas para entrar a esta mazmorra.|r\n|cff8899aaRequiere cadena previa en: " .. (selectedDef.prereq or "Mazmorra anterior") .. ".|r")
-        elseif selectedCanEnter == false then
-            panel.statusIcon:SetTexture("Interface\\RaidFrame\\ReadyCheck-NotReady")
-            panel.detailTitle:SetText("|cffffd200" .. selectedDef.name .. ":|r |cffff4444FALTA MISIÓN PREVIA|r")
-            local lines = {}
-            if selectedReasons and #selectedReasons > 0 then
-                for _, r in ipairs(selectedReasons) do
-                    local pColor = r.isSelf and "|cff00ccff" or "|cffffd200"
-                    table.insert(lines, "• " .. pColor .. r.playerName .. ":|r |cffff7777" .. r.text .. "|r")
-                end
-            else
-                table.insert(lines, "• |cffff7777Uno o más miembros no han completado la misión previa requerida.|r")
-            end
-            panel.detailReasons:SetText(table.concat(lines, "\n"))
-        else
-            panel.statusIcon:SetTexture("Interface\\RaidFrame\\ReadyCheck-Waiting")
-            panel.detailTitle:SetText("|cffffd200" .. selectedDef.name .. ":|r |cffaaaaaaCONSULTANDO ESTADO...|r")
-            panel.detailReasons:SetText("|cffaaaaaaConsultando estado al servidor... Si tarda, haz clic en Actualizar o abre el Buscador de Mazmorras (Ojo).|r")
-        end
-
-        local h = panel.detailReasons:GetStringHeight() or 36
-        if panel.detailContent then
-            panel.detailContent:SetHeight(math.max(48, math.ceil(h) + 4))
-        end
-        if panel.detailScroll and panel.detailScroll.UpdateScrollChildRect then
-            panel.detailScroll:UpdateScrollChildRect()
         end
     end
 end
@@ -1669,7 +1615,7 @@ function DungeonBots:BuildTab3(parent)
     local checkPanel = CreateFrame("Frame", "DungeonBots_DungeonCheckPanel", parent)
     checkPanel:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -4)
     checkPanel:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -4)
-    checkPanel:SetHeight(148)
+    checkPanel:SetHeight(70)
     ApplyDarkBackdrop(checkPanel, 8)
     checkPanel:SetBackdropColor(0.04, 0.05, 0.08, 0.94)
     checkPanel:SetBackdropBorderColor(0.28, 0.38, 0.52, 0.95)
@@ -1740,23 +1686,29 @@ function DungeonBots:BuildTab3(parent)
 
         btn:SetScript("OnClick", function()
             PlaySound("igMainMenuOptionCheckBoxOn")
-            DungeonBots.selectedDungeonCheckKey = def.key
+            DungeonBots:RequestDungeonLockInfo(true)
             DungeonBots:UpdateDungeonAccessUI()
         end)
 
         btn:SetScript("OnEnter", function(self)
+            self:SetBackdropBorderColor(0.45, 0.55, 0.70, 1.0)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
             GameTooltip:AddLine(self.dungeonName or def.name, 1, 0.82, 0)
             if self.canEnter == true then
-                GameTooltip:AddLine("Estado: |cff00ff00Pueden ir|r", 1, 1, 1)
+                GameTooltip:AddLine("Estado: |cff00ff00Puede ir|r", 1, 1, 1)
                 GameTooltip:AddLine("Todos los miembros conectados tienen las misiones previas completadas.", 0.7, 0.8, 1, true)
+                GameTooltip:AddLine("Requiere cadena previa: |cffffd200" .. (def.prereq or "Forja de Almas") .. "|r", 0.7, 0.7, 0.7)
             elseif self.canEnter == false then
                 GameTooltip:AddLine("Estado: |cffff4444Falta misión previa|r", 1, 1, 1)
+                GameTooltip:AddLine("Requiere completar la cadena de: |cffffd200" .. (def.prereq or "Mazmorra anterior") .. "|r", 1, 0.82, 0, true)
                 if self.reasons and #self.reasons > 0 then
                     GameTooltip:AddLine("Miembros sin la misión previa:", 1, 0.82, 0)
                     for _, r in ipairs(self.reasons) do
-                        GameTooltip:AddLine("• " .. r.text, 1, 0.4, 0.4, true)
+                        local pColor = r.isSelf and "|cff00ccff" or "|cffffd200"
+                        GameTooltip:AddLine("  - " .. pColor .. r.playerName .. ":|r |cffff7777" .. r.text .. "|r", 1, 1, 1, true)
                     end
+                else
+                    GameTooltip:AddLine("  - Uno o más miembros no han completado la misión previa requerida.", 1, 0.4, 0.4, true)
                 end
             else
                 GameTooltip:AddLine("Estado: |cffaaaaaaSin información del servidor|r", 1, 1, 1)
@@ -1764,58 +1716,14 @@ function DungeonBots:BuildTab3(parent)
             end
             GameTooltip:Show()
         end)
-        btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        btn:SetScript("OnLeave", function(self)
+            self:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.85)
+            GameTooltip:Hide()
+        end)
 
         DungeonBots.dungeonButtons[def.key] = btn
         prevDungeonBtn = btn
     end
-
-    -- Recuadro de detalles de la mazmorra seleccionada
-    local detailBox = CreateFrame("Frame", "DungeonBots_DungeonDetailBox", checkPanel)
-    detailBox:SetPoint("TOPLEFT", checkPanel, "TOPLEFT", 8, -68)
-    detailBox:SetPoint("BOTTOMRIGHT", checkPanel, "BOTTOMRIGHT", -8, 6)
-    ApplyInsetPanelBackdrop(detailBox, 8)
-    detailBox:SetBackdropColor(0.025, 0.035, 0.05, 0.98)
-    detailBox:SetBackdropBorderColor(0.25, 0.30, 0.40, 0.85)
-    checkPanel.detailBox = detailBox
-
-    local statusIcon = detailBox:CreateTexture(nil, "ARTWORK")
-    statusIcon:SetSize(16, 16)
-    statusIcon:SetPoint("TOPLEFT", detailBox, "TOPLEFT", 8, -6)
-    statusIcon:SetTexture("Interface\\RaidFrame\\ReadyCheck-Waiting")
-    checkPanel.statusIcon = statusIcon
-
-    local detailTitle = detailBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    detailTitle:SetPoint("LEFT", statusIcon, "RIGHT", 6, 0)
-    detailTitle:SetPoint("RIGHT", detailBox, "RIGHT", -8, 0)
-    detailTitle:SetJustifyH("LEFT")
-    detailTitle:SetText("|cffffd200Foso de Saron:|r |cffaaaaaaCONSULTANDO ESTADO...|r")
-    checkPanel.detailTitle = detailTitle
-
-    local detailScroll = CreateFrame("ScrollFrame", "DungeonBots_DungeonDetailScroll", detailBox)
-    detailScroll:SetPoint("TOPLEFT", detailBox, "TOPLEFT", 8, -24)
-    detailScroll:SetPoint("BOTTOMRIGHT", detailBox, "BOTTOMRIGHT", -8, 4)
-    detailScroll:EnableMouseWheel(true)
-    detailScroll:SetScript("OnMouseWheel", function(self, delta)
-        local cur = self:GetVerticalScroll() or 0
-        local maxScroll = self:GetVerticalScrollRange() or 0
-        self:SetVerticalScroll(math.max(0, math.min(maxScroll, cur - (delta * 14))))
-    end)
-    checkPanel.detailScroll = detailScroll
-
-    local detailContent = CreateFrame("Frame", nil, detailScroll)
-    detailContent:SetSize(520, 48)
-    detailScroll:SetScrollChild(detailContent)
-    checkPanel.detailContent = detailContent
-
-    local detailReasons = detailContent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    detailReasons:SetPoint("TOPLEFT", detailContent, "TOPLEFT", 0, 0)
-    detailReasons:SetWidth(520)
-    detailReasons:SetJustifyH("LEFT")
-    detailReasons:SetJustifyV("TOP")
-    detailReasons:SetWordWrap(true)
-    detailReasons:SetText("|cffaaaaaaConsultando estado al servidor... Si tarda, haz clic en Actualizar o abre el Buscador de Mazmorras (Ojo).|r")
-    checkPanel.detailReasons = detailReasons
 
     -- ScrollFrame de las 4 tarjetas de consejos
     local scrollWrap = CreateFrame("Frame", nil, parent)
