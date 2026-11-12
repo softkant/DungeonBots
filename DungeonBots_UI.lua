@@ -23,10 +23,31 @@ local function ApplyDarkBackdrop(frame, edgeSize)
         tile = true, tileSize = 16, edgeSize = edgeSize,
         insets = { left = 3, right = 3, top = 3, bottom = 3 }
     })
-    frame:SetBackdropColor(0.07, 0.08, 0.11, 0.95)
-    frame:SetBackdropBorderColor(0.68, 0.62, 0.44, 1.0)
+    frame:SetBackdropColor(0.06, 0.07, 0.10, 0.96)
+    frame:SetBackdropBorderColor(0.72, 0.63, 0.42, 1.0)
 end
 DB_Internal.ApplyDarkBackdrop = ApplyDarkBackdrop
+
+local function ApplyInsetPanelBackdrop(frame, edgeSize)
+    edgeSize = edgeSize or 10
+    frame:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 14, edgeSize = edgeSize,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    })
+    frame:SetBackdropColor(0.035, 0.045, 0.068, 0.95)
+    frame:SetBackdropBorderColor(0.28, 0.31, 0.39, 0.90)
+end
+
+local function AddQuickSlotBorder(btn, size, r, g, b, a)
+    local border = btn:CreateTexture(nil, "OVERLAY")
+    border:SetSize(size or 26, size or 26)
+    border:SetPoint("CENTER", 0, 0)
+    border:SetTexture("Interface\\Buttons\\UI-Quickslot2")
+    border:SetVertexColor(r or 0.85, g or 0.85, b or 0.85, a or 0.85)
+    return border
+end
 
 local function ApplyHeaderBackdrop(frame)
     frame:SetBackdrop({
@@ -35,18 +56,19 @@ local function ApplyHeaderBackdrop(frame)
         tile = true, tileSize = 12, edgeSize = 10,
         insets = { left = 2, right = 2, top = 2, bottom = 2 }
     })
-    frame:SetBackdropColor(0.12, 0.14, 0.18, 0.95)
-    frame:SetBackdropBorderColor(0.35, 0.38, 0.45, 0.8)
+    frame:SetBackdropColor(0.11, 0.13, 0.18, 0.98)
+    frame:SetBackdropBorderColor(0.38, 0.40, 0.48, 0.85)
 end
 DB_Internal.ApplyHeaderBackdrop = ApplyHeaderBackdrop
 
 local function CreateRedIconButton(parent, width, height, text, iconPath, centerIcon)
     local btn = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
     btn:SetSize(width, height)
-    btn.iconOffsetX = centerIcon and 18 or 7
+    btn.iconOffsetX = centerIcon and 18 or 8
 
-    local icon = btn:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(14, 14)
+    -- Usar OVERLAY para que el icono siempre quede sobre la textura roja del boton
+    local icon = btn:CreateTexture(nil, "OVERLAY")
+    icon:SetSize(15, 15)
     icon:SetPoint("LEFT", btn, "LEFT", btn.iconOffsetX, 0)
     icon:SetTexture(iconPath)
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
@@ -127,10 +149,16 @@ function DungeonBots:UpdateHUDLockButtonState()
     local isLocked = DungeonBots.IsHUDLocked and DungeonBots:IsHUDLocked() or false
     if isLocked then
         btn.icon:SetDesaturated(true)
-        btn.icon:SetVertexColor(0.55, 0.55, 0.58, 0.90)
+        btn.icon:SetVertexColor(0.66, 0.66, 0.68, 1.0)
+        if btn.slotBorder then
+            btn.slotBorder:SetVertexColor(0.72, 0.72, 0.76, 0.90)
+        end
     else
         btn.icon:SetDesaturated(false)
         btn.icon:SetVertexColor(0.25, 1.0, 0.35, 1.0)
+        if btn.slotBorder then
+            btn.slotBorder:SetVertexColor(0.35, 0.92, 0.45, 0.95)
+        end
     end
 end
 
@@ -141,7 +169,7 @@ function DungeonBots:InitUI()
     if mainFrame then return end
 
     local f = CreateFrame("Frame", "DungeonBots_MainFrame", UIParent)
-    f:SetSize(620, 448)
+    f:SetSize(620, 414)
     f:SetPoint("CENTER", UIParent, "CENTER", 0, 20)
     f:SetMovable(true)
     f:EnableMouse(true)
@@ -154,6 +182,13 @@ function DungeonBots:InitUI()
     f:SetScript("OnDragStop", f.StopMovingOrSizing)
 
     ApplyDarkBackdrop(f, 16)
+
+    -- Fondo solido oscuro interno para evitar que brille o distraiga el escenario del mundo
+    local solidBg = f:CreateTexture(nil, "BACKGROUND")
+    solidBg:SetPoint("TOPLEFT", f, "TOPLEFT", 4, -4)
+    solidBg:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -4, 4)
+    solidBg:SetTexture(0.05, 0.06, 0.09, 0.96)
+
     tinsert(UISpecialFrames, "DungeonBots_MainFrame")
 
     -- Barra de Cabecera
@@ -163,10 +198,22 @@ function DungeonBots:InitUI()
     header:SetHeight(28)
     ApplyHeaderBackdrop(header)
 
+    local headerSolidBg = header:CreateTexture(nil, "BACKGROUND")
+    headerSolidBg:SetPoint("TOPLEFT", header, "TOPLEFT", 2, -2)
+    headerSolidBg:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -2, 2)
+    headerSolidBg:SetTexture(0.11, 0.13, 0.18, 0.98)
+
+    local headerAccent = header:CreateTexture(nil, "BORDER")
+    headerAccent:SetHeight(1)
+    headerAccent:SetPoint("BOTTOMLEFT", header, "BOTTOMLEFT", 4, 1)
+    headerAccent:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -4, 1)
+    headerAccent:SetTexture(0.75, 0.62, 0.36, 0.45)
+
     local icon = header:CreateTexture(nil, "ARTWORK")
     icon:SetSize(18, 18)
     icon:SetPoint("LEFT", 8, 0)
     icon:SetTexture("Interface\\Icons\\Spell_Arcane_MindMastery")
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
     local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("LEFT", icon, "RIGHT", 6, 0)
@@ -175,22 +222,26 @@ function DungeonBots:InitUI()
 
     -- Botón de cerrar
     local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
-    closeBtn:SetSize(32, 32)
-    closeBtn:SetPoint("RIGHT", header, "RIGHT", 2, 0)
+    closeBtn:SetSize(26, 26)
+    closeBtn:SetPoint("RIGHT", header, "RIGHT", -2, 0)
     closeBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOff")
         f:Hide()
     end)
 
-    -- Botón de configuración (engranaje) en la cabecera
+    -- Botón de configuración (engranaje) en la cabecera con marco clásico
     local settingsBtn = CreateFrame("Button", "DungeonBots_SettingsHeaderBtn", header)
-    settingsBtn:SetSize(20, 20)
-    settingsBtn:SetPoint("RIGHT", closeBtn, "LEFT", -2, 0)
+    settingsBtn:SetSize(22, 22)
+    settingsBtn:SetPoint("RIGHT", closeBtn, "LEFT", -4, 0)
 
     local settingsIcon = settingsBtn:CreateTexture(nil, "ARTWORK")
-    settingsIcon:SetAllPoints()
+    settingsIcon:SetSize(18, 18)
+    settingsIcon:SetPoint("CENTER", 0, 0)
     settingsIcon:SetTexture("Interface\\Icons\\Trade_Engineering")
     settingsIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    local settingsBorder = AddQuickSlotBorder(settingsBtn, 26, 0.85, 0.85, 0.85, 0.85)
+    settingsBtn.slotBorder = settingsBorder
 
     settingsBtn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
     settingsBtn:SetScript("OnClick", function()
@@ -198,25 +249,30 @@ function DungeonBots:InitUI()
         DungeonBots:ToggleSettingsDialog()
     end)
     settingsBtn:SetScript("OnEnter", function(self)
+        settingsBorder:SetVertexColor(1.0, 0.82, 0.0, 1.0)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:AddLine("Configuración", 1, 1, 1)
         GameTooltip:AddLine("Abre las opciones de las barras flotantes (Táctica y Utilidades) y filtros de chat de bots.", 0.7, 0.8, 1.0, true)
         GameTooltip:Show()
     end)
-    settingsBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    settingsBtn:SetScript("OnLeave", function()
+        settingsBorder:SetVertexColor(0.85, 0.85, 0.85, 0.85)
+        GameTooltip:Hide()
+    end)
 
     -- Botón de candado (verde = se pueden mover ambas barras; gris = ambas bloqueadas)
     local hudLockBtn = CreateFrame("Button", "DungeonBots_HudLockHeaderBtn", header)
-    hudLockBtn:SetSize(20, 20)
-    hudLockBtn:SetPoint("RIGHT", settingsBtn, "LEFT", -4, 0)
+    hudLockBtn:SetSize(22, 22)
+    hudLockBtn:SetPoint("RIGHT", settingsBtn, "LEFT", -5, 0)
     hudLockBtn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
 
     local hudLockIcon = hudLockBtn:CreateTexture(nil, "ARTWORK")
-    hudLockIcon:SetPoint("TOPLEFT", 1, -1)
-    hudLockIcon:SetPoint("BOTTOMRIGHT", -1, 1)
+    hudLockIcon:SetSize(16, 16)
+    hudLockIcon:SetPoint("CENTER", 0, 0)
     hudLockIcon:SetTexture("Interface\\LFGFrame\\UI-LFG-ICON-LOCK")
     hudLockIcon:SetTexCoord(0, 0.875, 0, 0.875)
     hudLockBtn.icon = hudLockIcon
+    hudLockBtn.slotBorder = AddQuickSlotBorder(hudLockBtn, 26, 0.85, 0.85, 0.85, 0.85)
     DungeonBots.hudLockHeaderBtn = hudLockBtn
 
     hudLockBtn:SetScript("OnClick", function(self)
@@ -230,6 +286,9 @@ function DungeonBots:InitUI()
         end
     end)
     hudLockBtn:SetScript("OnEnter", function(self)
+        if hudLockBtn.slotBorder then
+            hudLockBtn.slotBorder:SetVertexColor(1.0, 0.82, 0.0, 1.0)
+        end
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         local isLocked = DungeonBots.IsHUDLocked and DungeonBots:IsHUDLocked()
         if isLocked then
@@ -243,43 +302,129 @@ function DungeonBots:InitUI()
         end
         GameTooltip:Show()
     end)
-    hudLockBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    hudLockBtn:SetScript("OnLeave", function()
+        DungeonBots:UpdateHUDLockButtonState()
+        GameTooltip:Hide()
+    end)
 
     if DungeonBots.UpdateHUDLockButtonState then
         DungeonBots:UpdateHUDLockButtonState()
     end
 
-    -- Barra de Pestañas
+    -- Sub-barra de sección activa (como WoWAI: muestra la pestaña actual y estado del grupo)
+    local subBar = CreateFrame("Frame", nil, f)
+    subBar:SetPoint("TOPLEFT", f, "TOPLEFT", 14, -38)
+    subBar:SetPoint("TOPRIGHT", f, "TOPRIGHT", -14, -38)
+    subBar:SetHeight(18)
+
+    local sectionTitle = subBar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    sectionTitle:SetPoint("LEFT", subBar, "LEFT", 0, 0)
+    sectionTitle:SetJustifyH("LEFT")
+    DungeonBots.sectionTitle = sectionTitle
+
+    local sectionStatus = subBar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    sectionStatus:SetPoint("RIGHT", subBar, "RIGHT", 0, 0)
+    sectionStatus:SetJustifyH("RIGHT")
+    sectionStatus:SetText("|cff888888Bots en grupo: |cffffd2000/4|r|r")
+    DungeonBots.sectionStatus = sectionStatus
+
+    local subRule = subBar:CreateTexture(nil, "ARTWORK")
+    subRule:SetHeight(1)
+    subRule:SetPoint("BOTTOMLEFT", subBar, "BOTTOMLEFT", 0, -2)
+    subRule:SetPoint("BOTTOMRIGHT", subBar, "BOTTOMRIGHT", 0, -2)
+    subRule:SetTexture(0.60, 0.52, 0.34, 0.45)
+
+    -- Pestañas Verticales con Iconos al lado derecho sobresaliendo (estilo clásico SpellBook / WoWAI)
     local tabNames = {
-        { id = 1, title = "Armar Grupo", icon = "Interface\\Icons\\INV_Misc_GroupNeedMore" },
-        { id = 2, title = "Bots en el grupo (0)", icon = "Interface\\Icons\\INV_Misc_GroupLooking" },
-        { id = 3, title = "Forja / Foso / Cámaras", icon = "Interface\\Icons\\INV_Misc_Head_Dragon_01" },
+        {
+            id = 1,
+            title = "Armar Grupo",
+            subtitle = "Historial, clases y control de grupo",
+            desc = "Invoca bots por clase individual, abre tu historial y ejecuta acciones rápidas del grupo.",
+            icon = "Interface\\Icons\\INV_Misc_GroupNeedMore",
+        },
+        {
+            id = 2,
+            title = "Bots en el grupo",
+            subtitle = "Especialización, equipo y misiones",
+            desc = "Gestiona las ramas de talentos, equipo y misiones de los bots activos en tu grupo.",
+            icon = "Interface\\Icons\\INV_Misc_GroupLooking",
+        },
+        {
+            id = 3,
+            title = "Forja / Foso / Cámaras",
+            subtitle = "Asistente cadena ICC (60s)",
+            desc = "Guía rápida para completar las misiones previas de Forja de Almas, Foso de Saron y Cámaras de Reflexión.",
+            icon = "Interface\\Icons\\INV_Misc_Head_Dragon_01",
+        },
     }
 
     local tabButtons = {}
     for i, tabData in ipairs(tabNames) do
         local btn = CreateFrame("Button", "DungeonBots_TabBtn_" .. i, f)
-        btn:SetSize(190, 26)
-        btn:SetPoint("TOPLEFT", f, "TOPLEFT", 12 + (i - 1) * 196, -38)
-        ApplyHeaderBackdrop(btn)
+        btn:SetSize(32, 32)
+        btn:SetPoint("TOPLEFT", f, "TOPRIGHT", -1, -48 - ((i - 1) * 46))
 
-        local tIcon = btn:CreateTexture(nil, "ARTWORK")
-        tIcon:SetSize(16, 16)
-        tIcon:SetPoint("LEFT", 8, 0)
+        local bg = btn:CreateTexture(nil, "BACKGROUND")
+        bg:SetTexture("Interface\\SpellBook\\SpellBook-SkillLineTab")
+        bg:SetSize(64, 64)
+        bg:SetPoint("TOPLEFT", btn, "TOPLEFT", -3, 11)
+        btn.bg = bg
+
+        local tIcon = btn:CreateTexture(nil, "BORDER")
+        tIcon:SetSize(26, 26)
+        tIcon:SetPoint("CENTER", 0, 0)
         tIcon:SetTexture(tabData.icon)
-        tIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        tIcon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
         btn.icon = tIcon
 
-        local tText = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        tText:SetPoint("LEFT", tIcon, "RIGHT", 6, 0)
-        tText:SetText(tabData.title)
-        btn.text = tText
-
         btn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+
+        local checked = btn:CreateTexture(nil, "OVERLAY")
+        checked:SetTexture("Interface\\Buttons\\CheckButtonHilight")
+        checked:SetBlendMode("ADD")
+        checked:SetSize(30, 30)
+        checked:SetPoint("CENTER", 0, 0)
+        btn.checked = checked
+
+        btn.tabData = tabData
+        btn.botCount = 0
+        btn.tooltipTitle = (i == 2) and "Bots en el grupo (0)" or tabData.title
+
+        if i == 2 then
+            local badgeBg = btn:CreateTexture(nil, "ARTWORK")
+            badgeBg:SetSize(13, 13)
+            badgeBg:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", 2, -2)
+            badgeBg:SetTexture(0.06, 0.08, 0.12, 0.92)
+            badgeBg:Hide()
+            btn.countBadgeBg = badgeBg
+
+            local badgeText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            badgeText:SetPoint("CENTER", badgeBg, "CENTER", 0, 0)
+            badgeText:SetTextColor(0.25, 0.95, 0.45)
+            badgeText:SetText("")
+            badgeText:Hide()
+            btn.countBadgeText = badgeText
+        end
+
         btn:SetScript("OnClick", function()
             PlaySound("igMainMenuOptionCheckBoxOn")
             DungeonBots:SelectTab(i)
         end)
+        btn:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(self.tooltipTitle or tabData.title, 1, 0.82, 0)
+            if tabData.desc and tabData.desc ~= "" then
+                GameTooltip:AddLine(tabData.desc, 1, 1, 1, true)
+            end
+            if i == activeTab then
+                GameTooltip:AddLine("|cff00ff00(Pestaña Activa)|r", 0.8, 0.8, 0.8)
+            else
+                GameTooltip:AddLine("|cff888888(Haz clic para cambiar a esta pestaña)|r", 0.8, 0.8, 0.8)
+            end
+            GameTooltip:Show()
+        end)
+        btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
         tabButtons[i] = btn
     end
@@ -288,7 +433,7 @@ function DungeonBots:InitUI()
     -- Contenedores de las 3 Pestañas
     for i = 1, 3 do
         local tabF = CreateFrame("Frame", "DungeonBots_TabFrame_" .. i, f)
-        tabF:SetPoint("TOPLEFT", 10, -68)
+        tabF:SetPoint("TOPLEFT", 10, -60)
         tabF:SetPoint("BOTTOMRIGHT", -10, 10)
         tabF:Hide()
         tabFrames[i] = tabF
@@ -311,6 +456,21 @@ function DungeonBots:InitUI()
     -- Vincular integración con El Ojo (Buscador de Mazmorras / LFD)
     DungeonBots:HookEye()
     DungeonBots:UpdatePartyUI()
+end
+
+function DungeonBots:UpdateActiveSectionHeader()
+    local btn = DungeonBots.tabButtons and DungeonBots.tabButtons[activeTab]
+    if not btn or not btn.tabData then return end
+    local tabData = btn.tabData
+    local titleStr = (activeTab == 2) and (btn.tooltipTitle or tabData.title) or tabData.title
+    if DungeonBots.sectionTitle then
+        DungeonBots.sectionTitle:SetText("|cffffd200" .. titleStr .. "|r  |cff888888- " .. (tabData.subtitle or "") .. "|r")
+    end
+    if DungeonBots.sectionStatus then
+        local tab2Btn = DungeonBots.tabButtons[2]
+        local cnt = (tab2Btn and tab2Btn.botCount) or 0
+        DungeonBots.sectionStatus:SetText("|cff888888Bots activos: |cffffd200" .. cnt .. "/4|r|r")
+    end
 end
 
 function DungeonBots:ToggleUI()
@@ -336,27 +496,32 @@ end
 
 function DungeonBots:SelectTab(tabIndex)
     activeTab = tabIndex
+    local baseLevel = (mainFrame and mainFrame.GetFrameLevel and mainFrame:GetFrameLevel()) or 10
     for i = 1, 3 do
+        local btn = DungeonBots.tabButtons and DungeonBots.tabButtons[i]
         if i == tabIndex then
             tabFrames[i]:Show()
-            if DungeonBots.tabButtons and DungeonBots.tabButtons[i] then
-                DungeonBots.tabButtons[i]:SetBackdropColor(0.20, 0.25, 0.35, 1.0)
-                DungeonBots.tabButtons[i]:SetBackdropBorderColor(0.9, 0.8, 0.5, 1.0)
-                DungeonBots.tabButtons[i].text:SetTextColor(1, 0.85, 0.2)
+            if btn then
+                btn:SetFrameLevel(baseLevel + 3)
+                if btn.checked then btn.checked:Show() end
+                if btn.icon then btn.icon:SetVertexColor(1.0, 1.0, 1.0) end
+                if btn.bg then btn.bg:SetVertexColor(1.0, 1.0, 1.0) end
             end
         else
             tabFrames[i]:Hide()
-            if DungeonBots.tabButtons and DungeonBots.tabButtons[i] then
-                DungeonBots.tabButtons[i]:SetBackdropColor(0.12, 0.14, 0.18, 0.95)
-                DungeonBots.tabButtons[i]:SetBackdropBorderColor(0.35, 0.38, 0.45, 0.8)
-                DungeonBots.tabButtons[i].text:SetTextColor(0.8, 0.8, 0.8)
+            if btn then
+                btn:SetFrameLevel(baseLevel + 1)
+                if btn.checked then btn.checked:Hide() end
+                if btn.icon then btn.icon:SetVertexColor(0.52, 0.52, 0.52) end
+                if btn.bg then btn.bg:SetVertexColor(0.75, 0.75, 0.75) end
             end
         end
     end
 
     if mainFrame then
-        mainFrame:SetHeight((tabIndex == 1) and 448 or 524)
+        mainFrame:SetHeight((tabIndex == 1) and 414 or 492)
     end
+    DungeonBots:UpdateActiveSectionHeader()
     if tabIndex == 2 then
         DungeonBots:UpdatePartyUI()
     end
@@ -378,28 +543,46 @@ end
 -- =========================================================================
 -- PESTAÑA 1: ARMAR GRUPO (Party Builder)
 -- =========================================================================
+local function AddPanelDivider(panel, yOffset)
+    local line = panel:CreateTexture(nil, "ARTWORK")
+    line:SetHeight(1)
+    line:SetPoint("TOPLEFT", panel, "TOPLEFT", 10, yOffset or -24)
+    line:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -10, yOffset or -24)
+    line:SetTexture(0.55, 0.48, 0.32, 0.35)
+    return line
+end
+
 function DungeonBots:BuildTab1(parent)
-    -- Caja 1: Acceso al Historial de bots
+    -- Caja 1: Acceso al Historial de bots (tira compacta clásica)
     local historyBox = CreateFrame("Frame", nil, parent)
-    historyBox:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -4)
-    historyBox:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -4)
-    historyBox:SetHeight(66)
-    ApplyDarkBackdrop(historyBox, 10)
-    historyBox:SetBackdropColor(0.10, 0.12, 0.16, 0.85)
+    historyBox:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -2)
+    historyBox:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -2)
+    historyBox:SetHeight(52)
+    ApplyInsetPanelBackdrop(historyBox, 10)
+
+    local histIconFrame = CreateFrame("Frame", nil, historyBox)
+    histIconFrame:SetSize(28, 28)
+    histIconFrame:SetPoint("LEFT", historyBox, "LEFT", 12, 0)
+    local histIcon = histIconFrame:CreateTexture(nil, "ARTWORK")
+    histIcon:SetSize(24, 24)
+    histIcon:SetPoint("CENTER", 0, 0)
+    histIcon:SetTexture("Interface\\Icons\\INV_Misc_Note_01")
+    histIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    AddQuickSlotBorder(histIconFrame, 34, 0.78, 0.68, 0.42, 0.90)
 
     local historyTitle = historyBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    historyTitle:SetPoint("TOPLEFT", 10, -8)
+    historyTitle:SetPoint("TOPLEFT", histIconFrame, "TOPRIGHT", 10, 2)
     historyTitle:SetText("|cffffd200Historial de bots|r")
 
     local historySummary = historyBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    historySummary:SetPoint("TOPLEFT", 10, -30)
-    historySummary:SetWidth(385)
+    historySummary:SetPoint("TOPLEFT", historyTitle, "BOTTOMLEFT", 0, -3)
+    historySummary:SetWidth(330)
     historySummary:SetJustifyH("LEFT")
     historySummary:SetText("Lista de bots invitados anteriormente: |cffffd2000|r")
     DungeonBots.historySummaryLabel = historySummary
 
-    local viewHistoryBtn = CreateRedIconButton(historyBox, 180, 28, "Ver Historial de bots", "Interface\\Icons\\INV_Misc_Note_01", true)
-    viewHistoryBtn:SetPoint("RIGHT", historyBox, "RIGHT", -12, 0)
+    local viewHistoryBtn = CreateRedIconButton(historyBox, 174, 26, "Ver Historial de bots", "Interface\\Icons\\INV_Misc_Note_01", true)
+    viewHistoryBtn:SetPoint("RIGHT", historyBox, "RIGHT", -10, 0)
     viewHistoryBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
         DungeonBots:ToggleHistoryDialog()
@@ -418,21 +601,26 @@ function DungeonBots:BuildTab1(parent)
 
     -- Caja 2: Invocador por Clase
     local classBox = CreateFrame("Frame", nil, parent)
-    classBox:SetPoint("TOPLEFT", historyBox, "BOTTOMLEFT", 0, -10)
-    classBox:SetPoint("TOPRIGHT", historyBox, "BOTTOMRIGHT", 0, -10)
-    classBox:SetHeight(185)
-    ApplyDarkBackdrop(classBox, 10)
-    classBox:SetBackdropColor(0.10, 0.12, 0.16, 0.85)
+    classBox:SetPoint("TOPLEFT", historyBox, "BOTTOMLEFT", 0, -8)
+    classBox:SetPoint("TOPRIGHT", historyBox, "BOTTOMRIGHT", 0, -8)
+    classBox:SetHeight(176)
+    ApplyInsetPanelBackdrop(classBox, 10)
 
     local classTitle = classBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     classTitle:SetPoint("TOPLEFT", 10, -8)
     classTitle:SetText("|cffffd200Invocar Bot por Clase Individual|r")
 
-    -- 10 botones de clases distribuidos en 2 filas de 5
+    local classHint = classBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    classHint:SetPoint("TOPRIGHT", -10, -9)
+    classHint:SetText("|cff888888Clic en una clase para invocar e invitar|r")
+
+    AddPanelDivider(classBox, -24)
+
+    -- 10 botones de clases distribuidos en 2 filas de 5 con ranura clásica WoW
     local btnW = 108
-    local btnH = 58
-    local spacingX = 8
-    local spacingY = 8
+    local btnH = 62
+    local spacingX = 7
+    local spacingY = 7
 
     for i, cls in ipairs(DungeonBots.CLASSES) do
         local col = ((i - 1) % 5)
@@ -441,20 +629,33 @@ function DungeonBots:BuildTab1(parent)
 
         local cBtn = CreateFrame("Button", "DungeonBots_ClassBtn_" .. cls.id, classBox)
         cBtn:SetSize(btnW, btnH)
-        cBtn:SetPoint("TOPLEFT", classBox, "TOPLEFT", 10 + col * (btnW + spacingX), -30 - row * (btnH + spacingY))
-        ApplyHeaderBackdrop(cBtn)
+        cBtn:SetPoint("TOPLEFT", classBox, "TOPLEFT", 10 + col * (btnW + spacingX), -32 - row * (btnH + spacingY))
+        ApplyInsetPanelBackdrop(cBtn, 8)
+        cBtn:SetBackdropColor(0.07, 0.08, 0.12, 0.96)
 
         local cColor = RAID_CLASS_COLORS[cls.class] or { r = 0.8, g = 0.8, b = 0.8 }
-        cBtn:SetBackdropBorderColor(cColor.r, cColor.g, cColor.b, 0.7)
+        cBtn:SetBackdropBorderColor(cColor.r, cColor.g, cColor.b, 0.55)
+
+        local nameStrip = cBtn:CreateTexture(nil, "BACKGROUND")
+        nameStrip:SetHeight(17)
+        nameStrip:SetPoint("BOTTOMLEFT", cBtn, "BOTTOMLEFT", 3, 3)
+        nameStrip:SetPoint("BOTTOMRIGHT", cBtn, "BOTTOMRIGHT", -3, 3)
+        nameStrip:SetTexture(cColor.r, cColor.g, cColor.b, 0.14)
 
         local cIcon = cBtn:CreateTexture(nil, "ARTWORK")
-        cIcon:SetSize(28, 28)
-        cIcon:SetPoint("TOP", 0, -6)
+        cIcon:SetSize(32, 32)
+        cIcon:SetPoint("TOP", cBtn, "TOP", 0, -6)
         cIcon:SetTexture(cls.icon)
         cIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
+        local cSlotBorder = cBtn:CreateTexture(nil, "OVERLAY")
+        cSlotBorder:SetSize(40, 40)
+        cSlotBorder:SetPoint("CENTER", cIcon, "CENTER", 0, 0)
+        cSlotBorder:SetTexture("Interface\\Buttons\\UI-Quickslot2")
+        cSlotBorder:SetVertexColor(cColor.r, cColor.g, cColor.b, 0.78)
+
         local cText = cBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        cText:SetPoint("BOTTOM", 0, 6)
+        cText:SetPoint("BOTTOM", 0, 5)
         cText:SetText(classDisplay)
         cText:SetTextColor(cColor.r, cColor.g, cColor.b)
 
@@ -466,35 +667,42 @@ function DungeonBots:BuildTab1(parent)
         end)
 
         cBtn:SetScript("OnEnter", function(self)
+            cBtn:SetBackdropBorderColor(cColor.r, cColor.g, cColor.b, 1.0)
+            cSlotBorder:SetVertexColor(1.0, 0.82, 0.0, 1.0)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
             GameTooltip:AddLine("Invocar " .. classDisplay, cColor.r, cColor.g, cColor.b)
             GameTooltip:AddLine("Ejecuta: |cffffd200.playerbots bot addclass " .. cls.id .. "|r", 0.7, 0.8, 1.0)
             GameTooltip:AddLine("\n|cff34c759Si el bot te susurra al aparecer, el addon lo invitará automáticamente al grupo.|r", 0.8, 0.8, 0.8, true)
             GameTooltip:Show()
         end)
-        cBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        cBtn:SetScript("OnLeave", function()
+            cBtn:SetBackdropBorderColor(cColor.r, cColor.g, cColor.b, 0.55)
+            cSlotBorder:SetVertexColor(cColor.r, cColor.g, cColor.b, 0.78)
+            GameTooltip:Hide()
+        end)
     end
 
     -- Caja 3: Acciones Globales de Grupo
     local actionBox = CreateFrame("Frame", nil, parent)
-    actionBox:SetPoint("TOPLEFT", classBox, "BOTTOMLEFT", 0, -10)
-    actionBox:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -6, 6)
-    ApplyDarkBackdrop(actionBox, 10)
-    actionBox:SetBackdropColor(0.10, 0.12, 0.16, 0.85)
+    actionBox:SetPoint("TOPLEFT", classBox, "BOTTOMLEFT", 0, -8)
+    actionBox:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -6, 4)
+    ApplyInsetPanelBackdrop(actionBox, 10)
 
     local actionTitle = actionBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     actionTitle:SetPoint("TOPLEFT", 10, -8)
     actionTitle:SetText("|cffffd200Control General del Grupo de Bots|r")
 
+    AddPanelDivider(actionBox, -24)
+
     local quickActionsLabel = actionBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    quickActionsLabel:SetPoint("TOPLEFT", 12, -32)
-    quickActionsLabel:SetText("|cffaaaaaaAcciones rápidas de grupo:|r")
+    quickActionsLabel:SetPoint("TOPLEFT", 12, -31)
+    quickActionsLabel:SetText("|cff9ea6b5Acciones rápidas para todo el grupo:|r")
 
     local addAllBtn = CreateRedIconButton(
-        actionBox, 134, 24, "Reinvocar Grupo",
+        actionBox, 136, 26, "Reinvocar Grupo",
         "Interface\\Icons\\Spell_Nature_AstralRecalGroup"
     )
-    addAllBtn:SetPoint("TOPLEFT", 11, -50)
+    addAllBtn:SetPoint("BOTTOMLEFT", actionBox, "BOTTOMLEFT", 7, 10)
     addAllBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
         DungeonBots:AddAllBots()
@@ -509,7 +717,7 @@ function DungeonBots:BuildTab1(parent)
     addAllBtn:HookScript("OnLeave", function() GameTooltip:Hide() end)
 
     local removeAllBtn = CreateRedIconButton(
-        actionBox, 134, 24, "Despedir a Todos",
+        actionBox, 136, 26, "Despedir a Todos",
         "Interface\\Icons\\Spell_ChargeNegative"
     )
     removeAllBtn:SetPoint("LEFT", addAllBtn, "RIGHT", 10, 0)
@@ -526,7 +734,7 @@ function DungeonBots:BuildTab1(parent)
     removeAllBtn:HookScript("OnLeave", function() GameTooltip:Hide() end)
 
     local repairBtn = CreateRedIconButton(
-        actionBox, 134, 24, "Reparar Equipo",
+        actionBox, 136, 26, "Reparar Equipo",
         "Interface\\Icons\\Trade_BlackSmithing"
     )
     repairBtn:SetPoint("LEFT", removeAllBtn, "RIGHT", 10, 0)
@@ -544,7 +752,7 @@ function DungeonBots:BuildTab1(parent)
     repairBtn:HookScript("OnLeave", function() GameTooltip:Hide() end)
 
     local releaseBtn = CreateRedIconButton(
-        actionBox, 134, 24, "Liberar alma",
+        actionBox, 136, 26, "Liberar alma",
         "Interface\\Icons\\Spell_Holy_GuardianSpirit"
     )
     releaseBtn:SetPoint("LEFT", repairBtn, "RIGHT", 10, 0)
@@ -571,8 +779,7 @@ function DungeonBots:BuildTab2(parent)
     topBar:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -4)
     topBar:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -4)
     topBar:SetHeight(28)
-    ApplyDarkBackdrop(topBar, 8)
-    topBar:SetBackdropColor(0.10, 0.12, 0.16, 0.85)
+    ApplyInsetPanelBackdrop(topBar)
 
     local scanBtn = CreateFrame("Button", nil, topBar, "UIPanelButtonTemplate")
     scanBtn:SetSize(145, 22)
@@ -610,8 +817,7 @@ function DungeonBots:BuildTab2(parent)
         local card = CreateFrame("Frame", "DungeonBots_BotCard_" .. i, cardContainer)
         card:SetSize(588, 86)
         card:SetPoint("TOPLEFT", cardContainer, "TOPLEFT", 6, -2 - (i - 1) * 92)
-        ApplyDarkBackdrop(card, 10)
-        card:SetBackdropColor(0.10, 0.12, 0.16, 0.90)
+        ApplyInsetPanelBackdrop(card)
 
         local cIcon = card:CreateTexture(nil, "ARTWORK")
         cIcon:SetSize(38, 38)
@@ -697,8 +903,24 @@ function DungeonBots:UpdatePartyUI()
         end
     end
 
-    if DungeonBots.tabButtons and DungeonBots.tabButtons[2] and DungeonBots.tabButtons[2].text then
-        DungeonBots.tabButtons[2].text:SetText("Bots en el grupo (" .. botCount .. ")")
+    local tab2 = DungeonBots.tabButtons and DungeonBots.tabButtons[2]
+    if tab2 then
+        tab2.botCount = botCount
+        tab2.tooltipTitle = "Bots en el grupo (" .. botCount .. ")"
+        if tab2.countBadgeBg and tab2.countBadgeText then
+            if botCount > 0 then
+                tab2.countBadgeText:SetText(tostring(botCount))
+                tab2.countBadgeBg:Show()
+                tab2.countBadgeText:Show()
+            else
+                tab2.countBadgeText:SetText("")
+                tab2.countBadgeBg:Hide()
+                tab2.countBadgeText:Hide()
+            end
+        end
+    end
+    if DungeonBots.UpdateActiveSectionHeader then
+        DungeonBots:UpdateActiveSectionHeader()
     end
 
     DungeonBots:SyncPartyToHistory()
@@ -923,8 +1145,8 @@ function DungeonBots:BuildTab3(parent)
     infoBox:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -4)
     infoBox:SetHeight(78)
     ApplyDarkBackdrop(infoBox, 10)
-    infoBox:SetBackdropColor(0.12, 0.10, 0.08, 0.90)
-    infoBox:SetBackdropBorderColor(1.0, 0.6, 0.2, 0.9)
+    infoBox:SetBackdropColor(0.12, 0.10, 0.08, 0.95)
+    infoBox:SetBackdropBorderColor(0.85, 0.52, 0.18, 0.95)
 
     local infoTitle = infoBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     infoTitle:SetPoint("TOPLEFT", 10, -8)
@@ -960,8 +1182,7 @@ function DungeonBots:BuildTab3(parent)
     step1Box:SetPoint("TOPLEFT", timerBar, "BOTTOMLEFT", 0, -8)
     step1Box:SetPoint("TOPRIGHT", timerBar, "BOTTOMRIGHT", 0, -8)
     step1Box:SetHeight(82)
-    ApplyDarkBackdrop(step1Box, 10)
-    step1Box:SetBackdropColor(0.10, 0.12, 0.16, 0.85)
+    ApplyInsetPanelBackdrop(step1Box)
 
     local step1Title = step1Box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     step1Title:SetPoint("TOPLEFT", 10, -6)
@@ -984,8 +1205,7 @@ function DungeonBots:BuildTab3(parent)
     step2Box:SetPoint("TOPLEFT", step1Box, "BOTTOMLEFT", 0, -8)
     step2Box:SetPoint("TOPRIGHT", step1Box, "BOTTOMRIGHT", 0, -8)
     step2Box:SetHeight(82)
-    ApplyDarkBackdrop(step2Box, 10)
-    step2Box:SetBackdropColor(0.10, 0.12, 0.16, 0.85)
+    ApplyInsetPanelBackdrop(step2Box)
 
     local step2Title = step2Box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     step2Title:SetPoint("TOPLEFT", 10, -6)
@@ -1008,8 +1228,7 @@ function DungeonBots:BuildTab3(parent)
     step3Box:SetPoint("TOPLEFT", step2Box, "BOTTOMLEFT", 0, -8)
     step3Box:SetPoint("TOPRIGHT", step2Box, "BOTTOMRIGHT", 0, -8)
     step3Box:SetHeight(82)
-    ApplyDarkBackdrop(step3Box, 10)
-    step3Box:SetBackdropColor(0.10, 0.12, 0.16, 0.85)
+    ApplyInsetPanelBackdrop(step3Box)
 
     local step3Title = step3Box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     step3Title:SetPoint("TOPLEFT", 10, -6)
