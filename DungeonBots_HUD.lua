@@ -97,7 +97,7 @@ local UTIL_ACTIONS = {
         actionKind = "spells",
         icon = "Interface\\Icons\\Achievement_Character_Human_Male",
         title = "|cffb266ffInformación del Personaje|r",
-        desc = "Abre un menú desplegable para elegir un bot del grupo y ver sus hechizos, glifos y talentos.\n\n|cff71d5ffPermite buscar hechizos, revisar glifos/talentos y ordenar lanzamientos ('cast').|r",
+        desc = "Abre un menú desplegable para elegir un bot del grupo y gestionar su equipo, hechizos, glifos y misiones.\n\n|cff71d5ffPermite cambiar rama/equipo, buscar hechizos, lanzar 'cast' y revisar o abandonar misiones.|r",
         tooltipCmd = "Acción: |cffffd200Elegir bot -> Info. Personaje|r",
         color = { 0.68, 0.45, 1.0 }
     },

@@ -33,7 +33,6 @@ eventFrame:RegisterEvent("UNIT_NAME_UPDATE")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 eventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
-eventFrame:RegisterEvent("INSPECT_TALENT_READY")
 
 local function HandlePartyChanged(isEnteringWorld)
     DungeonBots:ResolvePendingPartyBots()
@@ -361,11 +360,6 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     elseif event == "PLAYER_TARGET_CHANGED" then
         if DungeonBots.UpdateHUDTalkButtonState then
             DungeonBots:UpdateHUDTalkButtonState()
-        end
-
-    elseif event == "INSPECT_TALENT_READY" then
-        if DB_Internal.HandleInspectTalentReady then
-            DB_Internal.HandleInspectTalentReady()
         end
     end
 end)

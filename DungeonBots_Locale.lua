@@ -408,8 +408,8 @@ function DungeonBots:ApplyCachedLocaleToStoredDialogs()
                         end
                     end
                 end
-                if changed and DungeonBots.UpdateQuestDialog and DungeonBots.questFrame and DungeonBots.questFrame:IsShown() and DungeonBots.questFrame.currentBot == botName then
-                    DungeonBots:UpdateQuestDialog(botName)
+                if changed and DB_Internal.IsCharQuestsViewOpen and DB_Internal.IsCharQuestsViewOpen(botName) and DungeonBots.UpdateSpellsDialog then
+                    DungeonBots:UpdateSpellsDialog(botName)
                 end
             end
         end

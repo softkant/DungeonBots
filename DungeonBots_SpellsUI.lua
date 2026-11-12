@@ -1,5 +1,5 @@
 -- =========================================================================
--- DungeonBots_SpellsUI.lua: Ventana de Poderes, Glifos y Talentos
+-- DungeonBots_SpellsUI.lua: Ventana de Información del Personaje
 -- =========================================================================
 
 DungeonBots = DungeonBots or {}
@@ -19,11 +19,15 @@ local function CreateRedIconButton(parent, width, height, text, iconPath, center
     return DB_Internal.CreateRedIconButton(parent, width, height, text, iconPath, centerIcon)
 end
 
+local function SafeShowLinkTooltip(owner, linkRef, displayLink, title, rawLine)
+    return DB_Internal.SafeShowLinkTooltip(owner, linkRef, displayLink, title, rawLine)
+end
+
 local MODE_TABS = {
-    { id = "gear",    label = "Equipo",   icon = "Interface\\Icons\\INV_Chest_Plate01" },
-    { id = "spells",  label = "Hechizos", icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
-    { id = "glyphs",  label = "Glifos",   icon = "Interface\\Icons\\INV_Inscription_Tradeskill01" },
-    { id = "talents", label = "Talentos", icon = "Interface\\Icons\\Ability_Marksmanship" },
+    { id = "gear",   label = "Equipo",   icon = "Interface\\Icons\\INV_Chest_Plate01" },
+    { id = "spells", label = "Hechizos", icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
+    { id = "glyphs", label = "Glifos",   icon = "Interface\\Icons\\INV_Inscription_Tradeskill01" },
+    { id = "quests", label = "Misiones", icon = "Interface\\QuestFrame\\UI-QuestLog-BookIcon", texCoord = { 0.16, 0.84, 0.16, 0.84 } },
 }
 
 local function BuildGearPanel(sp)
@@ -200,12 +204,65 @@ local SPELL_ROW_HEIGHT = 40
 local SPELL_ROW_PITCH = 43
 
 local spellRowButtons = {}
+local questRowButtons = {}
 
-local function ConfigureIconTabButton(btn, iconPath)
+local function HideRowPool(pool, fromIndex)
+    for i = (fromIndex or 1), #pool do
+        local row = pool[i]
+        row.spellEntry = nil
+        row.questEntry = nil
+        row:Hide()
+    end
+end
+
+local function CreateQuestRowButton(parent, idx)
+    local row = CreateFrame("Frame", "DungeonBots_QuestRow_" .. idx, parent)
+    row:SetSize(492, 36)
+    row:SetPoint("TOPLEFT", parent, "TOPLEFT", 4, -((idx - 1) * 40) - 4)
+    ApplyDarkBackdrop(row, 8)
+    row:SetBackdropColor(0.08, 0.10, 0.14, 0.95)
+    row:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.85)
+
+    local icon = row:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(20, 20)
+    icon:SetPoint("LEFT", 8, 0)
+    icon:SetTexture("Interface\\Icons\\INV_Misc_Note_01")
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    row.icon = icon
+
+    local titleBtn = CreateFrame("Button", nil, row)
+    titleBtn:SetPoint("TOPLEFT", row, "TOPLEFT", 32, -2)
+    titleBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -114, 2)
+    row.titleBtn = titleBtn
+
+    local titleText = titleBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    titleText:SetPoint("TOPLEFT", 2, -4)
+    titleText:SetPoint("TOPRIGHT", -2, -4)
+    titleText:SetJustifyH("LEFT")
+    titleText:SetWordWrap(false)
+    row.titleText = titleText
+
+    local subText = titleBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    subText:SetPoint("TOPLEFT", titleText, "BOTTOMLEFT", 0, -2)
+    subText:SetPoint("TOPRIGHT", titleText, "BOTTOMRIGHT", 0, -2)
+    subText:SetJustifyH("LEFT")
+    subText:SetWordWrap(false)
+    row.subText = subText
+
+    local dropBtn = CreateRedIconButton(row, 102, 22, "Abandonar", "Interface\\Icons\\Spell_ChargeNegative")
+    dropBtn:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    row.dropBtn = dropBtn
+
+    questRowButtons[idx] = row
+    return row
+end
+
+local function ConfigureIconTabButton(btn, iconPath, texCoord)
     local tex = btn:CreateTexture(nil, "OVERLAY")
     tex:SetSize(14, 14)
     tex:SetPoint("LEFT", btn, "LEFT", 9, 0)
-    tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    local tc = texCoord or { 0.08, 0.92, 0.08, 0.92 }
+    tex:SetTexCoord(tc[1], tc[2], tc[3], tc[4])
     if iconPath then
         tex:SetTexture(iconPath)
     end
@@ -369,22 +426,11 @@ local function CreateSpellRowButton(parent, idx)
         if not entry then return end
 
         local isGlyph = (entry.kind == "glyph")
-        local isTalent = (entry.kind == "talent")
         local linkToShow = entry.displayLink or entry.rawLink
 
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         local loadedRich = false
-        if isTalent then
-            if entry.talentLink and string.find(entry.talentLink, "|H", 1, true) and GameTooltip.SetHyperlink then
-                loadedRich = pcall(GameTooltip.SetHyperlink, GameTooltip, entry.talentLink)
-            end
-            local curBot = DungeonBots.spellsFrame and DungeonBots.spellsFrame.currentBot
-            if (not loadedRich or (GameTooltip.NumLines and GameTooltip:NumLines() == 0))
-                and GameTooltip.SetTalent and entry.tabIndex and entry.talentIndex
-                and curBot and DungeonBots.lastInspectedTalentBot == curBot then
-                loadedRich = pcall(GameTooltip.SetTalent, GameTooltip, entry.tabIndex, entry.talentIndex, true)
-            end
-        elseif isGlyph and linkToShow and string.find(linkToShow, "|H", 1, true) and GameTooltip.SetHyperlink then
+        if isGlyph and linkToShow and string.find(linkToShow, "|H", 1, true) and GameTooltip.SetHyperlink then
             loadedRich = pcall(GameTooltip.SetHyperlink, GameTooltip, linkToShow)
         end
         if not loadedRich then
@@ -398,16 +444,8 @@ local function CreateSpellRowButton(parent, idx)
         end
         if not loadedRich or (GameTooltip.NumLines and GameTooltip:NumLines() == 0) then
             GameTooltip:ClearLines()
-            local fallbackTitle = entry.name or entry.rawName or (isTalent and "Talento" or (isGlyph and "Glifo" or "Hechizo"))
+            local fallbackTitle = entry.name or entry.rawName or (isGlyph and "Glifo" or "Hechizo")
             GameTooltip:AddLine(fallbackTitle, 0.45, 0.85, 1.0)
-        end
-
-        if isTalent then
-            GameTooltip:AddLine(" ")
-            GameTooltip:AddLine("Rango: |cffffffff" .. (entry.currentRank or 0) .. "/" .. (entry.maxRank or 0) .. "|r  (" .. (entry.treeName or "Talentos") .. ")", 0.44, 0.84, 1.0)
-            GameTooltip:AddLine("Shift + Clic: |cffffffffInsertar enlace en el chat|r", 0.8, 0.8, 0.8)
-            GameTooltip:Show()
-            return
         end
 
         if isGlyph then
@@ -461,7 +499,7 @@ local function CreateSpellRowButton(parent, idx)
             end
         end
 
-        if entry.kind == "glyph" or entry.kind == "talent" then return end
+        if entry.kind == "glyph" then return end
 
         PlaySound("igMainMenuOptionCheckBoxOn")
         if sp.selectedSpell == entry then
@@ -547,6 +585,10 @@ function DungeonBots:BuildSpellsDialog()
                 if DungeonBots.QueryBotStats then
                     DungeonBots:QueryBotStats(sp.currentBot, true)
                 end
+            elseif sp.activeMode == "quests" then
+                if DungeonBots.QueryQuests then
+                    DungeonBots:QueryQuests(sp.currentBot, true, false)
+                end
             elseif DungeonBots.QueryBotSpells then
                 DungeonBots:QueryBotSpells(sp.currentBot, sp.activeMode, "", false)
             end
@@ -554,7 +596,7 @@ function DungeonBots:BuildSpellsDialog()
     end)
     sp.refreshBtn = refreshBtn
 
-    -- Subpestanas de modo: Equipo / Hechizos / Glifos / Talentos (tamano compacto y equilibrado)
+    -- Subpestanas de modo: Equipo / Hechizos / Glifos / Misiones
     sp.modeButtons = {}
     local modeBtnW = 122
     local modeBtnGap = 8
@@ -564,7 +606,7 @@ function DungeonBots:BuildSpellsDialog()
         mBtn:SetSize(modeBtnW, 22)
         mBtn:SetPoint("TOPLEFT", sp, "TOPLEFT", modeStartX + ((idx - 1) * (modeBtnW + modeBtnGap)), -40)
         mBtn:SetText(tabDef.label)
-        ConfigureIconTabButton(mBtn, tabDef.icon)
+        ConfigureIconTabButton(mBtn, tabDef.icon, tabDef.texCoord)
         mBtn:SetScript("OnClick", function()
             PlaySound("igMainMenuOptionCheckBoxOn")
             sp.activeMode = tabDef.id
@@ -573,7 +615,17 @@ function DungeonBots:BuildSpellsDialog()
             if rec then
                 rec.activeMode = tabDef.id
             end
-            if sp.currentBot and (not existingTab or (existingTab.updatedAt == 0 and not existingTab.loading) or (tabDef.id == "talents" and existingTab.inspectError)) then
+            if tabDef.id == "quests" then
+                local qData = sp.currentBot and DungeonBots.questDialogData and DungeonBots.questDialogData[sp.currentBot]
+                local now = DB_Internal.NowTime and DB_Internal.NowTime() or 0
+                if sp.currentBot and (not qData or (not qData.loading and not qData.done) or ((now - (qData.updatedAt or 0)) > 20)) then
+                    if DungeonBots.QueryQuests then
+                        DungeonBots:QueryQuests(sp.currentBot, true, false)
+                    end
+                else
+                    DungeonBots:UpdateSpellsDialog(sp.currentBot)
+                end
+            elseif sp.currentBot and (not existingTab or (existingTab.updatedAt == 0 and not existingTab.loading)) then
                 DungeonBots:QueryBotSpells(sp.currentBot, tabDef.id, "", false)
             else
                 DungeonBots:UpdateSpellsDialog(sp.currentBot)
@@ -605,59 +657,7 @@ function DungeonBots:BuildSpellsDialog()
     localSearchBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     sp.localSearchBox = localSearchBox
 
-    -- Selector de las 3 ramas de talentos (tira plana oscura distinta a los botones principales)
-    local talentTreeBar = CreateFrame("Frame", "DungeonBots_TalentTreeBar", sp)
-    talentTreeBar:SetPoint("TOPLEFT", sp, "TOPLEFT", 10, -66)
-    talentTreeBar:SetPoint("TOPRIGHT", sp, "TOPRIGHT", -10, -66)
-    talentTreeBar:SetHeight(24)
-    talentTreeBar:Hide()
-    sp.talentTreeBar = talentTreeBar
-
-    sp.talentTreeButtons = {}
-    for t = 1, 3 do
-        local treeIndex = t
-        local tBtn = CreateFrame("Button", "DungeonBots_TalentTreeTab_" .. t, talentTreeBar)
-        tBtn:SetSize(176, 24)
-        tBtn:SetPoint("TOPLEFT", talentTreeBar, "TOPLEFT", (t - 1) * 182, 0)
-        ApplyDarkBackdrop(tBtn, 8)
-        tBtn:SetBackdropColor(0.05, 0.06, 0.09, 0.90)
-        tBtn:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.75)
-        tBtn:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
-
-        local tIcon = tBtn:CreateTexture(nil, "ARTWORK")
-        tIcon:SetSize(15, 15)
-        tIcon:SetPoint("LEFT", tBtn, "LEFT", 8, 0)
-        tIcon:SetTexture("Interface\\Icons\\Ability_Marksmanship")
-        tIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-        tBtn.tabIcon = tIcon
-
-        local tLabel = tBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        tLabel:SetPoint("LEFT", tIcon, "RIGHT", 5, 0)
-        tLabel:SetPoint("RIGHT", tBtn, "RIGHT", -6, 0)
-        tLabel:SetJustifyH("CENTER")
-        tLabel:SetText("Rama " .. t)
-        tBtn:SetFontString(tLabel)
-        tBtn.text = tLabel
-
-        local accentBar = tBtn:CreateTexture(nil, "OVERLAY")
-        accentBar:SetHeight(2)
-        accentBar:SetPoint("BOTTOMLEFT", tBtn, "BOTTOMLEFT", 4, 2)
-        accentBar:SetPoint("BOTTOMRIGHT", tBtn, "BOTTOMRIGHT", -4, 2)
-        accentBar:SetTexture(0.35, 0.80, 1.0, 0.95)
-        accentBar:Hide()
-        tBtn.accentBar = accentBar
-        tBtn.isDarkTreeTab = true
-
-        tBtn:SetScript("OnClick", function()
-            PlaySound("igMainMenuOptionCheckBoxOn")
-            if sp.currentBot and DB_Internal.SelectBotTalentTree then
-                DB_Internal.SelectBotTalentTree(sp.currentBot, treeIndex)
-            end
-        end)
-        sp.talentTreeButtons[t] = tBtn
-    end
-
-    -- Hint de modo secundario (cuando NO esta en modo Hechizos)
+    -- Hint de modo secundario (ej. resumen de misiones activas sobre la lista)
     local modeHintLabel = sp:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     modeHintLabel:SetPoint("TOPLEFT", sp, "TOPLEFT", 14, -72)
     modeHintLabel:SetPoint("TOPRIGHT", sp, "TOPRIGHT", -14, -72)
@@ -736,11 +736,18 @@ function DungeonBots:BuildSpellsDialog()
     castBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
     sp.castBtn = castBtn
 
+    local questFooterHint = sp:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    questFooterHint:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", -12, 16)
+    questFooterHint:SetJustifyH("RIGHT")
+    questFooterHint:SetText("|cffaaaaaaHaz clic en una misión para ver detalles o pulsa 'Abandonar'.|r")
+    questFooterHint:Hide()
+    sp.questFooterHint = questFooterHint
+
     DungeonBots.spellsFrame = sp
 end
 
 local function IsValidMode(mode)
-    return mode == "gear" or mode == "spells" or mode == "glyphs" or mode == "talents"
+    return mode == "gear" or mode == "spells" or mode == "glyphs" or mode == "quests"
 end
 
 local function UpdateCycleFooter(sp, targetBot)
@@ -841,14 +848,8 @@ local function RenderGearPanel(sp, targetBot, classToken)
     end
 
     local st = DungeonBots.botStats and DungeonBots.botStats[targetBot]
-    if st then
-        local intactPct = math.max(0, math.min(100, 100 - (st.durPct or 0)))
-        local durColor = (st.durColorHex and st.durColorHex ~= "") and st.durColorHex or "|cff34c759"
-        local bagColor = (st.bagColorHex and st.bagColorHex ~= "") and st.bagColorHex or "|cffe6ecf5"
-        gp.gearStatsSummary:SetText("Armadura: " .. durColor .. intactPct .. "%|r  |  Bolsas: " .. bagColor .. tostring(st.bagUsed) .. "/" .. tostring(st.bagTotal) .. "|r")
-    else
-        gp.gearStatsSummary:SetText("Armadura: |cff888888N/D|r  |  Bolsas: |cff888888N/D|r")
-    end
+    local armorStr, bagStr = DB_Internal.FormatBotStatsDisplay(st, "|cff888888N/D|r")
+    gp.gearStatsSummary:SetText(armorStr .. "  |  " .. bagStr)
 
     gp.matchBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
@@ -880,75 +881,102 @@ local function RenderGearPanel(sp, targetBot, classToken)
     gp.blueBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
-local function FormatCachedTalentSummary(botName)
-    local activeSpec = DungeonBotsDB and DungeonBotsDB.botActiveSpec and DungeonBotsDB.botActiveSpec[botName]
-    local triplet = DungeonBots.lastDetectedTriplet and DungeonBots.lastDetectedTriplet[botName]
-    local specTxt = activeSpec and ((DungeonBots.LocalizeSpecText and DungeonBots:LocalizeSpecText(activeSpec)) or activeSpec) or nil
-    if specTxt and triplet then
-        return "|cff71d5ffRama activa:|r |cffffd200" .. specTxt .. "|r |cff8899aa(" .. triplet .. ")|r"
-    elseif specTxt then
-        return "|cff71d5ffRama activa:|r |cffffd200" .. specTxt .. "|r"
-    elseif triplet then
-        return "|cff71d5ffReparto de talentos:|r |cffffd200" .. triplet .. "|r"
-    end
-    return "|cff71d5ffTalentos:|r Pasa el ratón por cada talento para ver su descripción."
-end
+local function RenderQuestsPanelRows(sp, targetBot)
+    sp.filterBar:Hide()
+    sp.castBtn:Hide()
+    sp.selectedSpell = nil
+    if sp.questFooterHint then sp.questFooterHint:Show() end
+    sp.modeHintLabel:Show()
 
-local function RenderTalentTreeBar(sp, tab)
-    local trees = (tab and type(tab.trees) == "table") and tab.trees or {}
-    if #trees == 0 then
-        sp.talentTreeBar:Hide()
-        return false, nil
+    if sp.listBg then
+        sp.listBg:ClearAllPoints()
+        sp.listBg:SetPoint("TOPLEFT", sp, "TOPLEFT", 10, -96)
+        sp.listBg:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", -10, 42)
     end
 
-    sp.talentTreeBar:Show()
-    local selectedTree = tab.selectedTree or 1
-    local activeTreeName = trees[selectedTree] and trees[selectedTree].name or ("Rama " .. selectedTree)
+    local data = DungeonBots.questDialogData and DungeonBots.questDialogData[targetBot]
+    local quests = (data and data.quests) or {}
 
-    for t = 1, 3 do
-        local tBtn = sp.talentTreeButtons[t]
-        local treeInfo = trees[t]
-        if tBtn and treeInfo then
-            local pts = treeInfo.pointsSpent or 0
-            local labelTxt = (treeInfo.name or ("Rama " .. t)) .. " (" .. pts .. ")"
-            if tBtn.tabIcon then
-                tBtn.tabIcon:SetTexture(treeInfo.icon or "Interface\\Icons\\Ability_Marksmanship")
-            end
-            if tBtn.text then
-                tBtn.text:SetText(labelTxt)
-            end
-            tBtn:SetText(labelTxt)
-
-            if t == selectedTree then
-                tBtn:SetAlpha(1.0)
-                tBtn:SetBackdropColor(0.11, 0.22, 0.36, 0.96)
-                tBtn:SetBackdropBorderColor(0.35, 0.78, 1.0, 0.95)
-                if tBtn.text then tBtn.text:SetTextColor(1.0, 1.0, 1.0) end
-                if tBtn.tabIcon then tBtn.tabIcon:SetVertexColor(1.0, 1.0, 1.0, 1.0) end
-                if tBtn.accentBar then tBtn.accentBar:Show() end
-                tBtn.isSelectedTree = true
-            else
-                tBtn:SetAlpha(0.92)
-                if pts > 0 then
-                    tBtn:SetBackdropColor(0.06, 0.08, 0.12, 0.92)
-                    tBtn:SetBackdropBorderColor(0.32, 0.36, 0.45, 0.85)
-                    if tBtn.text then tBtn.text:SetTextColor(0.90, 0.82, 0.55) end
-                    if tBtn.tabIcon then tBtn.tabIcon:SetVertexColor(0.95, 0.95, 0.95, 0.95) end
-                else
-                    tBtn:SetBackdropColor(0.04, 0.05, 0.08, 0.80)
-                    tBtn:SetBackdropBorderColor(0.20, 0.22, 0.27, 0.65)
-                    if tBtn.text then tBtn.text:SetTextColor(0.55, 0.57, 0.62) end
-                    if tBtn.tabIcon then tBtn.tabIcon:SetVertexColor(0.65, 0.65, 0.65, 0.80) end
-                end
-                if tBtn.accentBar then tBtn.accentBar:Hide() end
-                tBtn.isSelectedTree = false
-            end
-            tBtn:Show()
-        elseif tBtn then
-            tBtn:Hide()
+    if data and data.loading and #quests == 0 then
+        sp.modeHintLabel:SetText("|cff71d5ffConsultando misiones activas...|r")
+        sp.emptyLabel:SetText("|cff71d5ffConsultando misiones de " .. targetBot .. "...|r\n\n|cff888888Espera un instante mientras responde.|r")
+        sp.emptyLabel:Show()
+    elseif #quests == 0 then
+        sp.modeHintLabel:SetText("Misiones activas: |cffffd2000|r")
+        if data and data.emptyHint and data.emptyHint ~= "" then
+            sp.emptyLabel:SetText("Este bot no tiene misiones activas.\n\n|cff888888(" .. data.emptyHint .. ")|r")
+        else
+            sp.emptyLabel:SetText("Este bot no tiene misiones activas.")
         end
+        sp.emptyLabel:Show()
+    else
+        sp.modeHintLabel:SetText("Misiones activas: |cffffd200" .. #quests .. "|r  |cff888888(clic para ver detalles)|r")
+        sp.emptyLabel:Hide()
     end
-    return true, activeTreeName
+
+    HideRowPool(spellRowButtons, 1)
+
+    for i, q in ipairs(quests) do
+        local row = questRowButtons[i] or CreateQuestRowButton(sp.scrollChild, i)
+        row.questEntry = q
+        row:Show()
+
+        local lvlPrefix = (q.questLevel and q.questLevel ~= "") and ("|cff88aacc[" .. q.questLevel .. "]|r ") or ""
+        row.titleText:SetText(lvlPrefix .. "|cffffff00" .. (q.title or "Misión") .. "|r")
+
+        local subStr = ""
+        if q.statusText and q.statusText ~= "" then
+            local lowerSt = string.lower(q.statusText)
+            if (string.find(lowerSt, "complete") or string.find(lowerSt, "completa")) and not string.find(lowerSt, "incomplete") then
+                subStr = "|cff34c759" .. q.statusText .. "|r"
+            else
+                subStr = "|cff9aa5b5" .. q.statusText .. "|r"
+            end
+        elseif q.questId then
+            subStr = "|cff777777ID: " .. q.questId .. " (clic para inspeccionar)|r"
+        else
+            subStr = "|cff777777Clic para ver detalle|r"
+        end
+        row.subText:SetText(subStr)
+
+        row.titleBtn:SetScript("OnClick", function(self)
+            PlaySound("igMainMenuOptionCheckBoxOn")
+            local linkRef = q.questId and ("quest:" .. q.questId .. ":" .. (q.questLevel or "80")) or nil
+            SafeShowLinkTooltip(self, linkRef, q.displayLink, q.title, q.rawLine)
+        end)
+        row.titleBtn:SetScript("OnEnter", function(self)
+            row:SetBackdropBorderColor(0.25, 0.78, 1.0, 1.0)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:AddLine(q.title or "Misión", 1, 0.85, 0.2)
+            if q.statusText and q.statusText ~= "" then
+                GameTooltip:AddLine("Estado: " .. q.statusText, 0.8, 0.9, 1.0, true)
+            end
+            if q.questId then
+                GameTooltip:AddLine("Haz clic para abrir el detalle de la misión.", 0.3, 0.9, 0.5)
+            end
+            GameTooltip:Show()
+        end)
+        row.titleBtn:SetScript("OnLeave", function()
+            row:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.85)
+            GameTooltip:Hide()
+        end)
+
+        row.dropBtn:Show()
+        row.dropBtn:SetScript("OnClick", function()
+            DungeonBots:DropBotQuest(targetBot, q)
+        end)
+        row.dropBtn:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:AddLine("Abandonar Misión", 1, 0.35, 0.35)
+            GameTooltip:AddLine("Ordena a " .. targetBot .. " abandonar '" .. (q.title or "") .. "' y recarga la lista.", 0.8, 0.85, 0.95, true)
+            GameTooltip:Show()
+        end)
+        row.dropBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    end
+
+    HideRowPool(questRowButtons, #quests + 1)
+    sp.scrollChild:SetHeight(math.max(1, (#quests * 40) + 8))
+    UpdateCycleFooter(sp, targetBot)
 end
 
 function DungeonBots:UpdateSpellsDialog(botName)
@@ -988,11 +1016,13 @@ function DungeonBots:UpdateSpellsDialog(botName)
 
     if mode == "gear" then
         sp.filterBar:Hide()
-        sp.talentTreeBar:Hide()
         sp.modeHintLabel:Hide()
         sp.listBg:Hide()
         sp.castBtn:Hide()
+        if sp.questFooterHint then sp.questFooterHint:Hide() end
         sp.emptyLabel:Hide()
+        HideRowPool(spellRowButtons, 1)
+        HideRowPool(questRowButtons, 1)
         if sp.gearPanel then
             sp.gearPanel:Show()
             RenderGearPanel(sp, targetBot, targetClassToken)
@@ -1008,14 +1038,20 @@ function DungeonBots:UpdateSpellsDialog(botName)
         sp.listBg:Show()
     end
 
+    if mode == "quests" then
+        RenderQuestsPanelRows(sp, targetBot)
+        return
+    end
+
+    if sp.questFooterHint then sp.questFooterHint:Hide() end
+    HideRowPool(questRowButtons, 1)
+
     local allItems = (tab and tab.items) or {}
     local visibleEntries = {}
     local filterRaw = ""
-    local activeTreeName = nil
 
     if mode == "spells" then
         sp.filterBar:Show()
-        sp.talentTreeBar:Hide()
         sp.modeHintLabel:Hide()
         sp.castBtn:Show()
 
@@ -1055,25 +1091,11 @@ function DungeonBots:UpdateSpellsDialog(botName)
         if not selectedVisible then
             sp.selectedSpell = nil
         end
-    elseif mode == "glyphs" then
+    else
         sp.filterBar:Hide()
-        sp.talentTreeBar:Hide()
         sp.modeHintLabel:Hide()
         sp.castBtn:Hide()
         sp.selectedSpell = nil
-        visibleEntries = allItems
-    else
-        sp.filterBar:Hide()
-        sp.castBtn:Hide()
-        sp.selectedSpell = nil
-        local hasTreeBar, treeName = RenderTalentTreeBar(sp, tab)
-        activeTreeName = treeName
-        if hasTreeBar then
-            sp.modeHintLabel:Hide()
-        else
-            sp.modeHintLabel:Show()
-            sp.modeHintLabel:SetText(FormatCachedTalentSummary(targetBot))
-        end
         visibleEntries = allItems
     end
 
@@ -1087,18 +1109,12 @@ function DungeonBots:UpdateSpellsDialog(botName)
     if #visibleEntries == 0 then
         sp.emptyLabel:Show()
         if tab and tab.loading then
-            local what = (mode == "talents" and "talentos") or (mode == "glyphs" and "glifos") or "hechizos"
+            local what = (mode == "glyphs" and "glifos") or "hechizos"
             sp.emptyLabel:SetText("Consultando " .. what .. " de |cffffd200" .. targetBot .. "|r...")
-        elseif tab and tab.inspectError then
-            sp.emptyLabel:SetText(tab.inspectError)
         elseif tab and tab.emptyHint then
             sp.emptyLabel:SetText(tab.emptyHint)
-        elseif mode == "talents" and activeTreeName then
-            sp.emptyLabel:SetText("Sin puntos asignados en la rama |cffffd200" .. activeTreeName .. "|r.")
         elseif #allItems == 0 then
-            if mode == "talents" then
-                sp.emptyLabel:SetText("No se encontraron talentos asignados para |cffffd200" .. targetBot .. "|r.")
-            elseif mode == "glyphs" then
+            if mode == "glyphs" then
                 sp.emptyLabel:SetText("No se recibieron glifos para |cffffd200" .. targetBot .. "|r.")
             else
                 sp.emptyLabel:SetText("No se recibieron poderes para |cffffd200" .. targetBot .. "|r.")
@@ -1116,20 +1132,13 @@ function DungeonBots:UpdateSpellsDialog(botName)
         row.icon:SetTexture(entry.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
 
         local isGlyph = (entry.kind == "glyph")
-        local isTalent = (entry.kind == "talent")
-        local titleTxt = entry.name or entry.rawName or (isTalent and "Talento" or (isGlyph and "Glifo" or "Hechizo"))
+        local titleTxt = entry.name or entry.rawName or (isGlyph and "Glifo" or "Hechizo")
         if entry.rank and entry.rank ~= "" then
             titleTxt = titleTxt .. " |cff888888(" .. entry.rank .. ")|r"
         end
         row.nameLabel:SetText(titleTxt)
 
-        if isTalent then
-            local currRank = entry.currentRank or 0
-            local maxRank = entry.maxRank or currRank
-            local maxed = (maxRank > 0 and currRank >= maxRank)
-            row.diffBadge:SetText((maxed and "|cffffd200" or "|cff34c759") .. currRank .. "/" .. maxRank .. "|r")
-            row.subLabel:SetText("|cff8899aa" .. (entry.treeName or "Talento") .. "  ·  Nivel " .. (entry.tier or 1) .. "  |  Shift + Clic: enlazar|r")
-        elseif isGlyph then
+        if isGlyph then
             local glyphType = entry.categoryTag or "Glifo"
             row.diffBadge:SetText("|cff71d5ff" .. glyphType .. " #" .. i .. "|r")
             row.subLabel:SetText("|cff8899aaGlifo equipado  |  Pasa el ratón para ver detalles|r")
@@ -1150,10 +1159,7 @@ function DungeonBots:UpdateSpellsDialog(botName)
         row:Show()
     end
 
-    for i = #visibleEntries + 1, #spellRowButtons do
-        spellRowButtons[i].spellEntry = nil
-        spellRowButtons[i]:Hide()
-    end
+    HideRowPool(spellRowButtons, #visibleEntries + 1)
 
     sp.scrollChild:SetHeight(math.max(1, (#visibleEntries * SPELL_ROW_PITCH) + 8))
     UpdateSpellSelectionUI()

@@ -15,7 +15,6 @@ local StripWowFormatting = DB_Internal.StripWowFormatting
 DungeonBots.spellsDialogData = DungeonBots.spellsDialogData or {}
 DungeonBots.pendingSpellsCapture = DungeonBots.pendingSpellsCapture or {}
 DungeonBots.pendingSpellDetailCapture = DungeonBots.pendingSpellDetailCapture or {}
-DungeonBots.pendingTalentInspect = nil
 
 local DIFFICULTY_INFO = {
     gray   = { key = "gray",   label = "Gris",     colorHex = "|cff9d9d9d", r = 0.62, g = 0.62, b = 0.62 },
@@ -30,7 +29,7 @@ local MODE_COMMANDS = {
     gear = "gear",
     spells = "spells",
     glyphs = "glyphs",
-    talents = "talents",
+    quests = "quests",
 }
 
 local function GetOrCreateBotSpellsRecord(cleanBot)
@@ -554,246 +553,8 @@ function DB_Internal.ParseSpellsCaptureWhisper(cleanSender, message)
     return true
 end
 
-local function ReadInspectTalentTabInfo(tabIndex, activeGroup)
-    if not GetTalentTabInfo then return nil, nil, 0 end
-    local ok, r1, r2, r3, r4, r5 = pcall(GetTalentTabInfo, tabIndex, true, false, activeGroup)
-    if not ok or (not r1 and not r2) then
-        ok, r1, r2, r3, r4, r5 = pcall(GetTalentTabInfo, tabIndex, true)
-    end
-    if not ok then return nil, nil, 0 end
-    if type(r1) == "number" then
-        return r2, r4, tonumber(r5) or 0
-    end
-    return r1, r2, tonumber(r3) or 0
-end
-
-local function CaptureInspectTalentsForBot(cleanBot)
-    local tab = GetOrCreateModeTab(cleanBot, "talents")
-    local activeGroup = 1
-    if GetActiveTalentGroup then
-        local ok, grp = pcall(GetActiveTalentGroup, true, false)
-        if not ok then
-            ok, grp = pcall(GetActiveTalentGroup, true)
-        end
-        if ok and tonumber(grp) then
-            activeGroup = tonumber(grp)
-        end
-    end
-
-    local numTabs = 0
-    if GetNumTalentTabs then
-        local ok, n = pcall(GetNumTalentTabs, true, false)
-        if not ok then
-            ok, n = pcall(GetNumTalentTabs, true)
-        end
-        if ok and tonumber(n) then
-            numTabs = tonumber(n)
-        end
-    end
-
-    local trees = {}
-    local bestTreeIdx = 1
-    local bestPoints = -1
-
-    for t = 1, numTabs do
-        local tabName, tabIcon, pointsSpent = ReadInspectTalentTabInfo(t, activeGroup)
-        local numTalents = 0
-        if GetNumTalents then
-            local ok, nt = pcall(GetNumTalents, t, true, false)
-            if not ok then
-                ok, nt = pcall(GetNumTalents, t, true)
-            end
-            if ok and tonumber(nt) then
-                numTalents = tonumber(nt)
-            end
-        end
-
-        local spentTalents = {}
-        local sumPoints = 0
-        for i = 1, numTalents do
-            local ok, nameTalent, iconPath, tier, column, currRank, maxRank = pcall(GetTalentInfo, t, i, true, false, activeGroup)
-            if not ok or not nameTalent then
-                ok, nameTalent, iconPath, tier, column, currRank, maxRank = pcall(GetTalentInfo, t, i, true)
-            end
-            currRank = tonumber(currRank) or 0
-            maxRank = tonumber(maxRank) or currRank
-            if ok and nameTalent and currRank > 0 then
-                sumPoints = sumPoints + currRank
-                local tLink = nil
-                if GetTalentLink then
-                    local okL, lnk = pcall(GetTalentLink, t, i, true, false, activeGroup)
-                    if not okL or not lnk then
-                        okL, lnk = pcall(GetTalentLink, t, i, true)
-                    end
-                    if okL and type(lnk) == "string" and string.find(lnk, "|H", 1, true) then
-                        tLink = lnk
-                    end
-                end
-                table.insert(spentTalents, {
-                    kind = "talent",
-                    tabIndex = t,
-                    talentIndex = i,
-                    tier = tonumber(tier) or 1,
-                    column = tonumber(column) or 1,
-                    currentRank = currRank,
-                    maxRank = maxRank,
-                    name = nameTalent,
-                    rawName = nameTalent,
-                    icon = iconPath,
-                    talentLink = tLink,
-                    rawLink = tLink,
-                    displayLink = tLink,
-                    plainLink = tLink,
-                    treeName = tabName or ("Rama " .. t),
-                })
-            end
-        end
-
-        table.sort(spentTalents, function(a, b)
-            if a.tier ~= b.tier then return a.tier < b.tier end
-            if a.column ~= b.column then return a.column < b.column end
-            return a.talentIndex < b.talentIndex
-        end)
-
-        local finalPoints = math.max(tonumber(pointsSpent) or 0, sumPoints)
-        table.insert(trees, {
-            tabIndex = t,
-            name = tabName or ("Rama " .. t),
-            icon = tabIcon or "Interface\\Icons\\Ability_Marksmanship",
-            pointsSpent = finalPoints,
-            talents = spentTalents,
-        })
-        if finalPoints > bestPoints then
-            bestPoints = finalPoints
-            bestTreeIdx = t
-        end
-    end
-
-    if #trees == 0 then
-        return false
-    end
-
-    tab.trees = trees
-    tab.activeGroup = activeGroup
-    tab.selectedTree = bestTreeIdx
-    tab.inspectReady = true
-    tab.inspectError = nil
-    tab.loading = false
-    tab.done = true
-    tab.dirty = false
-    tab.updatedAt = NowTime()
-    tab.lastUiRefresh = tab.updatedAt
-    tab.items = (trees[bestTreeIdx] and trees[bestTreeIdx].talents) or {}
-    return true
-end
-
-function DB_Internal.HandleInspectTalentReady()
-    local pending = DungeonBots.pendingTalentInspect
-    if not pending then return false end
-
-    if pending.unit and UnitExists and UnitName then
-        if not UnitExists(pending.unit) then return false end
-        local inspectedName = NormalizePlayerName(UnitName(pending.unit))
-        if inspectedName ~= pending.botName then return false end
-    end
-
-    if CaptureInspectTalentsForBot(pending.botName) then
-        DungeonBots.lastInspectedTalentBot = pending.botName
-        DungeonBots.pendingTalentInspect = nil
-        if DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == pending.botName then
-            DungeonBots:UpdateSpellsDialog(pending.botName)
-        end
-        return true
-    end
-    return false
-end
-
-function DB_Internal.SelectBotTalentTree(botName, treeIndex)
-    local tab = DB_Internal.GetBotSpellTabData(botName, "talents")
-    if not tab or type(tab.trees) ~= "table" or not tab.trees[treeIndex] then
-        return
-    end
-    tab.selectedTree = treeIndex
-    tab.items = tab.trees[treeIndex].talents or {}
-    if DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() then
-        DungeonBots:UpdateSpellsDialog(botName)
-    end
-end
-
-local function StartTalentInspectQuery(cleanBot, tab, rec, isSilent)
-    local now = NowTime()
-    tab.loading = true
-    tab.done = false
-    tab.sawHeader = false
-    tab.trees = {}
-    tab.items = {}
-    tab.lines = {}
-    tab.selectedTree = nil
-    tab.inspectReady = false
-    tab.inspectError = nil
-    tab.emptyHint = nil
-    tab.updatedAt = now
-    tab.dirty = false
-    tab.lastUiRefresh = now
-
-    if not isSilent and DungeonBots.OpenSpellsDialog then
-        DungeonBots:OpenSpellsDialog(cleanBot, "talents")
-    elseif DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == cleanBot then
-        DungeonBots:UpdateSpellsDialog(cleanBot)
-    end
-
-    local hasCachedSpec = (DungeonBotsDB and DungeonBotsDB.botActiveSpec and DungeonBotsDB.botActiveSpec[cleanBot])
-    if not hasCachedSpec and DungeonBots.QueueWhisperCommand then
-        DungeonBots:QueueWhisperCommand(cleanBot, "talents")
-    end
-
-    local unit = DungeonBots.FindPartyUnitByName and DungeonBots:FindPartyUnitByName(cleanBot)
-    if unit and CanInspect and CanInspect(unit) and NotifyInspect then
-        DungeonBots.pendingTalentInspect = {
-            botName = cleanBot,
-            unit = unit,
-            startedAt = now,
-            expiresAt = now + 3.5,
-        }
-        if DungeonBots.uiCaptureFrame then
-            DungeonBots.uiCaptureFrame:Show()
-        end
-        pcall(NotifyInspect, unit)
-    else
-        DungeonBots.pendingTalentInspect = nil
-        tab.loading = false
-        tab.done = true
-        local prox = DungeonBots.GetBotProximityInfo and DungeonBots:GetBotProximityInfo(cleanBot) or nil
-        if prox and prox.detailMsg then
-            tab.inspectError = "|cffff5544" .. prox.detailMsg .. "|r Acércate a menos de 28 m y pulsa 'Actualizar'."
-        else
-            tab.inspectError = "No se puede inspeccionar a |cffffd200" .. cleanBot .. "|r ahora (muy lejos o no disponible). Acércate a menos de 28 m y pulsa 'Actualizar'."
-        end
-        if DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == cleanBot then
-            DungeonBots:UpdateSpellsDialog(cleanBot)
-        end
-    end
-end
-
 function DB_Internal.TickSpellsCapture(now)
     local hasAny = false
-
-    if DungeonBots.pendingTalentInspect then
-        local pending = DungeonBots.pendingTalentInspect
-        if now >= (pending.expiresAt or 0) then
-            DungeonBots.pendingTalentInspect = nil
-            local tTab = GetOrCreateModeTab(pending.botName, "talents")
-            tTab.loading = false
-            tTab.done = true
-            tTab.dirty = false
-            tTab.inspectError = "Sin respuesta de inspección para |cffffd200" .. pending.botName .. "|r (demasiado lejos). Acércate a menos de 28 m y pulsa 'Actualizar'."
-            if DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == pending.botName then
-                DungeonBots:UpdateSpellsDialog(pending.botName)
-            end
-        else
-            hasAny = true
-        end
-    end
 
     if DungeonBots.pendingSpellsCapture then
         for botName, cap in pairs(DungeonBots.pendingSpellsCapture) do
@@ -868,8 +629,12 @@ function DungeonBots:QueryBotSpells(botName, mode, filterText, isSilent)
         end
         return
     end
-    if targetMode == "talents" then
-        StartTalentInspectQuery(cleanBot, tab, rec, isSilent)
+    if targetMode == "quests" then
+        rec.activeMode = "quests"
+        DungeonBots.pendingSpellsCapture[cleanBot] = nil
+        if DungeonBots.QueryQuests then
+            DungeonBots:QueryQuests(cleanBot, isSilent, isSilent)
+        end
         return
     end
     if targetMode == "spells" then
@@ -961,6 +726,10 @@ function DungeonBots:CycleNextSpellsBot(currentBot, activeMode, serverFilter)
         return nil
     end
     local targetMode = MODE_COMMANDS[activeMode] and activeMode or "gear"
-    DungeonBots:QueryBotSpells(nextBot, targetMode, serverFilter, false)
+    if targetMode == "quests" and DungeonBots.QueryQuests then
+        DungeonBots:QueryQuests(nextBot, false, false)
+    else
+        DungeonBots:QueryBotSpells(nextBot, targetMode, serverFilter, false)
+    end
     return nextBot
 end

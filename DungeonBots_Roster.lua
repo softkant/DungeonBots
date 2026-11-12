@@ -588,7 +588,8 @@ function DungeonBots:ClearPendingBotInteractions(botName)
     if DungeonBots.pendingSpecReset then DungeonBots.pendingSpecReset[cleanName] = nil end
     if DungeonBots.pendingListReset then DungeonBots.pendingListReset[cleanName] = nil end
 
-    ClearBotPendingEntryAndClose(DungeonBots.pendingQuestCapture, DungeonBots.pendingQuestRefresh, DungeonBots.questFrame, cleanName)
+    local charQuestFrame = (DB_Internal.IsCharQuestsViewOpen and DB_Internal.IsCharQuestsViewOpen(cleanName)) and DungeonBots.spellsFrame or nil
+    ClearBotPendingEntryAndClose(DungeonBots.pendingQuestCapture, DungeonBots.pendingQuestRefresh, charQuestFrame, cleanName)
     ClearBotPendingEntryAndClose(DungeonBots.pendingTalkCapture, DungeonBots.pendingTalkRefresh, DungeonBots.talkFrame, cleanName)
     ClearBotPendingEntryAndClose(DungeonBots.pendingInventoryCapture, DungeonBots.pendingInventoryRefresh, DungeonBots.inventoryFrame, cleanName)
     ClearBotPendingEntryAndClose(DungeonBots.pendingSpellsCapture, nil, DungeonBots.spellsFrame, cleanName)

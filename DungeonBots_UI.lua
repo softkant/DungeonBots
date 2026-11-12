@@ -864,14 +864,14 @@ function DungeonBots:BuildTab2(parent)
         card.specDisplay = specDisplay
 
         local specIcon = specDisplay:CreateTexture(nil, "ARTWORK")
-        specIcon:SetSize(16, 16)
-        specIcon:SetPoint("LEFT", specDisplay, "LEFT", 8, 0)
-        specIcon:SetTexture("Interface\\Icons\\Ability_Marksmanship")
+        specIcon:SetSize(18, 18)
+        specIcon:SetPoint("LEFT", specDisplay, "LEFT", 7, 0)
+        specIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
         specIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         card.specIcon = specIcon
 
         local specText = specDisplay:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        specText:SetPoint("LEFT", specIcon, "RIGHT", 7, 0)
+        specText:SetPoint("LEFT", specIcon, "RIGHT", 6, 0)
         specText:SetPoint("RIGHT", specDisplay, "RIGHT", -8, 0)
         specText:SetJustifyH("LEFT")
         specText:SetText("Rama: |cff888888Sin detectar|r")
@@ -919,7 +919,7 @@ function DungeonBots:BuildTab2(parent)
 
         local bagIcon = statusBtn:CreateTexture(nil, "ARTWORK")
         bagIcon:SetSize(14, 14)
-        bagIcon:SetPoint("LEFT", statusBtn, "LEFT", 185, 0)
+        bagIcon:SetPoint("LEFT", statusBtn, "LEFT", 170, 0)
         bagIcon:SetTexture("Interface\\Icons\\INV_Misc_Bag_08")
         bagIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         card.bagIcon = bagIcon
@@ -933,7 +933,7 @@ function DungeonBots:BuildTab2(parent)
         local questsCountText = statusBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         questsCountText:SetPoint("RIGHT", statusBtn, "RIGHT", -6, 0)
         questsCountText:SetJustifyH("RIGHT")
-        questsCountText:SetText("Misiones (|cff888888...|r)")
+        questsCountText:SetText("Registro de misiones (|cff888888...|r)")
         card.questsCountText = questsCountText
 
         local questsCountIcon = statusBtn:CreateTexture(nil, "ARTWORK")
@@ -950,31 +950,7 @@ end
 
 local function FormatBotCardStats(botName)
     local st = DungeonBots.botStats and DungeonBots.botStats[botName]
-    if not st then
-        return "Armadura: |cff888888Consultando...|r", "Bolsas: |cff888888Consultando...|r", nil
-    end
-
-    local dmgPct = st.durPct or 0
-    local intactPct = math.max(0, math.min(100, 100 - dmgPct))
-    local durColor = st.durColorHex
-    if not durColor or durColor == "" then
-        if intactPct >= 80 then
-            durColor = "|cff34c759"
-        elseif intactPct >= 40 then
-            durColor = "|cffffd200"
-        else
-            durColor = "|cffff3b30"
-        end
-    end
-
-    local armorStr = "Armadura: " .. durColor .. intactPct .. "%|r"
-
-    local bagColor = st.bagColorHex
-    if not bagColor or bagColor == "" then
-        bagColor = "|cffe6ecf5"
-    end
-    local bagStr = "Bolsas: " .. bagColor .. tostring(st.bagUsed) .. "/" .. tostring(st.bagTotal) .. "|r"
-    return armorStr, bagStr, st
+    return DB_Internal.FormatBotStatsDisplay(st)
 end
 
 local function FormatBotCardQuestCount(botName)
@@ -984,13 +960,13 @@ local function FormatBotCardQuestCount(botName)
         if qData and qData.done and qData.quests then
             local cnt = #(qData.quests)
             local numColor = cnt > 0 and "|cffffff00" or "|cff888888"
-            return "Misiones (" .. numColor .. cnt .. "|r)", cnt
+            return "Registro de misiones (" .. numColor .. cnt .. "|r)", cnt
         end
-        return "Misiones (|cff888888...|r)", nil
+        return "Registro de misiones (|cff888888...|r)", nil
     end
     local cnt = tonumber(rec.count) or 0
     local numColor = cnt > 0 and "|cffffff00" or "|cff888888"
-    return "Misiones (" .. numColor .. cnt .. "|r)", cnt
+    return "Registro de misiones (" .. numColor .. cnt .. "|r)", cnt
 end
 
 -- Actualiza la lista de miembros y sus tarjetas
@@ -1155,6 +1131,11 @@ function DungeonBots:UpdatePartyUI()
                     card.specText:SetText("Rama: |cff888888Sin detectar|r")
                 end
 
+                local botRole = DungeonBots.GetBotRole and DungeonBots:GetBotRole(currentBotName, classToken, activeSpec) or nil
+                if DB_Internal.ApplyRoleIcon then
+                    DB_Internal.ApplyRoleIcon(card.specIcon, botRole)
+                end
+
                 card.questsBtn:SetScript("OnClick", function()
                     PlaySound("igMainMenuOptionCheckBoxOn")
                     DungeonBots:QueryQuests(name)
@@ -1162,7 +1143,7 @@ function DungeonBots:UpdatePartyUI()
                 card.questsBtn:SetScript("OnEnter", function(self)
                     GameTooltip:SetOwner(self, "ANCHOR_TOP")
                     GameTooltip:AddLine("Misiones del Bot (quests all)", 1, 1, 1)
-                    GameTooltip:AddLine("Consulta 'quests all' y abre una ventana interactiva con las misiones del bot para ver sus detalles o abandonarlas.", 0.7, 0.8, 1.0, true)
+                    GameTooltip:AddLine("Consulta 'quests all' y abre la pestaña Misiones en Información del Personaje para ver detalles o abandonarlas.", 0.7, 0.8, 1.0, true)
                     GameTooltip:Show()
                 end)
                 card.questsBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)

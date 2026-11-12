@@ -274,6 +274,146 @@ function DungeonBots:GetClassDisplayInfo(classToken, compactName)
     return classToken or "Desconocido", color, "Interface\\Icons\\INV_Misc_QuestionMark"
 end
 
+local PURE_DPS_CLASSES = {
+    MAGE = true,
+    WARLOCK = true,
+    HUNTER = true,
+    ROGUE = true,
+}
+
+local ROLE_TEX_COORDS = {
+    TANK   = { 0, 67 / 256, 67 / 256, 134 / 256 },
+    HEALER = { 67 / 256, 134 / 256, 0, 67 / 256 },
+    DPS    = { 67 / 256, 134 / 256, 67 / 256, 134 / 256 },
+}
+
+local function ResolveRoleFromSpecText(specText, classToken)
+    if not specText or specText == "" then return nil end
+    local norm = string.lower(specText)
+    norm = string.gsub(norm, "[_%-%(%)/,:%.]+", " ")
+    norm = string.gsub(norm, "%s+", " ")
+    local padded = " " .. norm .. " "
+
+    local function hasToken(tok)
+        return string.find(padded, " " .. tok .. " ", 1, true) ~= nil
+    end
+
+    if hasToken("heal") or hasToken("healer") or hasToken("sanador")
+        or hasToken("holy") or hasToken("sagrado")
+        or hasToken("disc") or hasToken("discipline") or hasToken("disciplina")
+        or hasToken("resto") or hasToken("restoration") or hasToken("restauracion") or hasToken("restauración") then
+        return "HEALER"
+    end
+
+    if hasToken("tank") or hasToken("tanque")
+        or hasToken("prot") or hasToken("protection") or hasToken("proteccion") or hasToken("protección")
+        or hasToken("blood") or hasToken("sangre")
+        or hasToken("bear") or hasToken("oso") then
+        return "TANK"
+    end
+
+    if hasToken("feral") then
+        if hasToken("cat") or hasToken("gato") or hasToken("dps") then
+            return "DPS"
+        end
+        return "TANK"
+    end
+
+    if hasToken("arms") or hasToken("armas")
+        or hasToken("fury") or hasToken("furia")
+        or hasToken("ret") or hasToken("retribution") or hasToken("reprension") or hasToken("reprensión")
+        or hasToken("shadow") or hasToken("sombras") or hasToken("shad")
+        or hasToken("balance") or hasToken("equilibrio") or hasToken("bal") or hasToken("bala")
+        or hasToken("elem") or hasToken("elemental") or hasToken("ele") or hasToken("elec")
+        or hasToken("enh") or hasToken("enhancement") or hasToken("mejora")
+        or hasToken("unholy") or hasToken("profano") or hasToken("unh")
+        or hasToken("frost") or hasToken("escarcha")
+        or hasToken("frostfire") or hasToken("pirofrio") or hasToken("pirofrío") or hasToken("ffb") or hasToken("ff")
+        or hasToken("arcane") or hasToken("arcano") or hasToken("arc")
+        or hasToken("fire") or hasToken("fuego")
+        or hasToken("afflic") or hasToken("affliction") or hasToken("afliccion") or hasToken("aflicción") or hasToken("affli") or hasToken("aff")
+        or hasToken("demo") or hasToken("demonology") or hasToken("demonologia") or hasToken("demonología")
+        or hasToken("destro") or hasToken("destruction") or hasToken("destruccion") or hasToken("destrucción")
+        or hasToken("beast") or hasToken("beastmastery") or hasToken("bestias") or hasToken("bm")
+        or hasToken("mark") or hasToken("marksmanship") or hasToken("punteria") or hasToken("puntería") or hasToken("mm")
+        or hasToken("surv") or hasToken("survival") or hasToken("supervivencia") or hasToken("sv")
+        or hasToken("combat") or hasToken("combate")
+        or hasToken("assas") or hasToken("assassination") or hasToken("asesinato") or hasToken("assass")
+        or hasToken("subt") or hasToken("subtlety") or hasToken("sutileza") or hasToken("sub")
+        or hasToken("dps") or hasToken("damager") or hasToken("cat") then
+        return "DPS"
+    end
+
+    return nil
+end
+
+function DungeonBots:GetBotRole(botName, classToken, specText)
+    local resolvedClass = classToken
+    if (not resolvedClass or resolvedClass == "") and botName and DungeonBots.FindPartyUnitByName and UnitClass then
+        local unit = DungeonBots:FindPartyUnitByName(botName)
+        if unit then
+            local _, ct = UnitClass(unit)
+            resolvedClass = ct
+        end
+    end
+
+    local candidateSpec = specText
+    if (not candidateSpec or candidateSpec == "") and botName and DungeonBotsDB and DungeonBotsDB.botActiveSpec then
+        candidateSpec = DungeonBotsDB.botActiveSpec[botName]
+    end
+    local role = ResolveRoleFromSpecText(candidateSpec, resolvedClass)
+    if role then return role end
+
+    if botName and DungeonBots.lastDetectedTree and DungeonBots.lastDetectedTree[botName] then
+        role = ResolveRoleFromSpecText(DungeonBots.lastDetectedTree[botName], resolvedClass)
+        if role then return role end
+    end
+
+    if resolvedClass and PURE_DPS_CLASSES[resolvedClass] then
+        return "DPS"
+    end
+    return nil
+end
+
+function DB_Internal.ApplyRoleIcon(tex, role)
+    if not tex then return end
+    local coords = role and ROLE_TEX_COORDS[role]
+    if coords then
+        tex:SetTexture("Interface\\LFGFrame\\UI-LFG-ICON-ROLES")
+        tex:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
+        tex.role = role
+    else
+        tex:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+        tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        tex.role = nil
+    end
+end
+
+function DB_Internal.FormatBotStatsDisplay(st, fallbackValueText)
+    local fallback = fallbackValueText or "|cff888888Consultando...|r"
+    if not st then
+        return "Armadura: " .. fallback, "Bolsas: " .. fallback, nil
+    end
+
+    -- En mod-playerbots 'stats' reporta directamente el % de durabilidad restante de la armadura
+    local armorPct = math.max(0, math.min(100, math.floor((tonumber(st.durPct) or 0) + 0.5)))
+    local durColor = st.durColorHex
+    if not durColor or durColor == "" then
+        if armorPct >= 80 then
+            durColor = "|cff34c759"
+        elseif armorPct >= 40 then
+            durColor = "|cffffd200"
+        else
+            durColor = "|cffff3b30"
+        end
+    end
+
+    local armorStr = "Armadura: " .. durColor .. armorPct .. "%|r"
+    local bagColor = (st.bagColorHex and st.bagColorHex ~= "") and st.bagColorHex or "|cffe6ecf5"
+    local bagStr = "Bolsas: " .. bagColor .. tostring(st.bagUsed) .. "/" .. tostring(st.bagTotal) .. "|r"
+    return armorStr, bagStr, st
+end
+
 -- =========================================================================
 -- Sistema de Notificaciones y Mensajes en Chat
 -- =========================================================================
