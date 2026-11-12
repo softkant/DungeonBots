@@ -1115,10 +1115,11 @@ end
 -- =========================================================================
 -- Pestaña 3: Guía Rápida y Consejos Prácticos
 -- =========================================================================
-local function CreateGuideCard(scrollChild, prevCard, height, iconPath, titleText, bodyText, borderR, borderG, borderB)
+local function CreateGuideCard(scrollChild, prevCard, minHeight, iconPath, titleText, bodyText, borderR, borderG, borderB)
     local card = CreateFrame("Frame", nil, scrollChild)
     card:SetWidth(548)
-    card:SetHeight(height)
+    card:SetHeight(minHeight)
+    card.minHeight = minHeight
     if prevCard then
         card:SetPoint("TOPLEFT", prevCard, "BOTTOMLEFT", 0, -7)
     else
@@ -1131,7 +1132,7 @@ local function CreateGuideCard(scrollChild, prevCard, height, iconPath, titleTex
 
     local icon = card:CreateTexture(nil, "ARTWORK")
     icon:SetSize(20, 20)
-    icon:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -9)
+    icon:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -8)
     icon:SetTexture(iconPath)
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     card.icon = icon
@@ -1145,13 +1146,14 @@ local function CreateGuideCard(scrollChild, prevCard, height, iconPath, titleTex
 
     local sep = card:CreateTexture(nil, "ARTWORK")
     sep:SetHeight(1)
-    sep:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -32)
-    sep:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -32)
+    sep:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -31)
+    sep:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -31)
     sep:SetTexture(0.55, 0.48, 0.32, 0.40)
 
+    -- En WoW 3.3.5a hay que fijar un solo ancla + SetWidth para permitir múltiples líneas sin recorte "..."
     local body = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    body:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -39)
-    body:SetPoint("TOPRIGHT", card, "TOPRIGHT", -12, -39)
+    body:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -37)
+    body:SetWidth(522)
     body:SetJustifyH("LEFT")
     body:SetJustifyV("TOP")
     body:SetWordWrap(true)
@@ -1161,35 +1163,37 @@ local function CreateGuideCard(scrollChild, prevCard, height, iconPath, titleTex
     return card
 end
 
+function DungeonBots:RefreshGuideLayout()
+    local cards = DungeonBots.guideCards
+    local scrollFrame = DungeonBots.guideScrollFrame
+    local scrollChild = _G["DungeonBots_GuideScrollChild"]
+    if not cards or not scrollFrame or not scrollChild then return end
+
+    local totalHeight = 4
+    for _, card in ipairs(cards) do
+        local textH = 0
+        if card.bodyText then
+            card.bodyText:SetWidth(522)
+            if card.bodyText.GetStringHeight then
+                textH = tonumber(card.bodyText:GetStringHeight()) or 0
+            end
+        end
+        local cardH = math.max(card.minHeight or 82, math.ceil(textH) + 46)
+        card:SetHeight(cardH)
+        totalHeight = totalHeight + cardH + 7
+    end
+
+    scrollChild:SetHeight(math.max(1, totalHeight))
+    if scrollFrame.UpdateScrollChildRect then
+        scrollFrame:UpdateScrollChildRect()
+    end
+end
+
 function DungeonBots:BuildTab3(parent)
     DungeonBots.dalaranTimerBar = nil
 
-    local headerBox = CreateFrame("Frame", nil, parent)
-    headerBox:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -4)
-    headerBox:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -4)
-    headerBox:SetHeight(48)
-    ApplyDarkBackdrop(headerBox, 10)
-    headerBox:SetBackdropColor(0.10, 0.12, 0.17, 0.96)
-    headerBox:SetBackdropBorderColor(0.58, 0.48, 0.28, 0.92)
-
-    local headerIcon = headerBox:CreateTexture(nil, "ARTWORK")
-    headerIcon:SetSize(24, 24)
-    headerIcon:SetPoint("TOPLEFT", headerBox, "TOPLEFT", 10, -11)
-    headerIcon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
-    headerIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-
-    local headerTitle = headerBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    headerTitle:SetPoint("TOPLEFT", headerIcon, "TOPRIGHT", 10, 2)
-    headerTitle:SetText("|cffffd200Manual de Uso y Consejos Importantes|r")
-
-    local headerDesc = headerBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    headerDesc:SetPoint("TOPLEFT", headerTitle, "BOTTOMLEFT", 0, -2)
-    headerDesc:SetPoint("RIGHT", headerBox, "RIGHT", -10, 0)
-    headerDesc:SetJustifyH("LEFT")
-    headerDesc:SetText("|cffc9d6e8Revisa estas reglas prácticas para invocar, controlar y expulsar bots sin inconvenientes.|r")
-
     local scrollWrap = CreateFrame("Frame", nil, parent)
-    scrollWrap:SetPoint("TOPLEFT", headerBox, "BOTTOMLEFT", 0, -6)
+    scrollWrap:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -4)
     scrollWrap:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -6, 6)
     ApplyDarkBackdrop(scrollWrap, 8)
     scrollWrap:SetBackdropColor(0.04, 0.05, 0.08, 0.92)
@@ -1197,7 +1201,7 @@ function DungeonBots:BuildTab3(parent)
 
     local scrollFrame = CreateFrame("ScrollFrame", "DungeonBots_GuideScrollFrame", scrollWrap, "UIPanelScrollFrameTemplate")
     scrollFrame:SetPoint("TOPLEFT", scrollWrap, "TOPLEFT", 6, -6)
-    scrollFrame:SetPoint("BOTTOMRIGHT", scrollWrap, "BOTTOMRIGHT", -26, 6)
+    scrollFrame:SetPoint("BOTTOMRIGHT", scrollWrap, "BOTTOMRIGHT", -24, 6)
     if scrollFrame.EnableMouseWheel then
         scrollFrame:EnableMouseWheel(true)
         scrollFrame:SetScript("OnMouseWheel", function(self, delta)
@@ -1209,44 +1213,43 @@ function DungeonBots:BuildTab3(parent)
     end
 
     local scrollChild = CreateFrame("Frame", "DungeonBots_GuideScrollChild", scrollFrame)
-    scrollChild:SetSize(552, 412)
+    scrollChild:SetSize(552, 390)
     scrollFrame:SetScrollChild(scrollChild)
     DungeonBots.guideScrollFrame = scrollFrame
 
     local guideEntries = {
         {
-            height = 84,
+            height = 82,
             icon = "Interface\\Icons\\INV_Misc_Key_03",
             title = "|cff00ccff1. Mazmorras que requieren misiones previas|r",
-            body = "Hay mazmorras que exigen completar misiones de acceso antes de poder entrar, tanto para ti como para tus bots. Por ejemplo, |cffffd200Foso de Saron|r y |cffffd200Cámaras de Reflexión|r necesitan tener hecha su cadena previa para que puedas ingresar con tu grupo.",
+            body = "Hay mazmorras que exigen completar misiones previas antes de poder entrar (tanto tú como tus bots). Por ejemplo, |cffffd200Foso de Saron|r y |cffffd200Cámaras de Reflexión|r requieren tener hecha su cadena previa para poder ingresar.",
             border = { 0.28, 0.48, 0.68 },
         },
         {
-            height = 108,
+            height = 98,
             icon = "Interface\\Icons\\Spell_Arcane_PortalDalaran",
             title = "|cff00ccff2. Un bot agregado dentro de mazmorra no entra al instante|r",
-            body = "A veces invocas un bot estando dentro de la mazmorra y no ingresa inmediatamente. |cffffd200Qué hacer:|r Sal de la mazmorra un momento para que aparezca contigo afuera; si no acude enseguida, pulsa varias veces |cffffd200Summon|r y/o |cffffd200Follow|r. Si sigue sin aparecer, quítalo del grupo desde el addon y vuélvelo a llamar.",
+            body = "A veces agregas un bot estando dentro de la mazmorra y no ingresa inmediatamente. Sal de la mazmorra un momento para que aparezcan afuera; si no aparecen, utiliza |cffffd200Summon|r y/o |cffffd200Follow|r varias veces. Si sigue sin aparecer, quítalo del grupo desde el addon y vuélvelo a llamar.",
             border = { 0.30, 0.46, 0.62 },
         },
         {
-            height = 100,
+            height = 96,
             icon = "Interface\\Icons\\Ability_Kick",
             title = "|cffff55553. Nunca expulses bots con \"Sacar del grupo\" de WoW|r",
-            body = "No |cffff3b30DEBES|r sacar un bot haciendo clic derecho -> \"Sacar del grupo\" como harías con un jugador normal. Lo ideal es retirarlo siempre usando el addon (|cffffd200Despedir|r o |cffffd200Despedir a Todos|r). De lo contrario, el bot quedará ahí esperando |cffffd2001 minuto|r y el servidor pensará que sigues teniendo ese bot extra.",
+            body = "No |cffff3b30DEBES|r sacar los bots usando \"Sacar del grupo\" como harías con un jugador normal. Lo ideal es retirarlos siempre desde el addon (|cffffd200Despedir|r o |cffffd200Despedir a Todos|r). Si no, el bot quedará ahí esperando |cffffd2001 minuto|r y el sistema pensará que sigues teniendo ese bot extra.",
             border = { 0.72, 0.25, 0.25 },
         },
         {
-            height = 88,
+            height = 84,
             icon = "Interface\\Icons\\Spell_Shadow_Charm",
             title = "|cffffd2004. Bots que ya están siendo usados por otro jugador|r",
-            body = "Hay ocasiones en las que no puedes invocar un bot concreto porque ya está conectado en el grupo de otra persona. Si ocurre al llamarlo o enviarle un comando, el addon detendrá la invitación automática y te mostrará una alerta indicando quién lo tiene.",
+            body = "Hay veces que no puedes invocar un bot porque ya lo tiene otra persona en su grupo. Si ocurre al llamarlo o enviarle un comando, el addon cancelará la auto-invitación y te mostrará una alerta indicando quién lo tiene.",
             border = { 0.66, 0.52, 0.24 },
         },
     }
 
     DungeonBots.guideCards = {}
     local prevCard = nil
-    local totalHeight = 4
     for i, entry in ipairs(guideEntries) do
         local card = CreateGuideCard(
             scrollChild,
@@ -1261,9 +1264,12 @@ function DungeonBots:BuildTab3(parent)
         )
         DungeonBots.guideCards[i] = card
         prevCard = card
-        totalHeight = totalHeight + entry.height + 7
     end
-    scrollChild:SetHeight(totalHeight)
+
+    DungeonBots:RefreshGuideLayout()
+    parent:HookScript("OnShow", function()
+        DungeonBots:RefreshGuideLayout()
+    end)
 end
 
 function DungeonBots:UpdateDalaranTimerUI(seconds)
