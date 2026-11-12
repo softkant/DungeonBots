@@ -748,6 +748,127 @@ function DungeonBots:BuildTab1(parent)
     releaseBtn:HookScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
+-- Botones de acción rápida en cada tarjeta de bot de la pestaña "Bots en el grupo".
+local CARD_ACTION_BUTTONS = {
+    {
+        key = "charInfoBtn",
+        label = "Personaje",
+        icon = "Interface\\Icons\\Achievement_Character_Human_Male",
+        texCoord = { 0.08, 0.92, 0.08, 0.92 },
+        tipTitle = "Información del Personaje",
+        tipDesc = "Abre la ventana Información del Personaje en Equipo (ramas de talentos y equipamiento).",
+        onClick = function(name)
+            PlaySound("igMainMenuOptionCheckBoxOn")
+            DungeonBots:QueryBotSpells(name, "gear", "", false)
+        end,
+    },
+    {
+        key = "invBtn",
+        label = "Inventario",
+        icon = "Interface\\Icons\\INV_Misc_Bag_08",
+        texCoord = { 0.08, 0.92, 0.08, 0.92 },
+        tipTitle = "Inventario del Bot",
+        tipDesc = "Consulta los objetos que lleva el bot en sus bolsas.",
+        onClick = function(name)
+            PlaySound("igMainMenuOptionCheckBoxOn")
+            DungeonBots:QueryBotInventory(name)
+        end,
+    },
+    {
+        key = "questsBtn",
+        label = "Misiones",
+        icon = "Interface\\QuestFrame\\UI-QuestLog-BookIcon",
+        texCoord = { 0.16, 0.84, 0.16, 0.84 },
+        tipTitle = "Misiones del Bot (quests all)",
+        tipDesc = "Consulta 'quests all' y abre la pestaña Misiones en Información del Personaje para ver detalles o abandonarlas.",
+        onClick = function(name)
+            PlaySound("igMainMenuOptionCheckBoxOn")
+            DungeonBots:QueryQuests(name)
+        end,
+    },
+}
+
+-- Crea un botón con ícono enmarcado y etiqueta inferior para las tarjetas de bot.
+local function CreateCardActionIconButton(parent, cfg)
+    local btn = CreateFrame("Button", nil, parent)
+    btn:SetSize(66, 48)
+    btn:RegisterForClicks("LeftButtonUp")
+    btn.cfg = cfg
+
+    local slot = CreateFrame("Frame", nil, btn)
+    slot:SetSize(32, 32)
+    slot:SetPoint("TOP", btn, "TOP", 0, -1)
+    if slot.EnableMouse then
+        slot:EnableMouse(false)
+    end
+    ApplyHeaderBackdrop(slot)
+    slot:SetBackdropColor(0.06, 0.08, 0.12, 0.95)
+    slot:SetBackdropBorderColor(0.42, 0.45, 0.52, 0.90)
+    btn.iconSlot = slot
+
+    local icon = slot:CreateTexture(nil, "ARTWORK")
+    icon:SetPoint("TOPLEFT", slot, "TOPLEFT", 2, -2)
+    icon:SetPoint("BOTTOMRIGHT", slot, "BOTTOMRIGHT", -2, 2)
+    icon:SetTexture(cfg.icon)
+    if cfg.texCoord then
+        icon:SetTexCoord(cfg.texCoord[1], cfg.texCoord[2], cfg.texCoord[3], cfg.texCoord[4])
+    end
+    btn.icon = icon
+
+    local hl = btn:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetPoint("TOPLEFT", slot, "TOPLEFT", 2, -2)
+    hl:SetPoint("BOTTOMRIGHT", slot, "BOTTOMRIGHT", -2, 2)
+    hl:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
+    hl:SetBlendMode("ADD")
+    btn.highlightTex = hl
+
+    local label = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    label:SetPoint("TOP", slot, "BOTTOM", 0, -3)
+    label:SetWidth(70)
+    label:SetJustifyH("CENTER")
+    label:SetText(cfg.label)
+    btn.label = label
+
+    btn:SetScript("OnEnter", function(self)
+        slot:SetBackdropBorderColor(0.95, 0.80, 0.30, 1.0)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine(cfg.tipTitle, 1, 1, 1)
+        GameTooltip:AddLine(cfg.tipDesc, 0.7, 0.8, 1.0, true)
+        GameTooltip:Show()
+    end)
+    btn:SetScript("OnLeave", function()
+        slot:SetBackdropBorderColor(0.42, 0.45, 0.52, 0.90)
+        GameTooltip:Hide()
+    end)
+    return btn
+end
+
+-- Muestra u oculta los botones de acción rápida de una tarjeta de bot.
+local function SetCardActionButtonsVisible(card, visible)
+    for _, cfg in ipairs(CARD_ACTION_BUTTONS) do
+        local btn = card[cfg.key]
+        if btn then
+            if visible then
+                btn:Show()
+            else
+                btn:Hide()
+            end
+        end
+    end
+end
+
+-- Enlaza el clic de los botones de acción rápida al bot asignado a la tarjeta.
+local function BindCardActionButtons(card, name)
+    for _, cfg in ipairs(CARD_ACTION_BUTTONS) do
+        local btn = card[cfg.key]
+        if btn then
+            btn:SetScript("OnClick", function(self)
+                self.cfg.onClick(name)
+            end)
+        end
+    end
+end
+
 -- =========================================================================
 -- PESTAÑA 2: TALENTOS Y EQUIPO (Bot Manager)
 -- =========================================================================
@@ -822,13 +943,13 @@ function DungeonBots:BuildTab2(parent)
 
         local cIcon = card:CreateTexture(nil, "ARTWORK")
         cIcon:SetSize(38, 38)
-        cIcon:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -13)
+        cIcon:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -12)
         cIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
         cIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         card.classIcon = cIcon
 
         local nameText = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        nameText:SetPoint("TOPLEFT", cIcon, "TOPRIGHT", 10, 4)
+        nameText:SetPoint("TOPLEFT", cIcon, "TOPRIGHT", 10, 2)
         nameText:SetText("Bot " .. i)
         card.nameText = nameText
 
@@ -837,9 +958,34 @@ function DungeonBots:BuildTab2(parent)
         infoText:SetText("Nivel 80")
         card.infoText = infoText
 
+        local specDisplay = CreateFrame("Frame", "DungeonBots_SpecDisplay_" .. i, card)
+        specDisplay:SetSize(190, 18)
+        specDisplay:SetPoint("TOPLEFT", infoText, "BOTTOMLEFT", 0, -4)
+        card.specDisplay = specDisplay
+
+        local specIcon = specDisplay:CreateTexture(nil, "ARTWORK")
+        specIcon:SetSize(16, 16)
+        specIcon:SetPoint("LEFT", specDisplay, "LEFT", 0, 0)
+        specIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+        specIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        card.specIcon = specIcon
+
+        local specText = specDisplay:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        specText:SetPoint("LEFT", specIcon, "RIGHT", 5, 0)
+        specText:SetPoint("RIGHT", specDisplay, "RIGHT", 0, 0)
+        specText:SetJustifyH("LEFT")
+        specText:SetText("Rama: |cff888888Sin detectar|r")
+        card.specText = specText
+
+        local kickBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
+        kickBtn:SetSize(98, 22)
+        kickBtn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -9)
+        kickBtn:SetText("Despedir")
+        card.kickBtn = kickBtn
+
         local botBadge = CreateFrame("Button", nil, card)
-        botBadge:SetSize(86, 17)
-        botBadge:SetPoint("TOPLEFT", infoText, "BOTTOMLEFT", 0, -4)
+        botBadge:SetSize(98, 18)
+        botBadge:SetPoint("TOP", kickBtn, "BOTTOM", 0, -5)
         ApplyHeaderBackdrop(botBadge)
         local badgeText = botBadge:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         badgeText:SetPoint("CENTER", 0, 0)
@@ -847,47 +993,19 @@ function DungeonBots:BuildTab2(parent)
         botBadge.text = badgeText
         card.botBadge = botBadge
 
+        for idx, cfg in ipairs(CARD_ACTION_BUTTONS) do
+            local actionBtn = CreateCardActionIconButton(card, cfg)
+            actionBtn:SetPoint("TOPLEFT", card, "TOPLEFT", 258 + (idx - 1) * 72, -8)
+            card[cfg.key] = actionBtn
+        end
+
         local humanNotice = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        humanNotice:SetPoint("TOPLEFT", card, "TOPLEFT", 195, -18)
-        humanNotice:SetPoint("RIGHT", card, "RIGHT", -15, 0)
+        humanNotice:SetPoint("TOPLEFT", card, "TOPLEFT", 252, -14)
+        humanNotice:SetPoint("RIGHT", botBadge, "LEFT", -12, 0)
         humanNotice:SetJustifyH("LEFT")
         humanNotice:SetText("|cffffb020Jugador humano real.|r\n|cff888888Las opciones de control de bot están inactivas para este miembro.|r")
         humanNotice:Hide()
         card.humanNotice = humanNotice
-
-        local specDisplay = CreateFrame("Frame", "DungeonBots_SpecDisplay_" .. i, card)
-        specDisplay:SetSize(246, 28)
-        specDisplay:SetPoint("TOPLEFT", card, "TOPLEFT", 196, -18)
-        ApplyHeaderBackdrop(specDisplay)
-        specDisplay:SetBackdropColor(0.06, 0.08, 0.12, 0.90)
-        specDisplay:SetBackdropBorderColor(0.32, 0.36, 0.44, 0.70)
-        card.specDisplay = specDisplay
-
-        local specIcon = specDisplay:CreateTexture(nil, "ARTWORK")
-        specIcon:SetSize(18, 18)
-        specIcon:SetPoint("LEFT", specDisplay, "LEFT", 7, 0)
-        specIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
-        specIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-        card.specIcon = specIcon
-
-        local specText = specDisplay:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        specText:SetPoint("LEFT", specIcon, "RIGHT", 6, 0)
-        specText:SetPoint("RIGHT", specDisplay, "RIGHT", -8, 0)
-        specText:SetJustifyH("LEFT")
-        specText:SetText("Rama: |cff888888Sin detectar|r")
-        card.specText = specText
-
-        local questsBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
-        questsBtn:SetSize(120, 22)
-        questsBtn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -9)
-        questsBtn:SetText("Misiones")
-        card.questsBtn = questsBtn
-
-        local kickBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
-        kickBtn:SetSize(120, 22)
-        kickBtn:SetPoint("TOP", questsBtn, "BOTTOM", 0, -5)
-        kickBtn:SetText("Despedir")
-        card.kickBtn = kickBtn
 
         -- Franja inferior por bot: estado de armadura y llenado de bolsas (comando stats)
         local statusRule = card:CreateTexture(nil, "ARTWORK")
@@ -1044,7 +1162,7 @@ function DungeonBots:UpdatePartyUI()
                     card.botBadge:SetBackdropColor(0.08, 0.16, 0.22, 0.95)
                     card.humanNotice:Hide()
                     card.specDisplay:Show()
-                    card.questsBtn:Show()
+                    SetCardActionButtonsVisible(card, true)
                     card.kickBtn:Show()
                     card.statusRule:Show()
                     card.statusBtn:Show()
@@ -1087,7 +1205,7 @@ function DungeonBots:UpdatePartyUI()
                     card.botBadge:SetBackdropColor(0.20, 0.14, 0.08, 0.95)
                     card.humanNotice:Show()
                     card.specDisplay:Hide()
-                    card.questsBtn:Hide()
+                    SetCardActionButtonsVisible(card, false)
                     card.kickBtn:Hide()
                     card.statusRule:Hide()
                     card.statusBtn:Hide()
@@ -1136,17 +1254,7 @@ function DungeonBots:UpdatePartyUI()
                     DB_Internal.ApplyRoleIcon(card.specIcon, botRole)
                 end
 
-                card.questsBtn:SetScript("OnClick", function()
-                    PlaySound("igMainMenuOptionCheckBoxOn")
-                    DungeonBots:QueryQuests(name)
-                end)
-                card.questsBtn:SetScript("OnEnter", function(self)
-                    GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                    GameTooltip:AddLine("Misiones del Bot (quests all)", 1, 1, 1)
-                    GameTooltip:AddLine("Consulta 'quests all' y abre la pestaña Misiones en Información del Personaje para ver detalles o abandonarlas.", 0.7, 0.8, 1.0, true)
-                    GameTooltip:Show()
-                end)
-                card.questsBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+                BindCardActionButtons(card, name)
 
                 card.kickBtn:SetScript("OnClick", function()
                     PlaySound("igMainMenuOptionCheckBoxOff")
