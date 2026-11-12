@@ -346,10 +346,10 @@ function DungeonBots:InitUI()
         },
         {
             id = 3,
-            title = "Forja / Foso / Cámaras",
-            subtitle = "Asistente cadena ICC (60s)",
-            desc = "Guía rápida para completar las misiones previas de Forja de Almas, Foso de Saron y Cámaras de Reflexión.",
-            icon = "Interface\\Icons\\INV_Misc_Head_Dragon_01",
+            title = "Guía y Consejos",
+            subtitle = "Manual de uso y solución de problemas",
+            desc = "Consejos esenciales sobre misiones previas, invocación dentro de mazmorras, expulsión y bots ocupados.",
+            icon = "Interface\\Icons\\INV_Misc_Book_09",
         },
     }
 
@@ -1113,141 +1113,161 @@ end
 -- =========================================================================
 -- PESTAÑA 3: FORJA / FOSO / CÁMARAS (ICC 5-Man Wizard)
 -- =========================================================================
+-- Pestaña 3: Guía Rápida y Consejos Prácticos
+-- =========================================================================
+local function CreateGuideCard(scrollChild, prevCard, height, iconPath, titleText, bodyText, borderR, borderG, borderB)
+    local card = CreateFrame("Frame", nil, scrollChild)
+    card:SetWidth(548)
+    card:SetHeight(height)
+    if prevCard then
+        card:SetPoint("TOPLEFT", prevCard, "BOTTOMLEFT", 0, -7)
+    else
+        card:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 2, -2)
+    end
+    ApplyInsetPanelBackdrop(card)
+    if borderR then
+        card:SetBackdropBorderColor(borderR, borderG, borderB, 0.85)
+    end
+
+    local icon = card:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(20, 20)
+    icon:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -9)
+    icon:SetTexture(iconPath)
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    card.icon = icon
+
+    local title = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("LEFT", icon, "RIGHT", 8, 0)
+    title:SetPoint("RIGHT", card, "RIGHT", -10, 0)
+    title:SetJustifyH("LEFT")
+    title:SetText(titleText)
+    card.titleText = title
+
+    local sep = card:CreateTexture(nil, "ARTWORK")
+    sep:SetHeight(1)
+    sep:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -32)
+    sep:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -32)
+    sep:SetTexture(0.55, 0.48, 0.32, 0.40)
+
+    local body = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    body:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -39)
+    body:SetPoint("TOPRIGHT", card, "TOPRIGHT", -12, -39)
+    body:SetJustifyH("LEFT")
+    body:SetJustifyV("TOP")
+    body:SetWordWrap(true)
+    body:SetText(bodyText)
+    card.bodyText = body
+
+    return card
+end
+
 function DungeonBots:BuildTab3(parent)
-    local infoBox = CreateFrame("Frame", nil, parent)
-    infoBox:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -4)
-    infoBox:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -4)
-    infoBox:SetHeight(78)
-    ApplyDarkBackdrop(infoBox, 10)
-    infoBox:SetBackdropColor(0.12, 0.10, 0.08, 0.95)
-    infoBox:SetBackdropBorderColor(0.85, 0.52, 0.18, 0.95)
+    DungeonBots.dalaranTimerBar = nil
 
-    local infoTitle = infoBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    infoTitle:SetPoint("TOPLEFT", 10, -8)
-    infoTitle:SetText("|cffffd200Cadena de Misiones de ICC (Forja de Almas, Foso de Saron y Cámaras)|r")
+    local headerBox = CreateFrame("Frame", nil, parent)
+    headerBox:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -4)
+    headerBox:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -4)
+    headerBox:SetHeight(48)
+    ApplyDarkBackdrop(headerBox, 10)
+    headerBox:SetBackdropColor(0.10, 0.12, 0.17, 0.96)
+    headerBox:SetBackdropBorderColor(0.58, 0.48, 0.28, 0.92)
 
-    local infoDesc = infoBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    infoDesc:SetPoint("TOPLEFT", 10, -26)
-    infoDesc:SetPoint("TOPRIGHT", -10, -26)
-    infoDesc:SetJustifyH("LEFT")
-    infoDesc:SetText("Para que los bots puedan entrar a Foso de Saron y Cámaras de Reflexión, es obligatorio que completen la cadena que inicia en Dalaran.\n|cffff3b30REGLA DEL SERVIDOR:|r Los bots fuera de mazmorra |cffff3b30desaparecen exactamente en 1 minuto (60s)|r.")
+    local headerIcon = headerBox:CreateTexture(nil, "ARTWORK")
+    headerIcon:SetSize(24, 24)
+    headerIcon:SetPoint("TOPLEFT", headerBox, "TOPLEFT", 10, -11)
+    headerIcon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
+    headerIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
-    local timerBar = CreateFrame("StatusBar", "DungeonBots_DalaranTimerBar", parent)
-    timerBar:SetPoint("TOPLEFT", infoBox, "BOTTOMLEFT", 0, -8)
-    timerBar:SetPoint("TOPRIGHT", infoBox, "BOTTOMRIGHT", 0, -8)
-    timerBar:SetHeight(22)
-    timerBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-    timerBar:SetStatusBarColor(0.2, 0.8, 0.2)
-    timerBar:SetMinMaxValues(0, 60)
-    timerBar:SetValue(0)
+    local headerTitle = headerBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    headerTitle:SetPoint("TOPLEFT", headerIcon, "TOPRIGHT", 10, 2)
+    headerTitle:SetText("|cffffd200Manual de Uso y Consejos Importantes|r")
 
-    local timerBg = timerBar:CreateTexture(nil, "BACKGROUND")
-    timerBg:SetAllPoints()
-    timerBg:SetTexture("Interface\\TargetingFrame\\UI-StatusBar")
-    timerBg:SetVertexColor(0.1, 0.1, 0.1, 0.8)
+    local headerDesc = headerBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    headerDesc:SetPoint("TOPLEFT", headerTitle, "BOTTOMLEFT", 0, -2)
+    headerDesc:SetPoint("RIGHT", headerBox, "RIGHT", -10, 0)
+    headerDesc:SetJustifyH("LEFT")
+    headerDesc:SetText("|cffc9d6e8Revisa estas reglas prácticas para invocar, controlar y expulsar bots sin inconvenientes.|r")
 
-    local timerText = timerBar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    timerText:SetPoint("CENTER", 0, 0)
-    timerText:SetText("Temporizador de Dalaran: Inactivo")
-    timerBar.text = timerText
-    DungeonBots.dalaranTimerBar = timerBar
+    local scrollWrap = CreateFrame("Frame", nil, parent)
+    scrollWrap:SetPoint("TOPLEFT", headerBox, "BOTTOMLEFT", 0, -6)
+    scrollWrap:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -6, 6)
+    ApplyDarkBackdrop(scrollWrap, 8)
+    scrollWrap:SetBackdropColor(0.04, 0.05, 0.08, 0.92)
+    scrollWrap:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.90)
 
-    local step1Box = CreateFrame("Frame", nil, parent)
-    step1Box:SetPoint("TOPLEFT", timerBar, "BOTTOMLEFT", 0, -8)
-    step1Box:SetPoint("TOPRIGHT", timerBar, "BOTTOMRIGHT", 0, -8)
-    step1Box:SetHeight(82)
-    ApplyInsetPanelBackdrop(step1Box)
+    local scrollFrame = CreateFrame("ScrollFrame", "DungeonBots_GuideScrollFrame", scrollWrap, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", scrollWrap, "TOPLEFT", 6, -6)
+    scrollFrame:SetPoint("BOTTOMRIGHT", scrollWrap, "BOTTOMRIGHT", -26, 6)
+    if scrollFrame.EnableMouseWheel then
+        scrollFrame:EnableMouseWheel(true)
+        scrollFrame:SetScript("OnMouseWheel", function(self, delta)
+            local cur = self:GetVerticalScroll() or 0
+            local maxScroll = self:GetVerticalScrollRange() or 0
+            local nextVal = math.max(0, math.min(maxScroll, cur - (delta * 28)))
+            self:SetVerticalScroll(nextVal)
+        end)
+    end
 
-    local step1Title = step1Box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    step1Title:SetPoint("TOPLEFT", 10, -6)
-    step1Title:SetText("|cff00ccffPaso 1: Dalaran (Aceptar Primera Misión antes del minuto)|r")
+    local scrollChild = CreateFrame("Frame", "DungeonBots_GuideScrollChild", scrollFrame)
+    scrollChild:SetSize(552, 412)
+    scrollFrame:SetScrollChild(scrollChild)
+    DungeonBots.guideScrollFrame = scrollFrame
 
-    local step1Desc = step1Box:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    step1Desc:SetPoint("TOPLEFT", 10, -22)
-    step1Desc:SetText("1. Selecciona con el ratón al PNJ de la misión en Dalaran.\n2. Presiona este botón para teletransportar a todos los bots y hacer que acepten la misión:")
+    local guideEntries = {
+        {
+            height = 84,
+            icon = "Interface\\Icons\\INV_Misc_Key_03",
+            title = "|cff00ccff1. Mazmorras que requieren misiones previas|r",
+            body = "Hay mazmorras que exigen completar misiones de acceso antes de poder entrar, tanto para ti como para tus bots. Por ejemplo, |cffffd200Foso de Saron|r y |cffffd200Cámaras de Reflexión|r necesitan tener hecha su cadena previa para que puedas ingresar con tu grupo.",
+            border = { 0.28, 0.48, 0.68 },
+        },
+        {
+            height = 108,
+            icon = "Interface\\Icons\\Spell_Arcane_PortalDalaran",
+            title = "|cff00ccff2. Un bot agregado dentro de mazmorra no entra al instante|r",
+            body = "A veces invocas un bot estando dentro de la mazmorra y no ingresa inmediatamente. |cffffd200Qué hacer:|r Sal de la mazmorra un momento para que aparezca contigo afuera; si no acude enseguida, pulsa varias veces |cffffd200Summon|r y/o |cffffd200Follow|r. Si sigue sin aparecer, quítalo del grupo desde el addon y vuélvelo a llamar.",
+            border = { 0.30, 0.46, 0.62 },
+        },
+        {
+            height = 100,
+            icon = "Interface\\Icons\\Ability_Kick",
+            title = "|cffff55553. Nunca expulses bots con \"Sacar del grupo\" de WoW|r",
+            body = "No |cffff3b30DEBES|r sacar un bot haciendo clic derecho -> \"Sacar del grupo\" como harías con un jugador normal. Lo ideal es retirarlo siempre usando el addon (|cffffd200Despedir|r o |cffffd200Despedir a Todos|r). De lo contrario, el bot quedará ahí esperando |cffffd2001 minuto|r y el servidor pensará que sigues teniendo ese bot extra.",
+            border = { 0.72, 0.25, 0.25 },
+        },
+        {
+            height = 88,
+            icon = "Interface\\Icons\\Spell_Shadow_Charm",
+            title = "|cffffd2004. Bots que ya están siendo usados por otro jugador|r",
+            body = "Hay ocasiones en las que no puedes invocar un bot concreto porque ya está conectado en el grupo de otra persona. Si ocurre al llamarlo o enviarle un comando, el addon detendrá la invitación automática y te mostrará una alerta indicando quién lo tiene.",
+            border = { 0.66, 0.52, 0.24 },
+        },
+    }
 
-    local step1Btn = CreateFrame("Button", nil, step1Box, "UIPanelButtonTemplate")
-    step1Btn:SetSize(360, 26)
-    step1Btn:SetPoint("BOTTOMLEFT", 10, 8)
-    step1Btn:SetText("1. ¡Traer Bots y Aceptar Misión de Dalaran! (/p summon + accept *)")
-    step1Btn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        DungeonBots:DalaranPrep()
-    end)
-
-    local step2Box = CreateFrame("Frame", nil, parent)
-    step2Box:SetPoint("TOPLEFT", step1Box, "BOTTOMLEFT", 0, -8)
-    step2Box:SetPoint("TOPRIGHT", step1Box, "BOTTOMRIGHT", 0, -8)
-    step2Box:SetHeight(82)
-    ApplyInsetPanelBackdrop(step2Box)
-
-    local step2Title = step2Box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    step2Title:SetPoint("TOPLEFT", 10, -6)
-    step2Title:SetText("|cff00ccffPaso 2: Entrada a Forja de Almas (Reinvocación)|r")
-
-    local step2Desc = step2Box:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    step2Desc:SetPoint("TOPLEFT", 10, -22)
-    step2Desc:SetText("Al pasar el minuto en Dalaran los bots desaparecerán. Viaja a Forja de Almas, cruza el portal\ny pulsa este botón para traerlos contigo dentro de la mazmorra:")
-
-    local step2Btn = CreateFrame("Button", nil, step2Box, "UIPanelButtonTemplate")
-    step2Btn:SetSize(360, 26)
-    step2Btn:SetPoint("BOTTOMLEFT", 10, 8)
-    step2Btn:SetText("2. ¡Reinvocar Grupo en Mazmorra! (.playerbots bot add *)")
-    step2Btn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        DungeonBots:DungeonReenter()
-    end)
-
-    local step3Box = CreateFrame("Frame", nil, parent)
-    step3Box:SetPoint("TOPLEFT", step2Box, "BOTTOMLEFT", 0, -8)
-    step3Box:SetPoint("TOPRIGHT", step2Box, "BOTTOMRIGHT", 0, -8)
-    step3Box:SetHeight(82)
-    ApplyInsetPanelBackdrop(step3Box)
-
-    local step3Title = step3Box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    step3Title:SetPoint("TOPLEFT", 10, -6)
-    step3Title:SetText("|cff00ccffPaso 3: Entregar y Continuar Cadena (Forja -> Foso -> Cámaras)|r")
-
-    local step3Desc = step3Box:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    step3Desc:SetPoint("TOPLEFT", 10, -22)
-    step3Desc:SetText("Al llegar al PNJ dentro de la mazmorra, selecciónalo (target) y pulsa este botón.\n(Pulsa 1 vez para entregar la misión, y una 2da vez para que acepten la siguiente):")
-
-    local step3Btn = CreateFrame("Button", nil, step3Box, "UIPanelButtonTemplate")
-    step3Btn:SetSize(320, 26)
-    step3Btn:SetPoint("BOTTOMLEFT", 10, 8)
-    step3Btn:SetText("3. Entregar y Aceptar Siguiente (/p accept *)")
-    step3Btn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        DungeonBots:DungeonTurnInAndAccept()
-    end)
-
-    local checkQuestsBtn = CreateFrame("Button", nil, step3Box, "UIPanelButtonTemplate")
-    checkQuestsBtn:SetSize(220, 26)
-    checkQuestsBtn:SetPoint("LEFT", step3Btn, "RIGHT", 10, 0)
-    checkQuestsBtn:SetText("Verificar Misiones (/p quests)")
-    checkQuestsBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        DungeonBots:SendPartyCommand("quests")
-    end)
+    DungeonBots.guideCards = {}
+    local prevCard = nil
+    local totalHeight = 4
+    for i, entry in ipairs(guideEntries) do
+        local card = CreateGuideCard(
+            scrollChild,
+            prevCard,
+            entry.height,
+            entry.icon,
+            entry.title,
+            entry.body,
+            entry.border and entry.border[1],
+            entry.border and entry.border[2],
+            entry.border and entry.border[3]
+        )
+        DungeonBots.guideCards[i] = card
+        prevCard = card
+        totalHeight = totalHeight + entry.height + 7
+    end
+    scrollChild:SetHeight(totalHeight)
 end
 
 function DungeonBots:UpdateDalaranTimerUI(seconds)
     if not DungeonBots.dalaranTimerBar then return end
-    local bar = DungeonBots.dalaranTimerBar
-    bar:SetValue(seconds)
-    if seconds > 0 then
-        bar.text:SetText("Tiempo restante en Dalaran: |cffffffff" .. seconds .. "s|r")
-        if seconds > 30 then
-            bar:SetStatusBarColor(0.2, 0.8, 0.2)
-        elseif seconds > 15 then
-            bar:SetStatusBarColor(1.0, 0.8, 0.2)
-        else
-            bar:SetStatusBarColor(1.0, 0.2, 0.2)
-        end
-    else
-        bar.text:SetText("Temporizador de Dalaran: Inactivo / Expirado")
-        bar:SetStatusBarColor(0.4, 0.4, 0.4)
-    end
 end
 
 -- =========================================================================

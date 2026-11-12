@@ -11,6 +11,10 @@ local function NowTime()
     return DB_Internal.NowTime()
 end
 
+local function NormalizePlayerName(name)
+    return DB_Internal.NormalizePlayerName(name)
+end
+
 -- =========================================================================
 -- Sistema de Detección e Identificación de Bots vs Jugadores
 -- =========================================================================
@@ -66,6 +70,12 @@ function DungeonBots:IsRecentBot(name)
         return false
     end
     return true
+end
+
+function DungeonBots:ClearRecentBot(name)
+    local cleanName = NormalizePlayerName(name)
+    if not cleanName or cleanName == "" or not DungeonBots.recentBots then return end
+    DungeonBots.recentBots[cleanName] = nil
 end
 
 function DungeonBots:IsInHistory(name)
@@ -408,12 +418,19 @@ end
 
 -- Invocar bot por nombre
 function DungeonBots:AddBot(botName)
-    if not botName or botName == "" then return end
-    DungeonBots:MarkRecentBot(botName, 120)
-    DungeonBots:RegisterBot(botName, true)
-    DungeonBots:RecordBotHistory(botName)
-    DungeonBots:Print("Llamando a bot: |cffffd200" .. botName .. "|r...")
-    DungeonBots:SendDotCommand(".playerbots bot add " .. botName)
+    local cleanName = NormalizePlayerName(botName)
+    if not cleanName or cleanName == "" then return end
+    DungeonBots.lastBotCallAttempt = DungeonBots.lastBotCallAttempt or {}
+    DungeonBots.lastBotCallAttempt[cleanName] = NowTime()
+    if DungeonBots.busyExternalBots and DungeonBots.busyExternalBots[cleanName] then
+        -- Reiniciar ventana activa para permitir reintentar si el otro jugador lo solto, conservando dueno previo
+        DungeonBots.busyExternalBots[cleanName].expiresAt = 0
+    end
+    DungeonBots:MarkRecentBot(cleanName, 120)
+    DungeonBots:RegisterBot(cleanName, true)
+    DungeonBots:RecordBotHistory(cleanName)
+    DungeonBots:Print("Llamando a bot: |cffffd200" .. cleanName .. "|r...")
+    DungeonBots:SendDotCommand(".playerbots bot add " .. cleanName)
 end
 
 -- Reinvocar a todos los bots del grupo (clave para entrar a mazmorra)
@@ -478,8 +495,16 @@ end
 -- =========================================================================
 -- Historial Persistente de Bots e Invitación Individual
 -- =========================================================================
+StaticPopupDialogs["DUNGEONBOTS_BOT_BUSY_ALERT"] = {
+    text = "%s",
+    button1 = "Entendido",
+    timeout = 0,
+    whileDead = 1,
+    hideOnEscape = 1,
+}
+
 local pendingHistoryInvites = {}
-local historyInviteFrame = CreateFrame("Frame")
+local historyInviteFrame = CreateFrame("Frame", "DungeonBots_HistoryInviteFrame")
 historyInviteFrame:Hide()
 historyInviteFrame:SetScript("OnUpdate", function(self, elapsed)
     local hasPending = false
@@ -487,7 +512,9 @@ historyInviteFrame:SetScript("OnUpdate", function(self, elapsed)
         local nextTime = remaining - elapsed
         if nextTime <= 0 then
             pendingHistoryInvites[botName] = nil
-            if not DungeonBots:FindPartyUnitByName(botName) and DungeonBots:CanInviteToParty() then
+            if not DungeonBots:FindPartyUnitByName(botName)
+                and not DungeonBots:GetExternalBotBusyInfo(botName)
+                and DungeonBots:CanInviteToParty() then
                 DungeonBots.recentInvites[botName] = NowTime() + 3
                 InviteUnit(botName)
             end
@@ -500,6 +527,143 @@ historyInviteFrame:SetScript("OnUpdate", function(self, elapsed)
         self:Hide()
     end
 end)
+
+function DungeonBots:CancelPendingHistoryInvite(botName)
+    local cleanName = NormalizePlayerName(botName)
+    if not cleanName or cleanName == "" then return end
+    if pendingHistoryInvites[cleanName] then
+        pendingHistoryInvites[cleanName] = nil
+        if not next(pendingHistoryInvites) then
+            historyInviteFrame:Hide()
+        end
+    end
+end
+
+function DungeonBots:HasPendingHistoryInvite(botName)
+    local cleanName = NormalizePlayerName(botName)
+    if not cleanName or cleanName == "" then return false end
+    return pendingHistoryInvites[cleanName] ~= nil
+end
+
+function DungeonBots:GetExternalBotBusyInfo(botName)
+    local cleanName = NormalizePlayerName(botName)
+    if not cleanName or cleanName == "" then return nil end
+    if DungeonBots:FindPartyUnitByName(cleanName) then
+        if DungeonBots.busyExternalBots then
+            DungeonBots.busyExternalBots[cleanName] = nil
+        end
+        return nil
+    end
+    local info = DungeonBots.busyExternalBots and DungeonBots.busyExternalBots[cleanName]
+    if not info then return nil end
+    if (info.expiresAt or 0) <= NowTime() then
+        return nil
+    end
+    return info
+end
+
+local function ClearBotPendingEntryAndClose(captureMap, refreshMap, frameObj, cleanName)
+    local hadPending = false
+    if captureMap and captureMap[cleanName] then
+        captureMap[cleanName] = nil
+        hadPending = true
+    end
+    if refreshMap and refreshMap[cleanName] then
+        refreshMap[cleanName] = nil
+    end
+    if hadPending and frameObj and frameObj.IsShown and frameObj:IsShown() and frameObj.currentBot == cleanName then
+        if not DungeonBots:FindPartyUnitByName(cleanName) then
+            frameObj:Hide()
+        end
+    end
+end
+
+function DungeonBots:ClearPendingBotInteractions(botName)
+    local cleanName = NormalizePlayerName(botName)
+    if not cleanName or cleanName == "" then return end
+    DungeonBots:CancelPendingHistoryInvite(cleanName)
+    DungeonBots:ClearRecentBot(cleanName)
+    if DungeonBots.recentInvites then DungeonBots.recentInvites[cleanName] = nil end
+    if DungeonBots.pendingScan then DungeonBots.pendingScan[cleanName] = nil end
+    if DungeonBots.pendingSpecReset then DungeonBots.pendingSpecReset[cleanName] = nil end
+    if DungeonBots.pendingListReset then DungeonBots.pendingListReset[cleanName] = nil end
+
+    ClearBotPendingEntryAndClose(DungeonBots.pendingQuestCapture, DungeonBots.pendingQuestRefresh, DungeonBots.questFrame, cleanName)
+    ClearBotPendingEntryAndClose(DungeonBots.pendingTalkCapture, DungeonBots.pendingTalkRefresh, DungeonBots.talkFrame, cleanName)
+    ClearBotPendingEntryAndClose(DungeonBots.pendingInventoryCapture, DungeonBots.pendingInventoryRefresh, DungeonBots.inventoryFrame, cleanName)
+    ClearBotPendingEntryAndClose(DungeonBots.pendingSpellsCapture, nil, DungeonBots.spellsFrame, cleanName)
+    if DungeonBots.pendingSpellDetailCapture then
+        DungeonBots.pendingSpellDetailCapture[cleanName] = nil
+    end
+end
+
+function DungeonBots:NotifyExternalBotBusy(botName, ownerName, sourceTag, forceAlert)
+    local cleanName = NormalizePlayerName(botName)
+    if not cleanName or cleanName == "" then return false end
+    if DungeonBots:FindPartyUnitByName(cleanName) then
+        if DungeonBots.busyExternalBots then
+            DungeonBots.busyExternalBots[cleanName] = nil
+        end
+        return false
+    end
+
+    local now = NowTime()
+    DungeonBots.busyExternalBots = DungeonBots.busyExternalBots or {}
+    local prev = DungeonBots.busyExternalBots[cleanName]
+    local resolvedOwner = NormalizePlayerName(ownerName)
+    if (not resolvedOwner or resolvedOwner == "") and prev and prev.owner and prev.owner ~= "" then
+        resolvedOwner = prev.owner
+    end
+
+    DungeonBots.busyExternalBots[cleanName] = {
+        owner = resolvedOwner,
+        expiresAt = now + 45,
+        source = sourceTag or "system",
+    }
+
+    DungeonBots:ClearPendingBotInteractions(cleanName)
+
+    DungeonBots.busyBotLastAlert = DungeonBots.busyBotLastAlert or {}
+    local last = DungeonBots.busyBotLastAlert[cleanName]
+    local gainedOwner = (resolvedOwner ~= nil and resolvedOwner ~= "") and (not last or not last.owner or last.owner ~= resolvedOwner)
+    local callTs = DungeonBots.lastBotCallAttempt and DungeonBots.lastBotCallAttempt[cleanName] or 0
+    local newCallSinceLastAlert = (callTs > (last and last.at or 0))
+    local expiredDebounce = (not last) or ((now - (last.at or 0)) >= 4.0)
+
+    if not forceAlert and not gainedOwner and not newCallSinceLastAlert and not expiredDebounce then
+        return true
+    end
+
+    DungeonBots.busyBotLastAlert[cleanName] = {
+        at = now,
+        owner = resolvedOwner,
+    }
+
+    local chatMsg
+    local plainMsg
+    if resolvedOwner and resolvedOwner ~= "" then
+        chatMsg = "¡ALERTA! El bot |cffffd200" .. cleanName .. "|r ya está en uso por otro jugador (en grupo con |cffffd200" .. resolvedOwner .. "|r). No puedes invocarlo ahora."
+        plainMsg = "¡ALERTA! El bot " .. cleanName .. " ya pertenece a otro jugador (en grupo con " .. resolvedOwner .. ")."
+    else
+        chatMsg = "¡ALERTA! El bot |cffffd200" .. cleanName .. "|r ya está conectado y ocupado por otro jugador. No puedes invocarlo ahora."
+        plainMsg = "¡ALERTA! El bot " .. cleanName .. " ya está ocupado por otro jugador."
+    end
+
+    DungeonBots:Warn(chatMsg)
+    if UIErrorsFrame and UIErrorsFrame.AddMessage then
+        UIErrorsFrame:AddMessage(plainMsg, 1.0, 0.22, 0.22, 1.0)
+    end
+    if PlaySound then
+        PlaySound("igQuestFailed")
+    end
+    if StaticPopup_Show then
+        if StaticPopup_Hide then
+            StaticPopup_Hide("DUNGEONBOTS_BOT_BUSY_ALERT")
+        end
+        StaticPopup_Show("DUNGEONBOTS_BOT_BUSY_ALERT", chatMsg)
+    end
+    return true
+end
 
 function DungeonBots:RecordBotHistory(name, classToken, specName, raceIcon)
     if not name or name == "" then return end
@@ -652,21 +816,22 @@ function DungeonBots:ClearBotHistory()
 end
 
 function DungeonBots:SummonAndInviteHistoryBot(botName)
-    if not botName or botName == "" then return end
-    if DungeonBots:FindPartyUnitByName(botName) then
-        DungeonBots:Print("|cffffd200" .. botName .. "|r ya forma parte de tu grupo actual.")
+    local cleanBot = NormalizePlayerName(botName)
+    if not cleanBot or cleanBot == "" then return end
+    if DungeonBots:FindPartyUnitByName(cleanBot) then
+        DungeonBots:Print("|cffffd200" .. cleanBot .. "|r ya forma parte de tu grupo actual.")
         return
     end
     local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
     if (GetNumRaidMembers and GetNumRaidMembers() > 0) or numParty >= 4 then
-        DungeonBots:Warn("Tu grupo ya está lleno (5/5). No se puede invitar a |cffffd200" .. botName .. "|r.")
+        DungeonBots:Warn("Tu grupo ya está lleno (5/5). No se puede invitar a |cffffd200" .. cleanBot .. "|r.")
         return
     end
     if numParty > 0 and IsPartyLeader and not IsPartyLeader() then
-        DungeonBots:Warn("Debes ser el líder del grupo para invitar a |cffffd200" .. botName .. "|r.")
+        DungeonBots:Warn("Debes ser el líder del grupo para invitar a |cffffd200" .. cleanBot .. "|r.")
         return
     end
-    DungeonBots:AddBot(botName)
-    pendingHistoryInvites[botName] = 1.0
+    DungeonBots:AddBot(cleanBot)
+    pendingHistoryInvites[cleanBot] = 1.0
     historyInviteFrame:Show()
 end

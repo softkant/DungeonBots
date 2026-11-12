@@ -25,7 +25,9 @@ end
 local eventFrame = CreateFrame("Frame", "DungeonBots_EventFrame")
 eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
+eventFrame:RegisterEvent("CHAT_MSG_SYSTEM")
 eventFrame:RegisterEvent("CHAT_MSG_WHISPER")
+eventFrame:RegisterEvent("CHAT_MSG_WHISPER_INFORM")
 eventFrame:RegisterEvent("PARTY_MEMBERS_CHANGED")
 eventFrame:RegisterEvent("UNIT_NAME_UPDATE")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -142,6 +144,46 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         end
         DungeonBots:SyncPartyToHistory()
 
+    elseif event == "CHAT_MSG_SYSTEM" then
+        local message = ...
+        if message and DB_Internal.ExtractBusyBotFromSystem then
+            local busyBot, busyKind = DB_Internal.ExtractBusyBotFromSystem(message)
+            if busyBot and not DungeonBots:FindPartyUnitByName(busyBot) then
+                local shouldNotify = (busyKind == "already_logged_in")
+                if not shouldNotify and busyKind == "not_in_instance" then
+                    local hasRecentInform = DungeonBots.recentUserWhisperTargets
+                        and (DungeonBots.recentUserWhisperTargets[busyBot] or 0) > NowTime()
+                    shouldNotify = DungeonBots:IsRecentBot(busyBot)
+                        or (DungeonBots.HasPendingHistoryInvite and DungeonBots:HasPendingHistoryInvite(busyBot))
+                        or (DungeonBots.GetExternalBotBusyInfo and DungeonBots:GetExternalBotBusyInfo(busyBot) ~= nil)
+                        or DungeonBots:ShouldTreatAsBot(busyBot)
+                        or hasRecentInform
+                end
+                if shouldNotify and DungeonBots.NotifyExternalBotBusy then
+                    local prevInfo = DungeonBots.busyExternalBots and DungeonBots.busyExternalBots[busyBot]
+                    local knownOwner = prevInfo and prevInfo.owner or nil
+                    DungeonBots:NotifyExternalBotBusy(busyBot, knownOwner, busyKind, busyKind == "not_in_instance")
+                end
+            end
+        end
+
+    elseif event == "CHAT_MSG_WHISPER_INFORM" then
+        local message, target = ...
+        local cleanTarget = NormalizePlayerName(target)
+        if cleanTarget and cleanTarget ~= "" and not DungeonBots:FindPartyUnitByName(cleanTarget) then
+            local isTrackedBot = DungeonBots:ShouldTreatAsBot(cleanTarget)
+                or (DungeonBots.HasPendingHistoryInvite and DungeonBots:HasPendingHistoryInvite(cleanTarget))
+                or (DungeonBots.GetExternalBotBusyInfo and DungeonBots:GetExternalBotBusyInfo(cleanTarget) ~= nil)
+            if isTrackedBot then
+                DungeonBots.recentUserWhisperTargets = DungeonBots.recentUserWhisperTargets or {}
+                DungeonBots.recentUserWhisperTargets[cleanTarget] = NowTime() + 10
+            end
+            local busyInfo = DungeonBots.GetExternalBotBusyInfo and DungeonBots:GetExternalBotBusyInfo(cleanTarget)
+            if busyInfo and DungeonBots.NotifyExternalBotBusy then
+                DungeonBots:NotifyExternalBotBusy(cleanTarget, busyInfo.owner, "whisper_inform", true)
+            end
+        end
+
     elseif event == "CHAT_MSG_WHISPER" then
         local message, sender = ...
         if not sender then return end
@@ -149,6 +191,19 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         local playerName = UnitName and UnitName("player")
         if not cleanSender or cleanSender == "" or cleanSender == playerName then
             return
+        end
+
+        if not DungeonBots:FindPartyUnitByName(cleanSender) and DB_Internal.ExtractBusyBotOwnerFromWhisper then
+            local busyOwner, isBusyWhisper = DB_Internal.ExtractBusyBotOwnerFromWhisper(message)
+            if isBusyWhisper then
+                if DungeonBots.NotifyExternalBotBusy then
+                    DungeonBots:NotifyExternalBotBusy(cleanSender, busyOwner, "whisper", true)
+                end
+                if DungeonBots.OnWhisperReceived then
+                    DungeonBots:OnWhisperReceived(cleanSender, message)
+                end
+                return
+            end
         end
 
         local evalResult = DungeonBots:EvaluateWhisperSender(cleanSender, message, true)
@@ -260,7 +315,8 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         end
 
         -- Auto-invite solo para bots recién invocados o bots del historial con respuesta de bot, si hay cupo (< 5 en grupo)
-        local shouldAutoInvite = DungeonBots:IsRecentBot(cleanSender) or (isKnownOrHistory and isBotResponse)
+        local isExternallyBusy = DungeonBots.GetExternalBotBusyInfo and (DungeonBots:GetExternalBotBusyInfo(cleanSender) ~= nil)
+        local shouldAutoInvite = (not isExternallyBusy) and (DungeonBots:IsRecentBot(cleanSender) or (isKnownOrHistory and isBotResponse))
         if shouldAutoInvite and not inParty and DungeonBots:CanInviteToParty() then
             if (DungeonBots.recentInvites[cleanSender] or 0) <= NowTime() then
                 DungeonBots.recentInvites[cleanSender] = NowTime() + 3
