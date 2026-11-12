@@ -488,10 +488,14 @@ end
 local function ChatEventFilterFunc(self, event, message, sender, ...)
     if event == "CHAT_MSG_SYSTEM" then
         if not message or message == "" then return false end
-        local lower = string.lower(message)
+        local clean = TrimText(StripWowFormatting(message))
+        local lower = string.lower(clean)
         if string.find(lower, "you have added too many bots", 1, true)
             or string.find(lower, "more than 4", 1, true)
             or string.find(lower, "demasiados bots", 1, true)
+            or string.find(lower, "character '*' not found", 1, true)
+            or string.match(lower, "^add:%s+.+%s+%-%s+ok%s*$")
+            or string.match(lower, "^remove:%s+.+%s+%-%s+ok%s*$")
             or string.find(lower, "^add class ")
             or string.find(lower, "^add class\r")
             or string.find(lower, "^add class\n") then

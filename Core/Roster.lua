@@ -442,19 +442,32 @@ end
 
 -- Reinvocar a todos los bots del grupo (clave para entrar a mazmorra)
 function DungeonBots:AddAllBots()
+    local partyBots = {}
+    local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
     for i = 1, 4 do
         local unit = "party" .. i
-        if UnitExists(unit) and UnitIsConnected(unit) then
+        if UnitExists(unit) then
             local name = UnitName(unit)
             if name and name ~= "" and DungeonBots:ShouldTreatAsBot(name) then
                 DungeonBots:MarkRecentBot(name, 60)
+                table.insert(partyBots, name)
             end
         end
     end
-    DungeonBots:Print("Reinvocando a todos los bots del grupo...")
-    DungeonBots:SendDotCommand(".playerbots bot add *")
-    -- Pequeño delay sugerido para que carguen antes del summon
-    DungeonBots:SendPartyCommand("summon")
+
+    if #partyBots > 0 then
+        for _, botName in ipairs(partyBots) do
+            DungeonBots:SendDotCommand(".playerbots bot add " .. botName)
+        end
+        DungeonBots:SendPartyCommand("summon")
+        DungeonBots:Print("Bots del grupo reinvocados (" .. #partyBots .. ").")
+    elseif numParty > 0 then
+        DungeonBots:SendDotCommand(".playerbots bot add *")
+        DungeonBots:SendPartyCommand("summon")
+        DungeonBots:Print("Bots del grupo reinvocados.")
+    else
+        DungeonBots:Warn("No hay bots en tu grupo para reinvocar.")
+    end
 end
 
 -- Remover un bot específico y sacarlo del grupo

@@ -572,18 +572,26 @@ function DungeonBots:DalaranPrep()
 end
 
 function DungeonBots:DungeonReenter()
+    local partyBots = {}
     for i = 1, 4 do
         local unit = "party" .. i
         if UnitExists(unit) then
             local name = UnitName(unit)
             if name and name ~= "" and DungeonBots:ShouldTreatAsBot(name) then
                 DungeonBots:MarkRecentBot(name, 60)
+                table.insert(partyBots, name)
             end
         end
     end
-    DungeonBots:Print("Reinvocando grupo dentro de la mazmorra...")
-    DungeonBots:SendDotCommand(".playerbots bot add *")
+    if #partyBots > 0 then
+        for _, botName in ipairs(partyBots) do
+            DungeonBots:SendDotCommand(".playerbots bot add " .. botName)
+        end
+    else
+        DungeonBots:SendDotCommand(".playerbots bot add *")
+    end
     DungeonBots:SendPartyCommand("summon")
+    DungeonBots:Print("Grupo reinvocado dentro de la mazmorra.")
 end
 
 function DungeonBots:DungeonTurnInAndAccept()
