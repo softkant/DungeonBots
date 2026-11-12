@@ -408,13 +408,13 @@ function DungeonBots:AddClass(classId)
     if not classId then return end
     local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
     if (GetNumRaidMembers and GetNumRaidMembers() > 0) or numParty >= 4 then
-        DungeonBots:Warn("Tu grupo ya está completo (5/5); no se auto-invitará al bot.")
-    else
-        DungeonBots:MarkPendingClassSummon(classId)
+        DungeonBots:Warn("Tu grupo ya está completo (5/5). No puedes agregar más bots.")
+        return
     end
+    DungeonBots:MarkPendingClassSummon(classId)
     local classToken = DB_Internal.CLASS_TOKEN_BY_ID and DB_Internal.CLASS_TOKEN_BY_ID[classId]
     local classDisplay = classToken and DungeonBots:GetClassDisplayInfo(classToken) or classId
-    DungeonBots:Print("Invocando bot de clase: |cffffd200" .. classDisplay .. "|r...")
+    DungeonBots:Print("Bot agregado: |cffffd200" .. classDisplay .. "|r.")
     DungeonBots:SendDotCommand(".playerbots bot addclass " .. classId)
 end
 
@@ -422,6 +422,11 @@ end
 function DungeonBots:AddBot(botName)
     local cleanName = NormalizePlayerName(botName)
     if not cleanName or cleanName == "" then return end
+    local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
+    if (GetNumRaidMembers and GetNumRaidMembers() > 0) or numParty >= 4 then
+        DungeonBots:Warn("Tu grupo ya está completo (5/5). No puedes agregar más bots.")
+        return
+    end
     DungeonBots.lastBotCallAttempt = DungeonBots.lastBotCallAttempt or {}
     DungeonBots.lastBotCallAttempt[cleanName] = NowTime()
     if DungeonBots.busyExternalBots and DungeonBots.busyExternalBots[cleanName] then
@@ -431,7 +436,7 @@ function DungeonBots:AddBot(botName)
     DungeonBots:MarkRecentBot(cleanName, 120)
     DungeonBots:RegisterBot(cleanName, true)
     DungeonBots:RecordBotHistory(cleanName)
-    DungeonBots:Print("Llamando a bot: |cffffd200" .. cleanName .. "|r...")
+    DungeonBots:Print("Bot agregado: |cffffd200" .. cleanName .. "|r.")
     DungeonBots:SendDotCommand(".playerbots bot add " .. cleanName)
 end
 

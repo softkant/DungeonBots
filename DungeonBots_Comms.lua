@@ -486,6 +486,19 @@ function DungeonBots:ShouldSuppressChatEvent(event, message, sender)
 end
 
 local function ChatEventFilterFunc(self, event, message, sender, ...)
+    if event == "CHAT_MSG_SYSTEM" then
+        if not message or message == "" then return false end
+        local lower = string.lower(message)
+        if string.find(lower, "you have added too many bots", 1, true)
+            or string.find(lower, "more than 4", 1, true)
+            or string.find(lower, "demasiados bots", 1, true)
+            or string.find(lower, "^add class ")
+            or string.find(lower, "^add class\r")
+            or string.find(lower, "^add class\n") then
+            return true
+        end
+        return false
+    end
     if DungeonBots:ShouldSuppressChatEvent(event, message, sender) then
         return true
     end
@@ -505,6 +518,7 @@ function DungeonBots:SetupChatFilters()
     if chatFiltersRegistered or not ChatFrame_AddMessageEventFilter then return end
     chatFiltersRegistered = true
     local events = {
+        "CHAT_MSG_SYSTEM",
         "CHAT_MSG_WHISPER",
         "CHAT_MSG_WHISPER_INFORM",
         "CHAT_MSG_AFK",
