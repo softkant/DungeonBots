@@ -347,7 +347,7 @@ function DungeonBots:BuildSpellsDialog()
     local hIcon = header:CreateTexture(nil, "ARTWORK")
     hIcon:SetSize(18, 18)
     hIcon:SetPoint("LEFT", header, "LEFT", 10, 0)
-    hIcon:SetTexture("Interface\\Icons\\Spell_Holy_MagicalSentry")
+    hIcon:SetTexture("Interface\\Icons\\INV_Misc_Spyglass_02")
     hIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
     local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")

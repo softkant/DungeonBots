@@ -96,7 +96,7 @@ local UTIL_ACTIONS = {
     {
         name = "Información del Personaje",
         actionKind = "spells",
-        icon = "Interface\\Icons\\Spell_Holy_MagicalSentry",
+        icon = "Interface\\Icons\\INV_Misc_Spyglass_02",
         title = "|cffb266ffInformación del Personaje|r",
         desc = "Abre un menú desplegable para elegir un bot del grupo y ver sus hechizos, glifos y talentos.\n\n|cff71d5ffPermite buscar hechizos, revisar glifos/talentos y ordenar lanzamientos ('cast').|r",
         tooltipCmd = "Acción: |cffffd200Elegir bot -> Info. Personaje|r",
