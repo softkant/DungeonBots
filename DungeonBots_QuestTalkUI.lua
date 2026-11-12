@@ -136,6 +136,10 @@ function DungeonBots:BuildQuestDialog()
     refreshBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
         if qf.currentBot then
+            local curData = DungeonBots.questDialogData and DungeonBots.questDialogData[qf.currentBot]
+            if curData and curData.loading then
+                return
+            end
             DungeonBots:QueryQuests(qf.currentBot, true, false)
         end
     end)
@@ -245,9 +249,23 @@ function DungeonBots:UpdateQuestDialog(botName)
     local data = DungeonBots.questDialogData and DungeonBots.questDialogData[targetBot]
     local quests = (data and data.quests) or {}
 
+    if qf.refreshBtn then
+        if data and data.loading then
+            qf.refreshBtn:Disable()
+            qf.refreshBtn:SetText("Consultando...")
+        else
+            qf.refreshBtn:Enable()
+            qf.refreshBtn:SetText("Actualizar")
+        end
+    end
+
     if data and data.loading and #quests == 0 then
         qf.statusLabel:SetText("|cff71d5ffConsultando misiones activas...|r")
         qf.emptyLabel:SetText("|cff71d5ffConsultando misiones de " .. targetBot .. "...|r\n\n|cff888888Espera un instante mientras responde.|r")
+        qf.emptyLabel:Show()
+    elseif #quests == 0 and data and data.timedOut then
+        qf.statusLabel:SetText("|cffff9f0aSin respuesta de " .. targetBot .. "|r")
+        qf.emptyLabel:SetText("No se recibió respuesta de " .. targetBot .. ".\n\n|cff888888El bot puede estar ocupado o filtrando comandos repetidos.\nPulsa 'Actualizar' de nuevo en unos segundos.|r")
         qf.emptyLabel:Show()
     elseif #quests == 0 then
         qf.statusLabel:SetText("Misiones activas: |cffffd2000|r")
@@ -258,7 +276,11 @@ function DungeonBots:UpdateQuestDialog(botName)
         end
         qf.emptyLabel:Show()
     else
-        qf.statusLabel:SetText("Misiones activas: |cffffd200" .. #quests .. "|r  |cff888888(clic para ver detalles)|r")
+        if data and data.timedOut then
+            qf.statusLabel:SetText("Misiones activas: |cffffd200" .. #quests .. "|r  |cffff9f0a(sin respuesta; lista previa)|r")
+        else
+            qf.statusLabel:SetText("Misiones activas: |cffffd200" .. #quests .. "|r  |cff888888(clic para ver detalles)|r")
+        end
         qf.emptyLabel:Hide()
     end
 
