@@ -1511,19 +1511,23 @@ function DungeonBots:CheckDungeonQuestStatus(def)
             end
 
             if lockedReason and lockedReason ~= 0 then
-                if not playerName or playerName == "" then
-                    if i == 1 then
-                        playerName = UnitName("player") or "Tú"
+                local isSelf = (i == 1)
+                local myName = UnitName("player")
+                if isSelf or not playerName or playerName == "" or playerName == "Desconocido" or playerName == UNKNOWN or playerName == "Unknown" then
+                    if isSelf then
+                        playerName = (myName and myName ~= "") and myName or "Tú"
                     else
                         local pUnit = "party" .. (i - 1)
                         playerName = (UnitExists(pUnit) and UnitName(pUnit)) or ("Miembro " .. i)
                     end
                 end
+                if myName and playerName == myName then
+                    isSelf = true
+                end
 
-                local isSelf = (i == 1) or (playerName == UnitName("player"))
                 local codeStr = (LFG_INSTANCE_INVALID_CODES and LFG_INSTANCE_INVALID_CODES[lockedReason]) or tostring(lockedReason)
 
-                -- Construir texto descriptivo usando plantillas de Blizzard
+                -- Construir texto descriptivo usando plantillas de Blizzard para comprobar si es misión
                 local who = isSelf and "SELF_" or "OTHER_"
                 local template = _G["INSTANCE_UNAVAILABLE_" .. who .. (codeStr or "OTHER")]
                     or _G["INSTANCE_UNAVAILABLE_" .. who .. "QUEST_NOT_COMPLETED"]
@@ -1541,15 +1545,13 @@ function DungeonBots:CheckDungeonQuestStatus(def)
                     if not seenLockedPlayers[playerName] then
                         seenLockedPlayers[playerName] = true
 
-                        local descText = formattedText
-                        if not descText or descText == "" then
-                            if def.key == "foso" then
-                                descText = (isSelf and "No has" or (playerName .. " no ha")) .. " completado las misiones previas de La Forja de Almas."
-                            elseif def.key == "camaras" then
-                                descText = (isSelf and "No has" or (playerName .. " no ha")) .. " completado las misiones previas de Foso de Saron."
-                            else
-                                descText = (isSelf and "No has" or (playerName .. " no ha")) .. " completado las misiones necesarias."
-                            end
+                        local descText
+                        if def.key == "foso" then
+                            descText = "no ha completado las misiones previas de La Forja de Almas."
+                        elseif def.key == "camaras" then
+                            descText = "no ha completado las misiones previas de Foso de Saron."
+                        else
+                            descText = "no ha completado la misión necesaria."
                         end
 
                         table.insert(reasons, {
@@ -1785,11 +1787,8 @@ function DungeonBots:BuildTab3(parent)
                     GameTooltip:AddLine("Miembros sin la misión necesaria:", 1, 0.82, 0)
                     for _, r in ipairs(self.reasons) do
                         local pColor = r.isSelf and "|cff00ccff" or "|cffffd200"
-                        if r.text and string.find(r.text, "^" .. r.playerName) then
-                            GameTooltip:AddLine("  • |cffff7777" .. r.text .. "|r", 1, 1, 1, true)
-                        else
-                            GameTooltip:AddLine("  • " .. pColor .. r.playerName .. ":|r |cffff7777" .. r.text .. "|r", 1, 1, 1, true)
-                        end
+                        local displayName = r.isSelf and (r.playerName .. " (Tú)") or r.playerName
+                        GameTooltip:AddLine("  • " .. pColor .. displayName .. ":|r |cffff7777" .. (r.text or "no ha completado la misión necesaria.") .. "|r", 1, 1, 1, true)
                     end
                 else
                     GameTooltip:AddLine("  • Uno o más miembros no han completado la misión previa requerida.", 1, 0.4, 0.4, true)
