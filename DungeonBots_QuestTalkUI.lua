@@ -185,7 +185,7 @@ function DungeonBots:BuildQuestDialog()
 
     local scrollBg = CreateFrame("Frame", nil, qf)
     scrollBg:SetPoint("TOPLEFT", qf, "TOPLEFT", 10, -68)
-    scrollBg:SetPoint("BOTTOMRIGHT", qf, "BOTTOMRIGHT", -10, 76)
+    scrollBg:SetPoint("BOTTOMRIGHT", qf, "BOTTOMRIGHT", -10, 96)
     ApplyDarkBackdrop(scrollBg, 10)
     scrollBg:SetBackdropColor(0.02, 0.03, 0.05, 1.0)
     scrollBg:SetBackdropBorderColor(0.30, 0.34, 0.42, 1.0)
@@ -214,7 +214,7 @@ function DungeonBots:BuildQuestDialog()
     local checkPanel = CreateFrame("Frame", "DungeonBots_QuestDungeonCheckPanel", qf)
     checkPanel:SetPoint("BOTTOMLEFT", qf, "BOTTOMLEFT", 10, 38)
     checkPanel:SetPoint("BOTTOMRIGHT", qf, "BOTTOMRIGHT", -10, 38)
-    checkPanel:SetHeight(34)
+    checkPanel:SetHeight(52)
     ApplyDarkBackdrop(checkPanel, 8)
     checkPanel:SetBackdropColor(0.04, 0.05, 0.08, 0.94)
     checkPanel:SetBackdropBorderColor(0.28, 0.38, 0.52, 0.95)
@@ -247,7 +247,7 @@ function DungeonBots:BuildQuestDialog()
     local prevDungeonBtn = nil
     for _, def in ipairs(frozenHallsData) do
         local btn = CreateFrame("Button", "DungeonBots_QuestDungeonBtn_" .. def.key, checkPanel)
-        btn:SetSize(256, 28)
+        btn:SetSize(256, 44)
         if prevDungeonBtn then
             btn:SetPoint("RIGHT", checkPanel, "RIGHT", -3, 0)
         else
@@ -258,21 +258,25 @@ function DungeonBots:BuildQuestDialog()
         btn:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.85)
 
         local icon = btn:CreateTexture(nil, "ARTWORK")
-        icon:SetSize(18, 18)
+        icon:SetSize(34, 34)
         icon:SetPoint("LEFT", btn, "LEFT", 6, 0)
         icon:SetTexture(def.icon)
         icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         btn.icon = icon
 
-        local nameText = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        nameText:SetPoint("TOPLEFT", icon, "TOPRIGHT", 6, 1)
+        local nameText = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        nameText:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -2)
         nameText:SetPoint("RIGHT", btn, "RIGHT", -4, 0)
         nameText:SetJustifyH("LEFT")
         nameText:SetText(def.shortName)
         btn.nameText = nameText
 
         local statusText = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        statusText:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 6, -1)
+        local sFontPath, _, sFontFlags = statusText:GetFont()
+        if sFontPath then
+            statusText:SetFont(sFontPath, 11, sFontFlags)
+        end
+        statusText:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 8, 2)
         statusText:SetPoint("RIGHT", btn, "RIGHT", -4, 0)
         statusText:SetJustifyH("LEFT")
         statusText:SetText("|cffaaaaaa...|r")
