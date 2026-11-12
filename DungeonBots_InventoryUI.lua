@@ -365,8 +365,18 @@ function DungeonBots:BuildInventoryDialog()
     botCycleLabel:SetText("|cff888888(0/0)|r")
     inv.botCycleLabel = botCycleLabel
 
+    local closeFooterBtn = CreateFrame("Button", nil, inv, "UIPanelButtonTemplate")
+    closeFooterBtn:SetSize(90, 24)
+    closeFooterBtn:SetPoint("BOTTOMRIGHT", inv, "BOTTOMRIGHT", -12, 10)
+    closeFooterBtn:SetText("Cerrar")
+    closeFooterBtn:SetScript("OnClick", function()
+        PlaySound("igMainMenuOptionCheckBoxOff")
+        inv:Hide()
+    end)
+    inv.closeFooterBtn = closeFooterBtn
+
     local destroyBtn = CreateRedIconButton(inv, 112, 24, "Destruir", "Interface\\Icons\\Spell_ChargeNegative")
-    destroyBtn:SetPoint("BOTTOMRIGHT", inv, "BOTTOMRIGHT", -12, 10)
+    destroyBtn:SetPoint("RIGHT", closeFooterBtn, "LEFT", -8, 0)
     destroyBtn:Disable()
     destroyBtn:SetAlpha(0.45)
     destroyBtn:SetScript("OnClick", function()
