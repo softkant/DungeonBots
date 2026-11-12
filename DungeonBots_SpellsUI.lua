@@ -516,7 +516,7 @@ function DungeonBots:BuildSpellsDialog()
 
     local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("LEFT", hIcon, "RIGHT", 6, 0)
-    title:SetText("|cffb266ffInformación del Personaje:|r")
+    title:SetText("|cffb266ffPersonaje:|r")
     sp.title = title
 
     local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
@@ -837,7 +837,7 @@ function DungeonBots:UpdateSpellsDialog(botName)
             classHex = string.format("|cff%02x%02x%02x", math.floor(c.r * 255), math.floor(c.g * 255), math.floor(c.b * 255))
         end
     end
-    sp.title:SetText("|cffb266ffInformación del Personaje:|r " .. classHex .. targetBot .. "|r")
+    sp.title:SetText("|cffb266ffPersonaje:|r " .. classHex .. targetBot .. "|r")
 
     for tabId, mBtn in pairs(sp.modeButtons) do
         if tabId == mode then
