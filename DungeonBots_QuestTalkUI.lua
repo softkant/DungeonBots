@@ -23,6 +23,36 @@ local function SafeShowLinkTooltip(owner, linkRef, displayLink, title, rawLine)
     return DB_Internal.SafeShowLinkTooltip(owner, linkRef, displayLink, title, rawLine)
 end
 
+StaticPopupDialogs["DUNGEONBOTS_DROP_BOT_QUEST"] = {
+    text = "¿Seguro que quieres abandonar esta misión con |cffffd200%s|r?\n\n%s\n\n|cffff3b30Se ordenará al bot abandonar la misión.|r",
+    button1 = "Abandonar",
+    button2 = "Cancelar",
+    OnAccept = function(self, data)
+        if data and data.botName and data.questEntry and DungeonBots.DropBotQuest then
+            DungeonBots:DropBotQuest(data.botName, data.questEntry, data.fromTalkDialog)
+        end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+local function ConfirmDropBotQuest(botName, questEntry, fromTalkDialog)
+    if not botName or not questEntry then return end
+    local rawDisplay = questEntry.displayLink or questEntry.safeLink
+        or ("|cffffff00[" .. (questEntry.title or questEntry.rawTitle or "Misión") .. "]|r")
+    local questDisplay = DungeonBots.LocalizeHyperlinksInText
+        and DungeonBots:LocalizeHyperlinksInText(rawDisplay)
+        or rawDisplay
+    PlaySound("igMainMenuOptionCheckBoxOn")
+    StaticPopup_Show("DUNGEONBOTS_DROP_BOT_QUEST", botName, questDisplay, {
+        botName = botName,
+        questEntry = questEntry,
+        fromTalkDialog = fromTalkDialog,
+    })
+end
+
 -- =========================================================================
 -- VENTANA DE DIÁLOGO: MISIONES DEL BOT (quests all / drop)
 -- =========================================================================
@@ -353,7 +383,7 @@ function DungeonBots:UpdateQuestDialog(botName)
 
         row.dropBtn:Show()
         row.dropBtn:SetScript("OnClick", function()
-            DungeonBots:DropBotQuest(targetBot, q)
+            ConfirmDropBotQuest(targetBot, q, false)
         end)
         row.dropBtn:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
@@ -831,7 +861,7 @@ function DungeonBots:UpdateTalkDialog(botName)
                     row.acceptBtn:Show()
                     row.acceptBtn:SetScript("OnClick", function()
                         if style.btnAction == "drop" then
-                            DungeonBots:DropBotQuest(targetBot, act, true)
+                            ConfirmDropBotQuest(targetBot, act, true)
                         else
                             DungeonBots:SendTalkCommand(targetBot, act.acceptCmd)
                         end
