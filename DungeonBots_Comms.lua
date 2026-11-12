@@ -464,6 +464,8 @@ function DungeonBots:ShouldSuppressChatEvent(event, message, sender)
 
     elseif event == "CHAT_MSG_PARTY"
         or event == "CHAT_MSG_PARTY_LEADER"
+        or event == "CHAT_MSG_RAID"
+        or event == "CHAT_MSG_RAID_LEADER"
         or event == "CHAT_MSG_SAY"
         or event == "CHAT_MSG_YELL" then
         if whisperMode == "off" or not muteGroup then
@@ -501,6 +503,8 @@ function DungeonBots:SetupChatFilters()
         "CHAT_MSG_DND",
         "CHAT_MSG_PARTY",
         "CHAT_MSG_PARTY_LEADER",
+        "CHAT_MSG_RAID",
+        "CHAT_MSG_RAID_LEADER",
         "CHAT_MSG_SAY",
         "CHAT_MSG_YELL",
     }
@@ -551,22 +555,52 @@ local function WrapWIMController(modName, mod, methodName, blockItem)
     end
 end
 
+local function WrapWIMSound(modName, mod, methodName, fixedEvent)
+    if not mod or type(mod[methodName]) ~= "function" then return end
+    local key = modName .. ":" .. methodName
+    if wimWrappedMethods[key] then return end
+    wimWrappedMethods[key] = true
+
+    local orig = mod[methodName]
+    mod[methodName] = function(self, firstArg, secondArg, thirdArg, ...)
+        local ev = fixedEvent or firstArg
+        local msg = fixedEvent and firstArg or secondArg
+        local sender = fixedEvent and secondArg or thirdArg
+        if type(ev) == "string" and DungeonBots:ShouldSuppressChatEvent(ev, msg, sender) then
+            return
+        end
+        return orig(self, firstArg, secondArg, thirdArg, ...)
+    end
+end
+
+local WIM_CONTROLLER_MAP = {
+    Filters = { "CHAT_MSG_WHISPER_CONTROLLER", "CHAT_MSG_WHISPER_INFORM_CONTROLLER" },
+    WhisperEngine = { "CHAT_MSG_WHISPER_CONTROLLER", "CHAT_MSG_WHISPER_INFORM_CONTROLLER", "CHAT_MSG_AFK_CONTROLLER", "CHAT_MSG_DND_CONTROLLER" },
+    ChatFilters = { "CHAT_MSG_PARTY_CONTROLLER", "CHAT_MSG_PARTY_LEADER_CONTROLLER", "CHAT_MSG_RAID_CONTROLLER", "CHAT_MSG_RAID_LEADER_CONTROLLER", "CHAT_MSG_SAY_CONTROLLER" },
+    PartyChat = { "CHAT_MSG_PARTY_CONTROLLER", "CHAT_MSG_PARTY_LEADER_CONTROLLER" },
+    RaidChat = { "CHAT_MSG_RAID_CONTROLLER", "CHAT_MSG_RAID_LEADER_CONTROLLER" },
+    SayChat = { "CHAT_MSG_SAY_CONTROLLER" },
+    BattlegroundChat = { "CHAT_MSG_BATTLEGROUND_CONTROLLER", "CHAT_MSG_BATTLEGROUND_LEADER_CONTROLLER" },
+}
+
 function DungeonBots:SetupWIMCompatibility()
     local wim = _G.WIM
     if not wim or not wim.modules then return end
 
-    if wim.modules.Filters then
-        WrapWIMController("Filters", wim.modules.Filters, "CHAT_MSG_WHISPER_CONTROLLER", true)
-        WrapWIMController("Filters", wim.modules.Filters, "CHAT_MSG_WHISPER_INFORM_CONTROLLER", true)
+    for modName, methods in pairs(WIM_CONTROLLER_MAP) do
+        local mod = wim.modules[modName]
+        if mod then
+            for _, methodName in ipairs(methods) do
+                WrapWIMController(modName, mod, methodName, true)
+            end
+        end
     end
-    if wim.modules.ChatFilters then
-        WrapWIMController("ChatFilters", wim.modules.ChatFilters, "CHAT_MSG_PARTY_CONTROLLER", true)
-        WrapWIMController("ChatFilters", wim.modules.ChatFilters, "CHAT_MSG_PARTY_LEADER_CONTROLLER", true)
-        WrapWIMController("ChatFilters", wim.modules.ChatFilters, "CHAT_MSG_SAY_CONTROLLER", true)
+    if wim.modules.Sounds then
+        WrapWIMSound("Sounds", wim.modules.Sounds, "PostEvent_Whisper", "CHAT_MSG_WHISPER")
+        WrapWIMSound("Sounds", wim.modules.Sounds, "PostEvent_WhisperInform", "CHAT_MSG_WHISPER_INFORM")
     end
-    if wim.modules.WhisperEngine then
-        WrapWIMController("WhisperEngine", wim.modules.WhisperEngine, "CHAT_MSG_AFK", true)
-        WrapWIMController("WhisperEngine", wim.modules.WhisperEngine, "CHAT_MSG_DND", true)
+    if wim.modules.ChatSounds then
+        WrapWIMSound("ChatSounds", wim.modules.ChatSounds, "PostEvent_ChatMessage", nil)
     end
 end
 

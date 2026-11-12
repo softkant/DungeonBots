@@ -69,6 +69,9 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             if DungeonBotsDB.whisperMuteMode == "auto" then
                 DungeonBotsDB.whisperMuteMode = "all"
             end
+            if DungeonBots.SetupChatFilters then
+                DungeonBots:SetupChatFilters()
+            end
         elseif addonName == "WIM" then
             if DungeonBots.SetupWIMCompatibility then
                 DungeonBots:SetupWIMCompatibility()
