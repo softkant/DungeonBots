@@ -605,7 +605,7 @@ function DungeonBots:BuildTab1(parent)
 
     AddPanelDivider(classBox, -24)
 
-    -- 10 botones de clases distribuidos en 2 filas de 5 con ranura clásica WoW
+    -- 10 botones de clases distribuidos en 2 filas de 5
     local btnW = 108
     local btnH = 62
     local spacingX = 7
@@ -620,16 +620,8 @@ function DungeonBots:BuildTab1(parent)
         cBtn:SetSize(btnW, btnH)
         cBtn:SetPoint("TOPLEFT", classBox, "TOPLEFT", 10 + col * (btnW + spacingX), -32 - row * (btnH + spacingY))
         ApplyInsetPanelBackdrop(cBtn, 8)
-        cBtn:SetBackdropColor(0.07, 0.08, 0.12, 0.96)
-
-        local cColor = RAID_CLASS_COLORS[cls.class] or { r = 0.8, g = 0.8, b = 0.8 }
-        cBtn:SetBackdropBorderColor(cColor.r, cColor.g, cColor.b, 0.55)
-
-        local nameStrip = cBtn:CreateTexture(nil, "BACKGROUND")
-        nameStrip:SetHeight(17)
-        nameStrip:SetPoint("BOTTOMLEFT", cBtn, "BOTTOMLEFT", 3, 3)
-        nameStrip:SetPoint("BOTTOMRIGHT", cBtn, "BOTTOMRIGHT", -3, 3)
-        nameStrip:SetTexture(cColor.r, cColor.g, cColor.b, 0.14)
+        cBtn:SetBackdropColor(0.08, 0.09, 0.13, 0.96)
+        cBtn:SetBackdropBorderColor(0.38, 0.40, 0.48, 0.90)
 
         local cIcon = cBtn:CreateTexture(nil, "ARTWORK")
         cIcon:SetSize(32, 32)
@@ -637,16 +629,10 @@ function DungeonBots:BuildTab1(parent)
         cIcon:SetTexture(cls.icon)
         cIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
-        local cSlotBorder = cBtn:CreateTexture(nil, "OVERLAY")
-        cSlotBorder:SetSize(40, 40)
-        cSlotBorder:SetPoint("CENTER", cIcon, "CENTER", 0, 0)
-        cSlotBorder:SetTexture("Interface\\Buttons\\UI-Quickslot2")
-        cSlotBorder:SetVertexColor(cColor.r, cColor.g, cColor.b, 0.78)
-
         local cText = cBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        cText:SetPoint("BOTTOM", 0, 5)
+        cText:SetPoint("BOTTOM", 0, 6)
         cText:SetText(classDisplay)
-        cText:SetTextColor(cColor.r, cColor.g, cColor.b)
+        cText:SetTextColor(1.0, 0.82, 0.0)
 
         cBtn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
 
@@ -656,17 +642,17 @@ function DungeonBots:BuildTab1(parent)
         end)
 
         cBtn:SetScript("OnEnter", function(self)
-            cBtn:SetBackdropBorderColor(cColor.r, cColor.g, cColor.b, 1.0)
-            cSlotBorder:SetVertexColor(1.0, 0.82, 0.0, 1.0)
+            cBtn:SetBackdropBorderColor(0.85, 0.72, 0.42, 1.0)
+            cText:SetTextColor(1.0, 1.0, 1.0)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:AddLine("Invocar " .. classDisplay, cColor.r, cColor.g, cColor.b)
+            GameTooltip:AddLine("Invocar " .. classDisplay, 1.0, 0.82, 0.0)
             GameTooltip:AddLine("Ejecuta: |cffffd200.playerbots bot addclass " .. cls.id .. "|r", 0.7, 0.8, 1.0)
             GameTooltip:AddLine("\n|cff34c759Si el bot te susurra al aparecer, el addon lo invitará automáticamente al grupo.|r", 0.8, 0.8, 0.8, true)
             GameTooltip:Show()
         end)
         cBtn:SetScript("OnLeave", function()
-            cBtn:SetBackdropBorderColor(cColor.r, cColor.g, cColor.b, 0.55)
-            cSlotBorder:SetVertexColor(cColor.r, cColor.g, cColor.b, 0.78)
+            cBtn:SetBackdropBorderColor(0.38, 0.40, 0.48, 0.90)
+            cText:SetTextColor(1.0, 0.82, 0.0)
             GameTooltip:Hide()
         end)
     end
