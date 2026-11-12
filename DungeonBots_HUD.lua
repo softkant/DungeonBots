@@ -8,6 +8,7 @@ DungeonBots.Internal = DungeonBots.Internal or {}
 local DB_Internal = DungeonBots.Internal
 local hudFrame = nil
 local utilHudFrame = nil
+local formHudFrame = nil
 local hudBotDropDown = nil
 local hudTalkBtn = nil
 
@@ -112,12 +113,86 @@ local UTIL_ACTIONS = {
     },
 }
 
+local FORMATION_ACTIONS = {
+    {
+        name = "Formación Arrow",
+        cmd = "formation arrow",
+        formationId = "arrow",
+        icon = "Interface\\Icons\\Ability_TrueShot",
+        title = "|cff33d9ffFormación: Flecha (Arrow)|r",
+        desc = "Coloca a tus bots en punta de flecha detrás de ti al moverse.\n\n|cff71d5ffIdeal para avanzar ordenado por pasillos de mazmorra.|r",
+        color = { 0.20, 0.85, 1.0 }
+    },
+    {
+        name = "Formación Far",
+        cmd = "formation far",
+        formationId = "far",
+        icon = "Interface\\Icons\\Ability_Hunter_EagleEye",
+        title = "|cff60b3ffFormación: Lejos (Far)|r",
+        desc = "Mantiene a tus bots posicionados más atrás de ti.\n\n|cff71d5ffÚtil para asomarte a esquinas o pasillos sin que el grupo jale patrullas por error.|r",
+        color = { 0.38, 0.70, 1.0 }
+    },
+    {
+        name = "Otras Formaciones",
+        actionKind = "formation_menu",
+        icon = "Interface\\Icons\\Ability_Hunter_HuntingParty",
+        title = "|cffffd200Otras Formaciones y Combate|r",
+        desc = "Cambia entre el resto de formaciones (|cffffd200chaos|r por defecto, |cffffd200shield|r, |cffffd200circle|r, |cffffd200near|r, |cffffd200line|r, etc.), consulta la actual o fija la formación durante el combate.",
+        tooltipCmd = "Menú: |cffffd200formation ... / co ±combat formation|r",
+        color = { 0.95, 0.78, 0.25 }
+    },
+    {
+        name = "Disperse",
+        actionKind = "disperse_menu",
+        icon = "Interface\\Icons\\Spell_Arcane_Blink",
+        title = "|cffc673ffDisperse (Separación mínima)|r",
+        desc = "Fija una distancia mínima en metros entre cada bot para que NO se queden apilados encima uno de otro.\n\n|cff71d5ffCómo usarlo:|r Actívalo (p. ej. 12m) antes de jefes con bombas, cadenas o daño AoE, y desactívalo al terminar.",
+        tooltipCmd = "Menú: |cffffd200disperse set <m> / disperse disable|r",
+        color = { 0.78, 0.45, 1.0 }
+    },
+    {
+        name = "Move From Group",
+        cmd = "move from group",
+        icon = "Interface\\Icons\\Ability_Rogue_Sprint",
+        title = "|cff57d98cSepararse del Grupo (Move From Group)|r",
+        desc = "Orden puntual e inmediata para que los bots se aparten del montón en ese instante.\n\n|cff71d5ffIdeal en emergencias cuando cae un charco o mecánica AoE justo donde están parados.|r",
+        color = { 0.34, 0.85, 0.55 }
+    },
+    {
+        name = "Control de Pull y Espera",
+        actionKind = "pull_wait_menu",
+        icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",
+        title = "|cffff9e26Control de Pull y Espera|r",
+        desc = "Configura cuántos segundos esperan los DPS/Healers antes de atacar al iniciar combate (|cffffd200wait for attack|r), además de pull hacia atrás, ataque solo del tanque y modo pasivo.",
+        tooltipCmd = "Menú: |cffffd200wait for attack / pull back / tank attack / passive|r",
+        color = { 1.0, 0.62, 0.15 }
+    },
+}
+
 local function GetOrCreateHudBotDropDown()
     if hudBotDropDown then return hudBotDropDown end
     hudBotDropDown = CreateFrame("Frame", "DungeonBots_HUDTalkDropDown", UIParent, "UIDropDownMenuTemplate")
     hudBotDropDown.displayMode = "MENU"
     hudBotDropDown:Hide()
     return hudBotDropDown
+end
+
+local function OpenAnchoredHudMenu(anchorBtn, buildMenuFn)
+    local dd = GetOrCreateHudBotDropDown()
+    if UIDROPDOWNMENU_OPEN_MENU ~= dd and CloseDropDownMenus then
+        CloseDropDownMenus()
+    end
+    local bottomY = anchorBtn.GetBottom and anchorBtn:GetBottom() or 0
+    local opensUp = (bottomY < 220)
+    if opensUp then
+        dd.point = "BOTTOMLEFT"
+        dd.relativePoint = "TOPLEFT"
+    else
+        dd.point = "TOPLEFT"
+        dd.relativePoint = "BOTTOMLEFT"
+    end
+    UIDropDownMenu_Initialize(dd, buildMenuFn, "MENU")
+    ToggleDropDownMenu(1, nil, dd, anchorBtn, 0, opensUp and 4 or -4)
 end
 
 local function OpenHudBotDropdown(anchorBtn, headerTitle, emptyWarnMsg, onSelectBot, directIfSingle, showProximity)
@@ -133,21 +208,7 @@ local function OpenHudBotDropdown(anchorBtn, headerTitle, emptyWarnMsg, onSelect
         return
     end
 
-    local dd = GetOrCreateHudBotDropDown()
-    if UIDROPDOWNMENU_OPEN_MENU ~= dd and CloseDropDownMenus then
-        CloseDropDownMenus()
-    end
-    local bottomY = anchorBtn.GetBottom and anchorBtn:GetBottom() or 0
-    local opensUp = (bottomY < 220)
-    if opensUp then
-        dd.point = "BOTTOMLEFT"
-        dd.relativePoint = "TOPLEFT"
-    else
-        dd.point = "TOPLEFT"
-        dd.relativePoint = "BOTTOMLEFT"
-    end
-
-    UIDropDownMenu_Initialize(dd, function(self, level)
+    OpenAnchoredHudMenu(anchorBtn, function(self, level)
         local infoTitle = UIDropDownMenu_CreateInfo()
         infoTitle.text = headerTitle or "-- Elegir Bot --"
         infoTitle.isTitle = true
@@ -174,11 +235,166 @@ local function OpenHudBotDropdown(anchorBtn, headerTitle, emptyWarnMsg, onSelect
             end
             UIDropDownMenu_AddButton(info, level)
         end
-    end, "MENU")
-
-    ToggleDropDownMenu(1, nil, dd, anchorBtn, 0, opensUp and 4 or -4)
+    end)
 end
 DB_Internal.OpenPartyBotDropdown = OpenHudBotDropdown
+
+local function AddHudMenuTitle(level, titleText)
+    local info = UIDropDownMenu_CreateInfo()
+    info.text = titleText
+    info.isTitle = true
+    info.notCheckable = true
+    UIDropDownMenu_AddButton(info, level)
+end
+
+local function AddHudMenuAction(level, text, checked, onClickFn)
+    local info = UIDropDownMenu_CreateInfo()
+    info.text = text
+    if checked == nil then
+        info.notCheckable = true
+    else
+        info.checked = checked and true or false
+    end
+    info.func = function()
+        if CloseDropDownMenus then CloseDropDownMenus() end
+        onClickFn()
+    end
+    UIDropDownMenu_AddButton(info, level)
+end
+
+local function ApplyFormationCommand(formationId, labelText)
+    if DungeonBotsDB then
+        DungeonBotsDB.activeFormation = formationId
+    end
+    DungeonBots:SendPartyCommand("formation " .. formationId)
+    DungeonBots:Print("Formación del grupo: |cff33d9ff" .. (labelText or formationId) .. "|r (/p formation " .. formationId .. ").")
+end
+
+local function ApplyDisperseSetting(yards)
+    if yards and yards > 0 then
+        if DungeonBotsDB then DungeonBotsDB.activeDisperse = yards end
+        DungeonBots:SendPartyCommand("disperse set " .. yards)
+        DungeonBots:Print("Disperse activado: separación mínima de |cffc673ff" .. yards .. " metros|r entre bots.")
+    else
+        if DungeonBotsDB then DungeonBotsDB.activeDisperse = 0 end
+        DungeonBots:SendPartyCommand("disperse disable")
+        DungeonBots:Print("Disperse desactivado (los bots vuelven a agruparse normalmente).")
+    end
+end
+
+local function ApplyWaitForAttackSeconds(seconds)
+    local secs = tonumber(seconds) or 0
+    if DungeonBotsDB then DungeonBotsDB.waitAttackSeconds = secs end
+    if secs > 0 then
+        DungeonBots:SendPartyCommand("co +wait for attack")
+        DungeonBots:SendPartyCommand("wait for attack time " .. secs)
+        DungeonBots:Print("Espera de pull activada: los bots esperarán |cffffd200" .. secs .. " seg|r antes de atacar.")
+    else
+        DungeonBots:SendPartyCommand("wait for attack time 0")
+        DungeonBots:SendPartyCommand("co -wait for attack")
+        DungeonBots:Print("Espera de pull desactivada (|cff34c759atacar de inmediato|r).")
+    end
+end
+
+local function HandleFormationActionClick(anchorBtn, action)
+    if action.cmd then
+        if CloseDropDownMenus then CloseDropDownMenus() end
+        if action.formationId then
+            ApplyFormationCommand(action.formationId, action.formationId)
+        else
+            DungeonBots:SendPartyCommand(action.cmd)
+            if action.cmd == "move from group" then
+                DungeonBots:Print("Orden enviada: |cff57d98cSepararse del grupo|r (/p move from group).")
+            end
+        end
+        return
+    end
+
+    if action.actionKind == "formation_menu" then
+        local activeForm = (DungeonBotsDB and DungeonBotsDB.activeFormation) or "chaos"
+        local combatForm = (DungeonBotsDB and DungeonBotsDB.combatFormationActive) and true or false
+        OpenAnchoredHudMenu(anchorBtn, function(_, level)
+            AddHudMenuTitle(level, "-- Formaciones --")
+            local list = {
+                { id = "chaos",  label = "Chaos (Por defecto)" },
+                { id = "shield", label = "Shield (Tanques delante, resto detrás)" },
+                { id = "circle", label = "Circle (Rodear objetivo)" },
+                { id = "near",   label = "Near (Quietos cerca)" },
+                { id = "line",   label = "Line (En fila)" },
+                { id = "queue",  label = "Queue (En cola)" },
+                { id = "melee",  label = "Melee (Pegados al líder)" },
+            }
+            for _, f in ipairs(list) do
+                AddHudMenuAction(level, f.label, activeForm == f.id, function()
+                    ApplyFormationCommand(f.id, f.label)
+                end)
+            end
+            AddHudMenuTitle(level, "-- Combate y Mapa --")
+            AddHudMenuAction(level, "Mantener formación en combate (+combat formation)", combatForm, function()
+                local nextVal = not combatForm
+                if DungeonBotsDB then DungeonBotsDB.combatFormationActive = nextVal end
+                DungeonBots:SendPartyCommand(nextVal and "co +combat formation" or "co -combat formation")
+                DungeonBots:Print("Mantener formación en combate: " .. (nextVal and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
+            end)
+            AddHudMenuAction(level, "Mostrar puntos en mapa (formation show)", nil, function()
+                DungeonBots:SendPartyCommand("formation show")
+            end)
+            AddHudMenuAction(level, "Consultar formación actual (formation ?)", nil, function()
+                DungeonBots:SendPartyCommand("formation ?")
+            end)
+        end)
+    elseif action.actionKind == "disperse_menu" then
+        local activeDisp = (DungeonBotsDB and DungeonBotsDB.activeDisperse) or 0
+        OpenAnchoredHudMenu(anchorBtn, function(_, level)
+            AddHudMenuTitle(level, "-- Disperse (Distancia mínima) --")
+            AddHudMenuAction(level, "Dispersar 8 metros (Evitar cleaves)", activeDisp == 8, function()
+                ApplyDisperseSetting(8)
+            end)
+            AddHudMenuAction(level, "Dispersar 12 metros (AoE / Bombas)", activeDisp == 12, function()
+                ApplyDisperseSetting(12)
+            end)
+            AddHudMenuAction(level, "Dispersar 18 metros (Separación amplia)", activeDisp == 18, function()
+                ApplyDisperseSetting(18)
+            end)
+            AddHudMenuAction(level, "Desactivar Disperse (Volver a juntarse)", activeDisp == 0, function()
+                ApplyDisperseSetting(0)
+            end)
+        end)
+    elseif action.actionKind == "pull_wait_menu" then
+        local curWait = (DungeonBotsDB and DungeonBotsDB.waitAttackSeconds) or 0
+        local isPassive = (DungeonBotsDB and DungeonBotsDB.passiveModeActive) and true or false
+        OpenAnchoredHudMenu(anchorBtn, function(_, level)
+            AddHudMenuTitle(level, "-- Espera antes de atacar --")
+            AddHudMenuAction(level, "Esperar 3 seg (Pull rápido)", curWait == 3, function()
+                ApplyWaitForAttackSeconds(3)
+            end)
+            AddHudMenuAction(level, "Esperar 5 seg (Recomendado mazmorra)", curWait == 5, function()
+                ApplyWaitForAttackSeconds(5)
+            end)
+            AddHudMenuAction(level, "Esperar 8 seg (Pull lento / LoS)", curWait == 8, function()
+                ApplyWaitForAttackSeconds(8)
+            end)
+            AddHudMenuAction(level, "Sin espera / Atacar ya (0 seg)", curWait == 0, function()
+                ApplyWaitForAttackSeconds(0)
+            end)
+            AddHudMenuTitle(level, "-- Control de Pull y Pasivo --")
+            AddHudMenuAction(level, "Pull hacia atrás (pull back)", nil, function()
+                DungeonBots:SendPartyCommand("pull back")
+                DungeonBots:Print("Orden enviada: |cffff9e26Pull hacia atrás|r (/p pull back).")
+            end)
+            AddHudMenuAction(level, "Solo Tanque ataca mi target (tank attack)", nil, function()
+                DungeonBots:SendPartyCommand("tank attack")
+                DungeonBots:Print("Orden enviada: |cffff9e26Solo el tanque ataca tu objetivo|r (/p tank attack).")
+            end)
+            AddHudMenuAction(level, "Modo Pasivo (No atacar / para skips)", isPassive, function()
+                local nextPassive = not isPassive
+                if DungeonBotsDB then DungeonBotsDB.passiveModeActive = nextPassive end
+                DungeonBots:SendPartyCommand(nextPassive and "co +passive" or "co -passive")
+                DungeonBots:Print("Modo Pasivo de bots: " .. (nextPassive and "|cffff3b30ACTIVADO (no atacarán)|r" or "|cff34c759DESACTIVADO (combate normal)|r"))
+            end)
+        end)
+    end
+end
 
 local function HandleHudTalkClick(anchorBtn)
     if DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
@@ -292,6 +508,7 @@ function DungeonBots:UpdateHUDVisibility()
     if ApplyBarVisibility(utilHudFrame, "utilHudVisible") then
         DungeonBots:UpdateHUDTalkButtonState()
     end
+    ApplyBarVisibility(formHudFrame, "formHudVisible")
 end
 
 function DungeonBots:IsHUDLocked()
@@ -303,6 +520,7 @@ function DungeonBots:SetHUDLocked(locked, silent)
     if DungeonBotsDB then
         DungeonBotsDB.hudLocked = isLocked
         DungeonBotsDB.utilHudLocked = isLocked
+        DungeonBotsDB.formHudLocked = isLocked
     end
     if DungeonBots.UpdateHUDLockButtonState then
         DungeonBots:UpdateHUDLockButtonState()
@@ -311,7 +529,7 @@ function DungeonBots:SetHUDLocked(locked, silent)
         if isLocked then
             DungeonBots:Print("Barras flotantes: |cff9d9d9dBloqueadas|r (fijadas en su posición).")
         else
-            DungeonBots:Print("Barras flotantes: |cff34c759Desbloqueadas|r (puedes mover ambas barras).")
+            DungeonBots:Print("Barras flotantes: |cff34c759Desbloqueadas|r (puedes mover todas las barras).")
         end
     end
 end
@@ -463,6 +681,7 @@ function DungeonBots:InitHUD()
         local locked = DungeonBots:IsHUDLocked()
         DungeonBotsDB.hudLocked = locked
         DungeonBotsDB.utilHudLocked = locked
+        DungeonBotsDB.formHudLocked = locked
     end
 
     if not hudFrame then
@@ -495,6 +714,21 @@ function DungeonBots:InitHUD()
         DungeonBots.utilHudFrame = utilHudFrame
     end
 
+    if not formHudFrame then
+        formHudFrame = CreateFloatingToolbar({
+            frameName = "DungeonBots_FormHUDFrame",
+            posKey = "formHudPosition",
+            defaultPos = { point = "BOTTOM", x = 0, y = 248 },
+            actions = FORMATION_ACTIONS,
+            btnPrefix = "DungeonBots_FormExtBtn_",
+            showMainPanelBtn = false,
+            onActionClick = function(btn, action)
+                HandleFormationActionClick(btn, action)
+            end,
+        })
+        DungeonBots.formHudFrame = formHudFrame
+    end
+
     DungeonBots:UpdateHUDTalkButtonState()
     DungeonBots:UpdateHUDVisibility()
     if DungeonBots.UpdateHUDLockButtonState then
@@ -506,6 +740,7 @@ function DungeonBots:ResetHUDPositions()
     if not DungeonBotsDB then return end
     DungeonBotsDB.hudPosition = { point = "BOTTOM", x = 0, y = 140 }
     DungeonBotsDB.utilHudPosition = { point = "BOTTOM", x = 0, y = 194 }
+    DungeonBotsDB.formHudPosition = { point = "BOTTOM", x = 0, y = 248 }
     if hudFrame then
         hudFrame:ClearAllPoints()
         hudFrame:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 140)
@@ -513,6 +748,10 @@ function DungeonBots:ResetHUDPositions()
     if utilHudFrame then
         utilHudFrame:ClearAllPoints()
         utilHudFrame:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 194)
+    end
+    if formHudFrame then
+        formHudFrame:ClearAllPoints()
+        formHudFrame:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 248)
     end
 end
 

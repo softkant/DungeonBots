@@ -43,13 +43,15 @@ function DungeonBots:UpdateSettingsDialog()
 
     local hudShow = (not DungeonBotsDB) or (DungeonBotsDB.hudVisible ~= false)
     local utilHudShow = (not DungeonBotsDB) or (DungeonBotsDB.utilHudVisible ~= false)
-    local anyBarShow = hudShow or utilHudShow
+    local formHudShow = (not DungeonBotsDB) or (DungeonBotsDB.formHudVisible ~= false)
+    local anyBarShow = hudShow or utilHudShow or formHudShow
     local hudDungeonOnly = (not DungeonBotsDB) or (DungeonBotsDB.hudOnlyInDungeon ~= false)
     local muteShow = (not DungeonBotsDB) or (DungeonBotsDB.whisperMuteMode ~= "off")
     local muteGroup = (DungeonBotsDB and DungeonBotsDB.muteBotGroupChat) and true or false
 
     sf.hudVisibleCheck:SetChecked(hudShow)
     sf.utilHudVisibleCheck:SetChecked(utilHudShow)
+    sf.formHudVisibleCheck:SetChecked(formHudShow)
     sf.hudDungeonCheck:SetChecked(hudDungeonOnly)
     sf.muteWhispersCheck:SetChecked(muteShow)
     sf.muteGroupCheck:SetChecked(muteGroup)
@@ -60,7 +62,7 @@ function DungeonBots:UpdateSettingsDialog()
         sf.muteWhispersCheck:SetPoint("TOPLEFT", sf.hudDungeonCheck, "BOTTOMLEFT", -18, -10)
     else
         sf.hudDungeonCheck:Hide()
-        sf.muteWhispersCheck:SetPoint("TOPLEFT", sf.utilHudVisibleCheck, "BOTTOMLEFT", 0, -10)
+        sf.muteWhispersCheck:SetPoint("TOPLEFT", sf.formHudVisibleCheck, "BOTTOMLEFT", 0, -10)
     end
 
     if muteShow then
@@ -69,7 +71,7 @@ function DungeonBots:UpdateSettingsDialog()
         sf.muteGroupCheck:Hide()
     end
 
-    local totalH = 178 + (anyBarShow and 26 or 0) + (muteShow and 26 or 0)
+    local totalH = 204 + (anyBarShow and 26 or 0) + (muteShow and 26 or 0)
     sf:SetHeight(totalH)
 end
 
@@ -148,14 +150,24 @@ function DungeonBots:BuildSettingsDialog()
     utilHudVisibleCheck:SetPoint("TOPLEFT", hudVisibleCheck, "BOTTOMLEFT", 0, -2)
     sf.utilHudVisibleCheck = utilHudVisibleCheck
 
+    -- Opción 1a2: Mostrar/Ocultar Barra de Formación
+    local formHudVisibleCheck = CreateSettingsCheckbox(
+        sf, "DungeonBots_FormHudVisibleCheck",
+        "Mostrar Barra de Formación flotante (Arrow / Far / Disperse / Separarse / Espera)",
+        "Barra de Formación Flotante",
+        "Muestra la tercera barra flotante especializada en formación (arrow, far y otras), disperse, move from group y control de pull/espera.\n\nDesmarca esta opción para ocultar esta barra por completo."
+    )
+    formHudVisibleCheck:SetPoint("TOPLEFT", utilHudVisibleCheck, "BOTTOMLEFT", 0, -2)
+    sf.formHudVisibleCheck = formHudVisibleCheck
+
     -- Opción 1b (dependiente): Solo en mazmorras de 5 jugadores
     local hudDungeonCheck = CreateSettingsCheckbox(
         sf, "DungeonBots_HudDungeonCheck",
         "Mostrar barras flotantes solo dentro de mazmorras de 5 jugadores",
         "Solo en Mazmorras de 5 Jugadores",
-        "Cuando está activa, las barras flotantes (Táctica y Utilidades) se ocultan fuera de mazmorras de 5 jugadores y aparecen automáticamente al entrar."
+        "Cuando está activa, las barras flotantes (Táctica, Utilidades y Formación) se ocultan fuera de mazmorras de 5 jugadores y aparecen automáticamente al entrar."
     )
-    hudDungeonCheck:SetPoint("TOPLEFT", utilHudVisibleCheck, "BOTTOMLEFT", 18, -2)
+    hudDungeonCheck:SetPoint("TOPLEFT", formHudVisibleCheck, "BOTTOMLEFT", 18, -2)
     sf.hudDungeonCheck = hudDungeonCheck
 
     -- Opción 2: Ocultar susurros de bots
@@ -194,6 +206,7 @@ function DungeonBots:BuildSettingsDialog()
 
     BindBarVisibilityToggle(hudVisibleCheck, "hudVisible", "hudFrame", "Barra táctica (HUD)")
     BindBarVisibilityToggle(utilHudVisibleCheck, "utilHudVisible", "utilHudFrame", "Barra de Utilidades")
+    BindBarVisibilityToggle(formHudVisibleCheck, "formHudVisible", "formHudFrame", "Barra de Formación")
 
     hudDungeonCheck:SetScript("OnClick", function(self)
         local val = self:GetChecked() and true or false
