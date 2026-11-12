@@ -168,9 +168,39 @@ function DungeonBots:BuildQuestDialog()
     emptyLabel:SetText("Este bot no tiene misiones activas.")
     qf.emptyLabel = emptyLabel
 
-    local footerHint = qf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    footerHint:SetPoint("BOTTOMLEFT", 14, 15)
-    footerHint:SetText("|cffaaaaaaClic en una misión para ver detalles, o pulsa 'Compartir' / 'Abandonar'.|r")
+    local nextBotBtn = CreateFrame("Button", nil, qf, "UIPanelButtonTemplate")
+    nextBotBtn:SetSize(120, 24)
+    nextBotBtn:SetPoint("BOTTOMLEFT", qf, "BOTTOMLEFT", 12, 10)
+    nextBotBtn:SetText("Siguiente Bot")
+    nextBotBtn:SetScript("OnClick", function()
+        PlaySound("igMainMenuOptionCheckBoxOn")
+        if DungeonBots.CycleNextQuestBot then
+            DungeonBots:CycleNextQuestBot(qf.currentBot)
+        end
+    end)
+    nextBotBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Siguiente Bot", 1, 0.85, 0.2)
+        if DungeonBots.GetTalkBotCycleInfo then
+            local curIdx, total = DungeonBots:GetTalkBotCycleInfo(qf.currentBot)
+            if total >= 2 then
+                local posLabel = (curIdx > 0) and (curIdx .. "/" .. total) or ("0/" .. total)
+                GameTooltip:AddLine("Pasa al siguiente bot del grupo para ver sus misiones (" .. posLabel .. ").", 0.85, 0.85, 0.85, true)
+            else
+                GameTooltip:AddLine("Se necesitan al menos 2 bots en el grupo para pasar al siguiente.", 0.8, 0.8, 0.8, true)
+            end
+        end
+        GameTooltip:Show()
+    end)
+    nextBotBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    qf.nextBotBtn = nextBotBtn
+
+    local botCycleLabel = qf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    botCycleLabel:SetPoint("LEFT", nextBotBtn, "RIGHT", 8, 0)
+    botCycleLabel:SetWidth(42)
+    botCycleLabel:SetJustifyH("LEFT")
+    botCycleLabel:SetText("|cff888888(0/0)|r")
+    qf.botCycleLabel = botCycleLabel
 
     local closeFooterBtn = CreateFrame("Button", nil, qf, "UIPanelButtonTemplate")
     closeFooterBtn:SetSize(90, 24)
@@ -197,6 +227,20 @@ function DungeonBots:UpdateQuestDialog(botName)
     end
     qf.currentBot = targetBot
     qf.title:SetText("|cff00ccffMisiones:|r |cffffd200" .. targetBot .. "|r")
+
+    if qf.nextBotBtn and qf.botCycleLabel and DungeonBots.GetTalkBotCycleInfo then
+        local curIdx, total = DungeonBots:GetTalkBotCycleInfo(targetBot)
+        if total > 0 and curIdx > 0 then
+            qf.botCycleLabel:SetText(string.format("|cff888888(%d/%d)|r", curIdx, total))
+        else
+            qf.botCycleLabel:SetText("|cff888888(0/0)|r")
+        end
+        if total >= 2 then
+            qf.nextBotBtn:Enable()
+        else
+            qf.nextBotBtn:Disable()
+        end
+    end
 
     local data = DungeonBots.questDialogData and DungeonBots.questDialogData[targetBot]
     local quests = (data and data.quests) or {}

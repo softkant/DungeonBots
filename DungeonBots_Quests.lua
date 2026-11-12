@@ -394,6 +394,16 @@ function DungeonBots:CycleNextTalkBot(currentBot)
     DungeonBots:SendTalkCommand(nextBot, "talk")
 end
 
+function DungeonBots:CycleNextQuestBot(currentBot)
+    if not DungeonBots.GetTalkBotCycleInfo then return nil end
+    local _, total, nextBot = DungeonBots:GetTalkBotCycleInfo(currentBot)
+    if not nextBot or total < 2 then
+        return nil
+    end
+    DungeonBots:QueryQuests(nextBot, true, false)
+    return nextBot
+end
+
 function DungeonBots:FindDefaultTalkBot()
     if UnitExists("target") and UnitIsPlayer("target") then
         local targetName = NormalizePlayerName(UnitName("target"))
