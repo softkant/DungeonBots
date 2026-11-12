@@ -75,11 +75,31 @@ function DungeonBots:UpdateSettingsDialog()
 
     if muteShow then
         sf.muteGroupCheck:Show()
+        sf.themeLabel:SetPoint("TOPLEFT", sf.muteGroupCheck, "BOTTOMLEFT", -18, -12)
     else
         sf.muteGroupCheck:Hide()
+        sf.themeLabel:SetPoint("TOPLEFT", sf.muteWhispersCheck, "BOTTOMLEFT", 0, -12)
     end
 
-    local totalH = 204 + (anyBarShow and 26 or 0) + (muteShow and 26 or 0)
+    local curTheme = DB_Internal.GetThemeId and DB_Internal.GetThemeId() or "gold"
+    local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+    if sf.themeGoldBtn and sf.themeDarkBtn and p then
+        local function StyleThemeChoice(btn, isSelected, displayName)
+            if isSelected then
+                btn:SetBackdropColor(p.specActiveBg[1], p.specActiveBg[2], p.specActiveBg[3], p.specActiveBg[4])
+                btn:SetBackdropBorderColor(p.specActiveBorder[1], p.specActiveBorder[2], p.specActiveBorder[3], p.specActiveBorder[4])
+                btn.label:SetText(p.specActiveHex .. displayName .. " (Activo)|r")
+            else
+                btn:SetBackdropColor(p.insetBg[1], p.insetBg[2], p.insetBg[3], p.insetBg[4])
+                btn:SetBackdropBorderColor(p.insetBorder[1], p.insetBorder[2], p.insetBorder[3], p.insetBorder[4])
+                btn.label:SetText(p.specInactiveHex .. displayName .. "|r")
+            end
+        end
+        StyleThemeChoice(sf.themeGoldBtn, curTheme == "gold", "Dorado Clásico")
+        StyleThemeChoice(sf.themeDarkBtn, curTheme == "dark", "Oscuro Acero")
+    end
+
+    local totalH = 242 + (anyBarShow and 26 or 0) + (muteShow and 26 or 0)
     sf:SetHeight(totalH)
 end
 
@@ -234,6 +254,64 @@ function DungeonBots:BuildSettingsDialog()
         DungeonBots:Print("Ocultar chat de bots en Grupo/Decir: " .. (val and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
     end)
 
+    -- Opción 3: Selector de Tema visual (Dorado Clásico / Oscuro Acero)
+    local themeLabel = sf:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    themeLabel:SetText("|cffffd200Tema visual:|r")
+    sf.themeLabel = themeLabel
+
+    local function CreateThemeChoiceBtn(name, themeId, tipTitle, tipBody)
+        local btn = CreateFrame("Button", name, sf)
+        btn:SetSize(166, 24)
+        ApplyInsetPanelBackdrop(btn, 8)
+        btn:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+
+        local label = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        label:SetPoint("LEFT", btn, "LEFT", 6, 0)
+        label:SetPoint("RIGHT", btn, "RIGHT", -6, 0)
+        label:SetJustifyH("CENTER")
+        btn.label = label
+
+        btn:SetScript("OnClick", function()
+            PlaySound("igMainMenuOptionCheckBoxOn")
+            if DungeonBots.SetUITheme then
+                DungeonBots:SetUITheme(themeId)
+            end
+            local labelText = (themeId == "dark") and "|cff66d4ffOscuro Acero|r" or "|cffffd100Dorado Clásico|r"
+            DungeonBots:Print("Tema de interfaz cambiado a: " .. labelText)
+        end)
+        btn:SetScript("OnEnter", function(self)
+            local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+            if p then
+                self:SetBackdropBorderColor(p.hoverBorder[1], p.hoverBorder[2], p.hoverBorder[3], p.hoverBorder[4])
+            end
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:AddLine(tipTitle, 1, 1, 1)
+            GameTooltip:AddLine(tipBody, 0.75, 0.85, 1.0, true)
+            GameTooltip:Show()
+        end)
+        btn:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+            DungeonBots:UpdateSettingsDialog()
+        end)
+        return btn
+    end
+
+    local themeGoldBtn = CreateThemeChoiceBtn(
+        "DungeonBots_ThemeGoldBtn", "gold",
+        "Tema: Dorado Clásico (WoW)",
+        "Estilo clásico Blizzard WotLK con bordes dorados tallados y paneles piedra/bronce cálidos."
+    )
+    themeGoldBtn:SetPoint("LEFT", themeLabel, "RIGHT", 12, 0)
+    sf.themeGoldBtn = themeGoldBtn
+
+    local themeDarkBtn = CreateThemeChoiceBtn(
+        "DungeonBots_ThemeDarkBtn", "dark",
+        "Tema: Oscuro Acero",
+        "Variante oscura de acero y pizarra nocturna con textura de piedra Blizzard y bordes plateados."
+    )
+    themeDarkBtn:SetPoint("LEFT", themeGoldBtn, "RIGHT", 8, 0)
+    sf.themeDarkBtn = themeDarkBtn
+
     local versionLabel = sf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     versionLabel:SetPoint("BOTTOMLEFT", sf, "BOTTOMLEFT", 16, 17)
     versionLabel:SetText("|cff71d5ffAsistente de Mazmorras|r |cff888888v" .. (DungeonBots.VERSION or "1.0.0") .. "|r")
@@ -301,15 +379,21 @@ local function CreateHistoryRow(parent, idx)
     local row = CreateFrame("Frame", nil, parent)
     row:SetSize(480, 50)
     ApplyInsetPanelBackdrop(row, 8)
-    row:SetBackdropColor(0.10, 0.085, 0.065, 0.96)
-    row:SetBackdropBorderColor(0.56, 0.46, 0.28, 0.92)
 
     local iconFrame = CreateFrame("Frame", nil, row)
     iconFrame:SetSize(34, 34)
     iconFrame:SetPoint("LEFT", row, "LEFT", 8, 0)
     ApplyInsetPanelBackdrop(iconFrame, 6)
-    iconFrame:SetBackdropColor(0.04, 0.03, 0.02, 1.0)
-    iconFrame:SetBackdropBorderColor(0.74, 0.60, 0.32, 0.95)
+    local function StyleHistoryIconFrame(f)
+        local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+        if not p then return end
+        f:SetBackdropColor(p.historyIconBg[1], p.historyIconBg[2], p.historyIconBg[3], p.historyIconBg[4])
+        f:SetBackdropBorderColor(p.headerBorder[1], p.headerBorder[2], p.headerBorder[3], p.headerBorder[4])
+    end
+    StyleHistoryIconFrame(iconFrame)
+    if DB_Internal.RegisterThemed then
+        DB_Internal.RegisterThemed(iconFrame, StyleHistoryIconFrame)
+    end
 
     row.icon = iconFrame:CreateTexture(nil, "ARTWORK")
     row.icon:SetPoint("TOPLEFT", iconFrame, "TOPLEFT", 2, -2)

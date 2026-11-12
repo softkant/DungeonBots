@@ -213,14 +213,18 @@ function DungeonBots:InitUI()
         DungeonBots:ToggleSettingsDialog()
     end)
     settingsBtn:SetScript("OnEnter", function(self)
-        settingsBorder:SetVertexColor(1.0, 0.82, 0.0, 1.0)
+        local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+        local hc = (p and p.hoverBorder) or { 1.0, 0.82, 0.0, 1.0 }
+        settingsBorder:SetVertexColor(hc[1], hc[2], hc[3], 1.0)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:AddLine("Configuración", 1, 1, 1)
         GameTooltip:AddLine("Abre las opciones de las barras flotantes (Táctica y Utilidades) y filtros de chat de bots.", 0.7, 0.8, 1.0, true)
         GameTooltip:Show()
     end)
     settingsBtn:SetScript("OnLeave", function()
-        settingsBorder:SetVertexColor(0.85, 0.85, 0.85, 0.85)
+        local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+        local qc = (p and p.quickSlot) or { 0.85, 0.85, 0.85, 0.85 }
+        settingsBorder:SetVertexColor(qc[1], qc[2], qc[3], qc[4])
         GameTooltip:Hide()
     end)
 
@@ -251,7 +255,9 @@ function DungeonBots:InitUI()
     end)
     hudLockBtn:SetScript("OnEnter", function(self)
         if hudLockBtn.slotBorder then
-            hudLockBtn.slotBorder:SetVertexColor(1.0, 0.82, 0.0, 1.0)
+            local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+            local hc = (p and p.hoverBorder) or { 1.0, 0.82, 0.0, 1.0 }
+            hudLockBtn.slotBorder:SetVertexColor(hc[1], hc[2], hc[3], 1.0)
         end
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         local isLocked = DungeonBots.IsHUDLocked and DungeonBots:IsHUDLocked()
@@ -290,7 +296,11 @@ function DungeonBots:InitUI()
     subRule:SetHeight(1)
     subRule:SetPoint("BOTTOMLEFT", subBar, "BOTTOMLEFT", 0, -2)
     subRule:SetPoint("BOTTOMRIGHT", subBar, "BOTTOMRIGHT", 0, -2)
-    subRule:SetTexture(0.78, 0.64, 0.34, 0.50)
+    if DB_Internal.RegisterRuleTexture then
+        DB_Internal.RegisterRuleTexture(subRule, 0.50)
+    else
+        subRule:SetTexture(0.78, 0.64, 0.34, 0.50)
+    end
 
     -- Pestañas Verticales con Iconos al lado derecho sobresaliendo (estilo clásico SpellBook / WoWAI)
     local tabNames = {
@@ -530,7 +540,11 @@ local function AddPanelDivider(panel, yOffset)
     line:SetHeight(1)
     line:SetPoint("TOPLEFT", panel, "TOPLEFT", 10, yOffset or -24)
     line:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -10, yOffset or -24)
-    line:SetTexture(0.74, 0.60, 0.32, 0.45)
+    if DB_Internal.RegisterRuleTexture then
+        DB_Internal.RegisterRuleTexture(line, 0.45)
+    else
+        line:SetTexture(0.74, 0.60, 0.32, 0.45)
+    end
     return line
 end
 
@@ -609,8 +623,6 @@ function DungeonBots:BuildTab1(parent)
         cBtn:SetSize(btnW, btnH)
         cBtn:SetPoint("TOPLEFT", classBox, "TOPLEFT", 10 + col * (btnW + spacingX), -32 - row * (btnH + spacingY))
         ApplyInsetPanelBackdrop(cBtn, 8)
-        cBtn:SetBackdropColor(0.11, 0.09, 0.068, 0.96)
-        cBtn:SetBackdropBorderColor(0.56, 0.46, 0.28, 0.90)
 
         local cIcon = cBtn:CreateTexture(nil, "ARTWORK")
         cIcon:SetSize(32, 32)
@@ -621,7 +633,15 @@ function DungeonBots:BuildTab1(parent)
         local cText = cBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         cText:SetPoint("BOTTOM", 0, 6)
         cText:SetText(classDisplay)
-        cText:SetTextColor(1.0, 0.82, 0.0)
+        local function StyleClassBtnText(fs)
+            local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+            local c = (p and p.guideTitle) or { 1.0, 0.82, 0.0 }
+            fs:SetTextColor(c[1], c[2], c[3])
+        end
+        StyleClassBtnText(cText)
+        if DB_Internal.RegisterThemed then
+            DB_Internal.RegisterThemed(cText, StyleClassBtnText)
+        end
 
         cBtn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
 
@@ -631,7 +651,9 @@ function DungeonBots:BuildTab1(parent)
         end)
 
         cBtn:SetScript("OnEnter", function(self)
-            cBtn:SetBackdropBorderColor(1.0, 0.82, 0.28, 1.0)
+            local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+            local hc = (p and p.hoverBorder) or { 1.0, 0.82, 0.28, 1.0 }
+            cBtn:SetBackdropBorderColor(hc[1], hc[2], hc[3], hc[4])
             cText:SetTextColor(1.0, 1.0, 1.0)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
             GameTooltip:AddLine("Invocar " .. classDisplay, 1.0, 0.82, 0.0)
@@ -640,8 +662,10 @@ function DungeonBots:BuildTab1(parent)
             GameTooltip:Show()
         end)
         cBtn:SetScript("OnLeave", function()
-            cBtn:SetBackdropBorderColor(0.56, 0.46, 0.28, 0.90)
-            cText:SetTextColor(1.0, 0.82, 0.0)
+            local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+            local ib = (p and p.insetBorder) or { 0.56, 0.46, 0.28, 0.90 }
+            cBtn:SetBackdropBorderColor(ib[1], ib[2], ib[3], ib[4])
+            StyleClassBtnText(cText)
             GameTooltip:Hide()
         end)
     end
@@ -789,8 +813,6 @@ local function CreateCardActionIconButton(parent, cfg)
         slot:EnableMouse(false)
     end
     ApplyInsetPanelBackdrop(slot, 8)
-    slot:SetBackdropColor(0.10, 0.085, 0.065, 0.95)
-    slot:SetBackdropBorderColor(0.58, 0.48, 0.28, 0.90)
     btn.iconSlot = slot
 
     local icon = slot:CreateTexture(nil, "ARTWORK")
@@ -820,14 +842,18 @@ local function CreateCardActionIconButton(parent, cfg)
     btn.label = label
 
     btn:SetScript("OnEnter", function(self)
-        slot:SetBackdropBorderColor(1.0, 0.82, 0.28, 1.0)
+        local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+        local hc = (p and p.hoverBorder) or { 1.0, 0.82, 0.28, 1.0 }
+        slot:SetBackdropBorderColor(hc[1], hc[2], hc[3], hc[4])
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:AddLine(cfg.tipTitle, 1, 1, 1)
         GameTooltip:AddLine(cfg.tipDesc, 0.7, 0.8, 1.0, true)
         GameTooltip:Show()
     end)
     btn:SetScript("OnLeave", function()
-        slot:SetBackdropBorderColor(0.58, 0.48, 0.28, 0.90)
+        local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+        local ib = (p and p.insetBorder) or { 0.58, 0.48, 0.28, 0.90 }
+        slot:SetBackdropBorderColor(ib[1], ib[2], ib[3], ib[4])
         GameTooltip:Hide()
     end)
     return btn
@@ -1781,6 +1807,8 @@ function DungeonBots:SelectGuideTopic(index)
     local view = DungeonBots.guideDetailView
     if not view or not topic then return end
 
+    local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+
     -- Actualizar filas del índice izquierdo
     if DungeonBots.guideIndexButtons then
         for i, btn in ipairs(DungeonBots.guideIndexButtons) do
@@ -1791,22 +1819,30 @@ function DungeonBots:SelectGuideTopic(index)
                 if t and t.critical then
                     btn.selectedBg:SetVertexColor(0.85, 0.25, 0.20, 0.55)
                 else
-                    btn.selectedBg:SetVertexColor(0.95, 0.72, 0.22, 0.45)
+                    local sc = (p and p.guideSelectedBg) or { 0.95, 0.72, 0.22, 0.45 }
+                    btn.selectedBg:SetVertexColor(sc[1], sc[2], sc[3], sc[4])
                 end
                 btn.titleText:SetTextColor(1.0, 1.0, 1.0)
                 if btn.slotBorder then
-                    btn.slotBorder:SetVertexColor(1.0, 0.82, 0.25, 1.0)
+                    local hc = (p and p.hoverBorder) or { 1.0, 0.82, 0.25, 1.0 }
+                    btn.slotBorder:SetVertexColor(hc[1], hc[2], hc[3], 1.0)
                 end
             else
                 btn.selectedBg:Hide()
                 if t and t.critical then
                     btn.titleText:SetTextColor(1.0, 0.42, 0.38)
                 else
-                    btn.titleText:SetTextColor(1.0, 0.82, 0.0)
+                    local tc = (p and p.guideTitle) or { 1.0, 0.82, 0.0 }
+                    btn.titleText:SetTextColor(tc[1], tc[2], tc[3])
                 end
                 if btn.slotBorder then
-                    btn.slotBorder:SetVertexColor(0.75, 0.65, 0.42, 0.85)
+                    local qc = (p and p.quickSlot) or { 0.75, 0.65, 0.42, 0.85 }
+                    btn.slotBorder:SetVertexColor(qc[1], qc[2], qc[3], qc[4])
                 end
+            end
+            if btn.catText and t and not t.critical then
+                local catHex = (p and p.guideCatSubHex) or "|cff9d9585"
+                btn.catText:SetText(catHex .. (t.category or "") .. "|r")
             end
         end
     end
@@ -1821,11 +1857,14 @@ function DungeonBots:SelectGuideTopic(index)
             view.headerSlotBorder:SetVertexColor(0.95, 0.35, 0.30, 1.0)
         end
     else
-        view.categoryText:SetText("|cffc9a96e" .. (topic.category or "GUÍA") .. "|r")
+        local catHex = (p and p.guideCatHex) or "|cffc9a96e"
+        local dtc = (p and p.guideDetailTitle) or { 1.0, 0.84, 0.16 }
+        local qbc = (p and p.quickSlotBright) or { 1.0, 0.82, 0.32, 1.0 }
+        view.categoryText:SetText(catHex .. (topic.category or "GUÍA") .. "|r")
         view.titleText:SetText(topic.title)
-        view.titleText:SetTextColor(1.0, 0.84, 0.16)
+        view.titleText:SetTextColor(dtc[1], dtc[2], dtc[3])
         if view.headerSlotBorder then
-            view.headerSlotBorder:SetVertexColor(1.0, 0.82, 0.32, 1.0)
+            view.headerSlotBorder:SetVertexColor(qbc[1], qbc[2], qbc[3], qbc[4])
         end
     end
 
@@ -1892,13 +1931,25 @@ function DungeonBots:BuildTab3(parent)
     local idxHeaderTitle = indexPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     idxHeaderTitle:SetPoint("LEFT", idxHeaderIcon, "RIGHT", 7, 0)
     idxHeaderTitle:SetText("Índice de la Guía")
-    idxHeaderTitle:SetTextColor(1.0, 0.82, 0.0)
+    local function StyleGuideTitleFS(fs)
+        local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+        local c = (p and p.guideTitle) or { 1.0, 0.82, 0.0 }
+        fs:SetTextColor(c[1], c[2], c[3])
+    end
+    StyleGuideTitleFS(idxHeaderTitle)
+    if DB_Internal.RegisterThemed then
+        DB_Internal.RegisterThemed(idxHeaderTitle, StyleGuideTitleFS)
+    end
 
     local idxRule = indexPanel:CreateTexture(nil, "ARTWORK")
     idxRule:SetHeight(1)
     idxRule:SetPoint("TOPLEFT", indexPanel, "TOPLEFT", 10, -33)
     idxRule:SetPoint("TOPRIGHT", indexPanel, "TOPRIGHT", -10, -33)
-    idxRule:SetTexture(0.75, 0.62, 0.34, 0.55)
+    if DB_Internal.RegisterRuleTexture then
+        DB_Internal.RegisterRuleTexture(idxRule, 0.55)
+    else
+        idxRule:SetTexture(0.75, 0.62, 0.34, 0.55)
+    end
 
     local idxScroll = CreateFrame("ScrollFrame", "DungeonBots_GuideIndexScroll", indexPanel, "UIPanelScrollFrameTemplate")
     idxScroll:SetPoint("TOPLEFT", indexPanel, "TOPLEFT", 6, -38)
@@ -1926,7 +1977,15 @@ function DungeonBots:BuildTab3(parent)
         hl:SetAllPoints(row)
         hl:SetTexture("Interface\\QuestFrame\\UI-QuestLogTitleHighlight")
         hl:SetBlendMode("ADD")
-        hl:SetVertexColor(1.0, 0.85, 0.35, 0.45)
+        local function StyleGuideHighlight(tex)
+            local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+            local c = (p and p.guideHighlightBg) or { 1.0, 0.85, 0.35, 0.45 }
+            tex:SetVertexColor(c[1], c[2], c[3], c[4])
+        end
+        StyleGuideHighlight(hl)
+        if DB_Internal.RegisterThemed then
+            DB_Internal.RegisterThemed(hl, StyleGuideHighlight)
+        end
 
         local iconHolder = CreateFrame("Frame", nil, row)
         iconHolder:SetSize(24, 24)
@@ -1954,12 +2013,17 @@ function DungeonBots:BuildTab3(parent)
         else
             rCat:SetText("|cff9d9585" .. (topic.category or "") .. "|r")
         end
+        row.catText = rCat
 
         local sep = row:CreateTexture(nil, "ARTWORK")
         sep:SetHeight(1)
         sep:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 6, 0)
         sep:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -6, 0)
-        sep:SetTexture(0.55, 0.46, 0.28, 0.25)
+        if DB_Internal.RegisterRuleTexture then
+            DB_Internal.RegisterRuleTexture(sep, 0.25)
+        else
+            sep:SetTexture(0.55, 0.46, 0.28, 0.25)
+        end
 
         row:SetScript("OnClick", function()
             PlaySound("igMainMenuOptionCheckBoxOn")
@@ -2001,7 +2065,11 @@ function DungeonBots:BuildTab3(parent)
     headerRule:SetHeight(1)
     headerRule:SetPoint("TOPLEFT", detailPanel, "TOPLEFT", 14, -68)
     headerRule:SetPoint("TOPRIGHT", detailPanel, "TOPRIGHT", -14, -68)
-    headerRule:SetTexture(0.82, 0.68, 0.36, 0.60)
+    if DB_Internal.RegisterRuleTexture then
+        DB_Internal.RegisterRuleTexture(headerRule, 0.60)
+    else
+        headerRule:SetTexture(0.82, 0.68, 0.36, 0.60)
+    end
 
     local scrollFrame = CreateFrame("ScrollFrame", "DungeonBots_GuideScrollFrame", detailPanel, "UIPanelScrollFrameTemplate")
     scrollFrame:SetPoint("TOPLEFT", detailPanel, "TOPLEFT", 14, -76)
@@ -2026,12 +2094,23 @@ function DungeonBots:BuildTab3(parent)
     summaryText:SetJustifyH("LEFT")
     summaryText:SetJustifyV("TOP")
     summaryText:SetWordWrap(true)
-    summaryText:SetTextColor(0.95, 0.91, 0.82)
+    local function StyleSummaryText(fs)
+        local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+        local c = (p and p.guideSummary) or { 0.95, 0.91, 0.82 }
+        fs:SetTextColor(c[1], c[2], c[3])
+    end
+    StyleSummaryText(summaryText)
+    if DB_Internal.RegisterThemed then
+        DB_Internal.RegisterThemed(summaryText, StyleSummaryText)
+    end
     if summaryText.SetSpacing then summaryText:SetSpacing(3) end
 
     local stepsHeader = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     stepsHeader:SetText("Qué debes hacer:")
-    stepsHeader:SetTextColor(1.0, 0.82, 0.0)
+    StyleGuideTitleFS(stepsHeader)
+    if DB_Internal.RegisterThemed then
+        DB_Internal.RegisterThemed(stepsHeader, StyleGuideTitleFS)
+    end
 
     local stepRows = {}
     for i = 1, 4 do
@@ -2041,7 +2120,10 @@ function DungeonBots:BuildTab3(parent)
         numText:SetPoint("TOPLEFT", sRow, "TOPLEFT", 2, 0)
         numText:SetWidth(18)
         numText:SetJustifyH("LEFT")
-        numText:SetTextColor(1.0, 0.82, 0.0)
+        StyleGuideTitleFS(numText)
+        if DB_Internal.RegisterThemed then
+            DB_Internal.RegisterThemed(numText, StyleGuideTitleFS)
+        end
         sRow.numText = numText
 
         local sText = sRow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -2050,7 +2132,15 @@ function DungeonBots:BuildTab3(parent)
         sText:SetJustifyH("LEFT")
         sText:SetJustifyV("TOP")
         sText:SetWordWrap(true)
-        sText:SetTextColor(0.90, 0.88, 0.82)
+        local function StyleStepText(fs)
+            local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+            local c = (p and p.guideStep) or { 0.90, 0.88, 0.82 }
+            fs:SetTextColor(c[1], c[2], c[3])
+        end
+        StyleStepText(sText)
+        if DB_Internal.RegisterThemed then
+            DB_Internal.RegisterThemed(sText, StyleStepText)
+        end
         if sText.SetSpacing then sText:SetSpacing(2) end
         sRow.text = sText
 
@@ -2060,8 +2150,17 @@ function DungeonBots:BuildTab3(parent)
     local noteBox = CreateFrame("Frame", nil, scrollChild)
     noteBox:SetSize(324, 44)
     ApplyInsetPanelBackdrop(noteBox, 10)
-    noteBox:SetBackdropColor(0.10, 0.08, 0.05, 0.88)
-    noteBox:SetBackdropBorderColor(0.70, 0.56, 0.28, 0.85)
+    local function StyleNoteBox(b)
+        local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+        local bg = (p and p.guideNoteBg) or { 0.10, 0.08, 0.05, 0.88 }
+        local br = (p and p.guideNoteBorder) or { 0.70, 0.56, 0.28, 0.85 }
+        b:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
+        b:SetBackdropBorderColor(br[1], br[2], br[3], br[4])
+    end
+    StyleNoteBox(noteBox)
+    if DB_Internal.RegisterThemed then
+        DB_Internal.RegisterThemed(noteBox, StyleNoteBox)
+    end
 
     local noteText = noteBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     noteText:SetPoint("TOPLEFT", noteBox, "TOPLEFT", 10, -8)
@@ -2069,14 +2168,26 @@ function DungeonBots:BuildTab3(parent)
     noteText:SetJustifyH("LEFT")
     noteText:SetJustifyV("TOP")
     noteText:SetWordWrap(true)
-    noteText:SetTextColor(0.88, 0.84, 0.74)
+    local function StyleNoteText(fs)
+        local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+        local c = (p and p.guideNoteText) or { 0.88, 0.84, 0.74 }
+        fs:SetTextColor(c[1], c[2], c[3])
+    end
+    StyleNoteText(noteText)
+    if DB_Internal.RegisterThemed then
+        DB_Internal.RegisterThemed(noteText, StyleNoteText)
+    end
 
     -- Pie de página con paginación WoW
     local footerRule = detailPanel:CreateTexture(nil, "ARTWORK")
     footerRule:SetHeight(1)
     footerRule:SetPoint("BOTTOMLEFT", detailPanel, "BOTTOMLEFT", 14, 38)
     footerRule:SetPoint("BOTTOMRIGHT", detailPanel, "BOTTOMRIGHT", -14, 38)
-    footerRule:SetTexture(0.82, 0.68, 0.36, 0.50)
+    if DB_Internal.RegisterRuleTexture then
+        DB_Internal.RegisterRuleTexture(footerRule, 0.50)
+    else
+        footerRule:SetTexture(0.82, 0.68, 0.36, 0.50)
+    end
 
     local prevBtn = CreateFrame("Button", nil, detailPanel, "UIPanelButtonTemplate")
     prevBtn:SetSize(96, 22)
@@ -2098,7 +2209,15 @@ function DungeonBots:BuildTab3(parent)
 
     local pageText = detailPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     pageText:SetPoint("CENTER", detailPanel, "BOTTOM", 0, 21)
-    pageText:SetTextColor(0.82, 0.72, 0.48)
+    local function StylePageText(fs)
+        local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+        local c = (p and p.guidePageText) or { 0.82, 0.72, 0.48 }
+        fs:SetTextColor(c[1], c[2], c[3])
+    end
+    StylePageText(pageText)
+    if DB_Internal.RegisterThemed then
+        DB_Internal.RegisterThemed(pageText, StylePageText)
+    end
 
     DungeonBots.guideDetailView = {
         headerIcon = headerIcon,

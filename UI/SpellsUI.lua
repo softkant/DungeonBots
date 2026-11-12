@@ -96,8 +96,6 @@ local function BuildGearPanel(sp)
         sBtn:SetSize(btnW, btnH)
         sBtn:SetPoint("TOPLEFT", specCard, "TOPLEFT", startX + (col * (btnW + gapX)), startY - (row * (btnH + gapY)))
         ApplyInsetPanelBackdrop(sBtn, 8)
-        sBtn:SetBackdropColor(0.095, 0.080, 0.060, 0.95)
-        sBtn:SetBackdropBorderColor(0.56, 0.46, 0.28, 0.85)
         sBtn:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
 
         local accentBar = sBtn:CreateTexture(nil, "OVERLAY")
@@ -150,8 +148,6 @@ local function BuildGearPanel(sp)
     matchBox:SetSize(248, 108)
     matchBox:SetPoint("TOPLEFT", autogearCard, "TOPLEFT", 14, -56)
     ApplyInsetPanelBackdrop(matchBox, 8)
-    matchBox:SetBackdropColor(0.095, 0.080, 0.060, 0.94)
-    matchBox:SetBackdropBorderColor(0.56, 0.46, 0.28, 0.85)
 
     local matchBtn = CreateFrame("Button", "DungeonBots_GearMatchBtn", matchBox, "UIPanelButtonTemplate")
     matchBtn:SetSize(224, 26)
@@ -169,8 +165,6 @@ local function BuildGearPanel(sp)
     blueBox:SetSize(248, 108)
     blueBox:SetPoint("TOPRIGHT", autogearCard, "TOPRIGHT", -14, -56)
     ApplyInsetPanelBackdrop(blueBox, 8)
-    blueBox:SetBackdropColor(0.095, 0.080, 0.060, 0.94)
-    blueBox:SetBackdropBorderColor(0.56, 0.46, 0.28, 0.85)
 
     local blueBtn = CreateFrame("Button", "DungeonBots_GearBlueBtn", blueBox, "UIPanelButtonTemplate")
     blueBtn:SetSize(224, 26)
@@ -355,7 +349,8 @@ local function UpdateSpellSelectionUI()
                 if diff then
                     row:SetBackdropBorderColor(diff.r, diff.g, diff.b, 0.70)
                 else
-                    row:SetBackdropBorderColor(0.54, 0.44, 0.26, 0.85)
+                    local ib = (DB_Internal.GetThemePalette and DB_Internal.GetThemePalette().insetBorder) or { 0.54, 0.44, 0.26, 0.85 }
+                    row:SetBackdropBorderColor(ib[1], ib[2], ib[3], ib[4])
                 end
             end
         end
@@ -380,8 +375,6 @@ local function CreateSpellRowButton(parent, idx)
     row:SetSize(492, SPELL_ROW_HEIGHT)
     row:SetPoint("TOPLEFT", parent, "TOPLEFT", 4, -((idx - 1) * SPELL_ROW_PITCH) - 4)
     ApplyInsetPanelBackdrop(row, 8)
-    row:SetBackdropColor(0.095, 0.080, 0.060, 0.94)
-    row:SetBackdropBorderColor(0.54, 0.44, 0.26, 0.85)
     row:RegisterForClicks("LeftButtonUp")
 
     local iconBg = row:CreateTexture(nil, "BACKGROUND")
@@ -845,15 +838,27 @@ local function RenderGearPanel(sp, targetBot, classToken)
         if specName then
             local displaySpec = DungeonBots.LocalizeSpecText and DungeonBots:LocalizeSpecText(specName) or specName
             local isActive = (activeSpec and string.lower(specName) == string.lower(activeSpec)) and true or false
+            local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
             if isActive then
-                sBtn.label:SetText("|cffffd100" .. displaySpec .. " (Activa)|r")
-                sBtn:SetBackdropColor(0.22, 0.17, 0.09, 0.96)
-                sBtn:SetBackdropBorderColor(1.0, 0.82, 0.24, 0.95)
+                sBtn.label:SetText((p and p.specActiveHex or "|cffffd100") .. displaySpec .. " (Activa)|r")
+                if p then
+                    sBtn:SetBackdropColor(p.specActiveBg[1], p.specActiveBg[2], p.specActiveBg[3], p.specActiveBg[4])
+                    sBtn:SetBackdropBorderColor(p.specActiveBorder[1], p.specActiveBorder[2], p.specActiveBorder[3], p.specActiveBorder[4])
+                    sBtn.accentBar:SetTexture(p.specActiveBorder[1], p.specActiveBorder[2], p.specActiveBorder[3], 1.0)
+                else
+                    sBtn:SetBackdropColor(0.22, 0.17, 0.09, 0.96)
+                    sBtn:SetBackdropBorderColor(1.0, 0.82, 0.24, 0.95)
+                end
                 sBtn.accentBar:Show()
             else
-                sBtn.label:SetText("|cffeeddb8" .. displaySpec .. "|r")
-                sBtn:SetBackdropColor(0.095, 0.080, 0.060, 0.95)
-                sBtn:SetBackdropBorderColor(0.56, 0.46, 0.28, 0.85)
+                sBtn.label:SetText((p and p.specInactiveHex or "|cffeeddb8") .. displaySpec .. "|r")
+                if p then
+                    sBtn:SetBackdropColor(p.insetBg[1], p.insetBg[2], p.insetBg[3], p.insetBg[4])
+                    sBtn:SetBackdropBorderColor(p.insetBorder[1], p.insetBorder[2], p.insetBorder[3], p.insetBorder[4])
+                else
+                    sBtn:SetBackdropColor(0.095, 0.080, 0.060, 0.95)
+                    sBtn:SetBackdropBorderColor(0.56, 0.46, 0.28, 0.85)
+                end
                 sBtn.accentBar:Hide()
             end
             sBtn.specValue = specName

@@ -113,8 +113,19 @@ local function CreateInventorySlotButton(parent, idx)
         tile = true, tileSize = 10, edgeSize = 10,
         insets = { left = 2, right = 2, top = 2, bottom = 2 }
     })
-    btn:SetBackdropColor(0.08, 0.068, 0.05, 0.96)
-    btn:SetBackdropBorderColor(0.50, 0.42, 0.26, 0.85)
+    local function StyleInvSlot(s)
+        local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+        if not p then return end
+        s:SetBackdropColor(p.slotDefaultBg[1], p.slotDefaultBg[2], p.slotDefaultBg[3], p.slotDefaultBg[4])
+        if not s.itemEntry then
+            local eb = p.slotEmptyBorder
+            s:SetBackdropBorderColor(eb[1], eb[2], eb[3], eb[4])
+        end
+    end
+    StyleInvSlot(btn)
+    if DB_Internal.RegisterThemed then
+        DB_Internal.RegisterThemed(btn, StyleInvSlot)
+    end
 
     local icon = btn:CreateTexture(nil, "ARTWORK")
     icon:SetPoint("TOPLEFT", 4, -4)
@@ -492,7 +503,8 @@ function DungeonBots:UpdateInventoryDialog(botName)
             slot.icon:Hide()
             slot.countText:Hide()
             slot.selOverlay:Hide()
-            slot:SetBackdropBorderColor(0.36, 0.30, 0.20, 0.55)
+            local eb = (DB_Internal.GetThemePalette and DB_Internal.GetThemePalette().slotEmptyBorder) or { 0.36, 0.30, 0.20, 0.55 }
+            slot:SetBackdropBorderColor(eb[1], eb[2], eb[3], eb[4])
         end
         slot:Show()
     end

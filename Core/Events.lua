@@ -166,6 +166,9 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         if DungeonBots.InitHUD then
             DungeonBots:InitHUD()
         end
+        if DB_Internal.RefreshTheme then
+            DB_Internal.RefreshTheme()
+        end
         DungeonBots:SyncPartyToHistory()
 
     elseif event == "CHAT_MSG_SYSTEM" then

@@ -655,7 +655,15 @@ local function CreateFloatingToolbar(cfg)
             tile = true, tileSize = 8, edgeSize = 10,
             insets = { left = 2, right = 2, top = 2, bottom = 2 }
         })
-        btn:SetBackdropColor(0.09, 0.075, 0.055, 0.95)
+        local function StyleHudBtn(b)
+            local p = DB_Internal and DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+            local c = p and p.hudBtnBg or { 0.09, 0.075, 0.055, 0.95 }
+            b:SetBackdropColor(c[1], c[2], c[3], c[4])
+        end
+        StyleHudBtn(btn)
+        if DB_Internal and DB_Internal.RegisterThemed then
+            DB_Internal.RegisterThemed(btn, StyleHudBtn)
+        end
         btn:SetBackdropBorderColor(action.color[1], action.color[2], action.color[3], 0.85)
 
         local icon = btn:CreateTexture(nil, "ARTWORK")
