@@ -311,7 +311,7 @@ function DungeonBots:InitUI()
         DungeonBots:UpdateHUDLockButtonState()
     end
 
-    -- Sub-barra de sección activa (como WoWAI: muestra la pestaña actual y estado del grupo)
+    -- Sub-barra de sección activa (como WoWAI: muestra la pestaña actual)
     local subBar = CreateFrame("Frame", nil, f)
     subBar:SetPoint("TOPLEFT", f, "TOPLEFT", 14, -38)
     subBar:SetPoint("TOPRIGHT", f, "TOPRIGHT", -14, -38)
@@ -321,12 +321,6 @@ function DungeonBots:InitUI()
     sectionTitle:SetPoint("LEFT", subBar, "LEFT", 0, 0)
     sectionTitle:SetJustifyH("LEFT")
     DungeonBots.sectionTitle = sectionTitle
-
-    local sectionStatus = subBar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    sectionStatus:SetPoint("RIGHT", subBar, "RIGHT", 0, 0)
-    sectionStatus:SetJustifyH("RIGHT")
-    sectionStatus:SetText("|cff888888Bots en grupo: |cffffd2000/4|r|r")
-    DungeonBots.sectionStatus = sectionStatus
 
     local subRule = subBar:CreateTexture(nil, "ARTWORK")
     subRule:SetHeight(1)
@@ -348,7 +342,7 @@ function DungeonBots:InitUI()
             title = "Bots en el grupo",
             subtitle = "Especialización, equipo y misiones",
             desc = "Gestiona las ramas de talentos, equipo y misiones de los bots activos en tu grupo.",
-            icon = "Interface\\Icons\\INV_Misc_GroupNeedMore",
+            icon = "Interface\\Icons\\INV_Misc_GroupLooking",
         },
         {
             id = 3,
@@ -465,11 +459,6 @@ function DungeonBots:UpdateActiveSectionHeader()
     local titleStr = (activeTab == 2) and (btn.tooltipTitle or tabData.title) or tabData.title
     if DungeonBots.sectionTitle then
         DungeonBots.sectionTitle:SetText("|cffffd200" .. titleStr .. "|r  |cff888888- " .. (tabData.subtitle or "") .. "|r")
-    end
-    if DungeonBots.sectionStatus then
-        local tab2Btn = DungeonBots.tabButtons[2]
-        local cnt = (tab2Btn and tab2Btn.botCount) or 0
-        DungeonBots.sectionStatus:SetText("|cff888888Bots activos: |cffffd200" .. cnt .. "/4|r|r")
     end
 end
 

@@ -78,7 +78,7 @@ local UTIL_ACTIONS = {
     {
         name = "Bots en el Grupo",
         actionKind = "party_tab",
-        icon = "Interface\\Icons\\INV_Misc_GroupNeedMore",
+        icon = "Interface\\Icons\\INV_Misc_GroupLooking",
         title = "|cffffd200Bots en el Grupo|r",
         desc = "Abre directamente la pestaña de gestión del grupo actual (talentos, equipo y misiones).\n\n|cff71d5ffAtajo rápido a la segunda pestaña de DungeonBots.|r",
         tooltipCmd = "Acción: |cffffd200Abrir pestaña Bots en el grupo|r",
