@@ -13,6 +13,14 @@ local tabFrames = {}
 local botCards = {}
 
 -- Utilidades visuales compartidas desde UI\Theme.lua
+local function ApplyBlizzardGoldWindow(frame, edgeSize)
+    return DB_Internal.ApplyBlizzardGoldWindow(frame, edgeSize)
+end
+
+local function ApplyBlizzardStonePanel(frame, borderR, borderG, borderB, edgeSize, bgAlpha)
+    return DB_Internal.ApplyBlizzardStonePanel(frame, borderR, borderG, borderB, edgeSize, bgAlpha)
+end
+
 local function ApplyDarkBackdrop(frame, edgeSize)
     return DB_Internal.ApplyDarkBackdrop(frame, edgeSize)
 end
@@ -154,33 +162,16 @@ function DungeonBots:InitUI()
     f:SetScript("OnDragStart", f.StartMoving)
     f:SetScript("OnDragStop", f.StopMovingOrSizing)
 
-    ApplyDarkBackdrop(f, 16)
-
-    -- Fondo solido oscuro interno para evitar que brille o distraiga el escenario del mundo
-    local solidBg = f:CreateTexture(nil, "BACKGROUND")
-    solidBg:SetPoint("TOPLEFT", f, "TOPLEFT", 4, -4)
-    solidBg:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -4, 4)
-    solidBg:SetTexture(0.05, 0.06, 0.09, 0.96)
+    ApplyBlizzardGoldWindow(f, 16)
 
     tinsert(UISpecialFrames, "DungeonBots_MainFrame")
 
     -- Barra de Cabecera
     local header = CreateFrame("Frame", nil, f)
-    header:SetPoint("TOPLEFT", 6, -6)
-    header:SetPoint("TOPRIGHT", -6, -6)
+    header:SetPoint("TOPLEFT", 7, -7)
+    header:SetPoint("TOPRIGHT", -7, -7)
     header:SetHeight(28)
     ApplyHeaderBackdrop(header)
-
-    local headerSolidBg = header:CreateTexture(nil, "BACKGROUND")
-    headerSolidBg:SetPoint("TOPLEFT", header, "TOPLEFT", 2, -2)
-    headerSolidBg:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -2, 2)
-    headerSolidBg:SetTexture(0.11, 0.13, 0.18, 0.98)
-
-    local headerAccent = header:CreateTexture(nil, "BORDER")
-    headerAccent:SetHeight(1)
-    headerAccent:SetPoint("BOTTOMLEFT", header, "BOTTOMLEFT", 4, 1)
-    headerAccent:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -4, 1)
-    headerAccent:SetTexture(0.75, 0.62, 0.36, 0.45)
 
     local icon = header:CreateTexture(nil, "ARTWORK")
     icon:SetSize(18, 18)
@@ -299,7 +290,7 @@ function DungeonBots:InitUI()
     subRule:SetHeight(1)
     subRule:SetPoint("BOTTOMLEFT", subBar, "BOTTOMLEFT", 0, -2)
     subRule:SetPoint("BOTTOMRIGHT", subBar, "BOTTOMRIGHT", 0, -2)
-    subRule:SetTexture(0.60, 0.52, 0.34, 0.45)
+    subRule:SetTexture(0.78, 0.64, 0.34, 0.50)
 
     -- Pestañas Verticales con Iconos al lado derecho sobresaliendo (estilo clásico SpellBook / WoWAI)
     local tabNames = {
@@ -539,7 +530,7 @@ local function AddPanelDivider(panel, yOffset)
     line:SetHeight(1)
     line:SetPoint("TOPLEFT", panel, "TOPLEFT", 10, yOffset or -24)
     line:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -10, yOffset or -24)
-    line:SetTexture(0.55, 0.48, 0.32, 0.35)
+    line:SetTexture(0.74, 0.60, 0.32, 0.45)
     return line
 end
 
@@ -549,7 +540,7 @@ function DungeonBots:BuildTab1(parent)
     historyBox:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -2)
     historyBox:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -2)
     historyBox:SetHeight(52)
-    ApplyInsetPanelBackdrop(historyBox, 10)
+    ApplyBlizzardStonePanel(historyBox, 0.66, 0.54, 0.30, 12, 0.28)
 
     local histIconFrame = CreateFrame("Frame", nil, historyBox)
     histIconFrame:SetSize(28, 28)
@@ -559,6 +550,7 @@ function DungeonBots:BuildTab1(parent)
     histIcon:SetPoint("CENTER", 0, 0)
     histIcon:SetTexture("Interface\\Icons\\INV_Misc_Note_01")
     histIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    AddQuickSlotBorder(histIconFrame, 42, 0.85, 0.70, 0.36, 0.95)
 
     local historyTitle = historyBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     historyTitle:SetPoint("TOPLEFT", histIconFrame, "TOPRIGHT", 10, 2)
@@ -594,7 +586,7 @@ function DungeonBots:BuildTab1(parent)
     classBox:SetPoint("TOPLEFT", historyBox, "BOTTOMLEFT", 0, -8)
     classBox:SetPoint("TOPRIGHT", historyBox, "BOTTOMRIGHT", 0, -8)
     classBox:SetHeight(176)
-    ApplyInsetPanelBackdrop(classBox, 10)
+    ApplyBlizzardStonePanel(classBox, 0.66, 0.54, 0.30, 12, 0.28)
 
     local classTitle = classBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     classTitle:SetPoint("TOPLEFT", 10, -8)
@@ -617,8 +609,8 @@ function DungeonBots:BuildTab1(parent)
         cBtn:SetSize(btnW, btnH)
         cBtn:SetPoint("TOPLEFT", classBox, "TOPLEFT", 10 + col * (btnW + spacingX), -32 - row * (btnH + spacingY))
         ApplyInsetPanelBackdrop(cBtn, 8)
-        cBtn:SetBackdropColor(0.08, 0.09, 0.13, 0.96)
-        cBtn:SetBackdropBorderColor(0.38, 0.40, 0.48, 0.90)
+        cBtn:SetBackdropColor(0.11, 0.09, 0.068, 0.96)
+        cBtn:SetBackdropBorderColor(0.56, 0.46, 0.28, 0.90)
 
         local cIcon = cBtn:CreateTexture(nil, "ARTWORK")
         cIcon:SetSize(32, 32)
@@ -639,7 +631,7 @@ function DungeonBots:BuildTab1(parent)
         end)
 
         cBtn:SetScript("OnEnter", function(self)
-            cBtn:SetBackdropBorderColor(0.85, 0.72, 0.42, 1.0)
+            cBtn:SetBackdropBorderColor(1.0, 0.82, 0.28, 1.0)
             cText:SetTextColor(1.0, 1.0, 1.0)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
             GameTooltip:AddLine("Invocar " .. classDisplay, 1.0, 0.82, 0.0)
@@ -648,7 +640,7 @@ function DungeonBots:BuildTab1(parent)
             GameTooltip:Show()
         end)
         cBtn:SetScript("OnLeave", function()
-            cBtn:SetBackdropBorderColor(0.38, 0.40, 0.48, 0.90)
+            cBtn:SetBackdropBorderColor(0.56, 0.46, 0.28, 0.90)
             cText:SetTextColor(1.0, 0.82, 0.0)
             GameTooltip:Hide()
         end)
@@ -658,7 +650,7 @@ function DungeonBots:BuildTab1(parent)
     local actionBox = CreateFrame("Frame", nil, parent)
     actionBox:SetPoint("TOPLEFT", classBox, "BOTTOMLEFT", 0, -8)
     actionBox:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -6, 4)
-    ApplyInsetPanelBackdrop(actionBox, 10)
+    ApplyBlizzardStonePanel(actionBox, 0.66, 0.54, 0.30, 12, 0.28)
 
     local actionTitle = actionBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     actionTitle:SetPoint("TOPLEFT", 10, -8)
@@ -796,9 +788,9 @@ local function CreateCardActionIconButton(parent, cfg)
     if slot.EnableMouse then
         slot:EnableMouse(false)
     end
-    ApplyHeaderBackdrop(slot)
-    slot:SetBackdropColor(0.06, 0.08, 0.12, 0.95)
-    slot:SetBackdropBorderColor(0.42, 0.45, 0.52, 0.90)
+    ApplyInsetPanelBackdrop(slot, 8)
+    slot:SetBackdropColor(0.10, 0.085, 0.065, 0.95)
+    slot:SetBackdropBorderColor(0.58, 0.48, 0.28, 0.90)
     btn.iconSlot = slot
 
     local icon = slot:CreateTexture(nil, "ARTWORK")
@@ -828,14 +820,14 @@ local function CreateCardActionIconButton(parent, cfg)
     btn.label = label
 
     btn:SetScript("OnEnter", function(self)
-        slot:SetBackdropBorderColor(0.95, 0.80, 0.30, 1.0)
+        slot:SetBackdropBorderColor(1.0, 0.82, 0.28, 1.0)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:AddLine(cfg.tipTitle, 1, 1, 1)
         GameTooltip:AddLine(cfg.tipDesc, 0.7, 0.8, 1.0, true)
         GameTooltip:Show()
     end)
     btn:SetScript("OnLeave", function()
-        slot:SetBackdropBorderColor(0.42, 0.45, 0.52, 0.90)
+        slot:SetBackdropBorderColor(0.58, 0.48, 0.28, 0.90)
         GameTooltip:Hide()
     end)
     return btn
@@ -927,14 +919,18 @@ function DungeonBots:BuildTab2(parent)
         local card = CreateFrame("Frame", "DungeonBots_BotCard_" .. i, cardContainer)
         card:SetSize(588, 72)
         card:SetPoint("TOPLEFT", cardContainer, "TOPLEFT", 6, -4 - (i - 1) * 88)
-        ApplyInsetPanelBackdrop(card)
+        ApplyBlizzardStonePanel(card, 0.62, 0.50, 0.28, 10, 0.28)
 
-        local cIcon = card:CreateTexture(nil, "ARTWORK")
-        cIcon:SetSize(38, 38)
-        cIcon:SetPoint("LEFT", card, "LEFT", 10, 0)
+        local cIconHolder = CreateFrame("Frame", nil, card)
+        cIconHolder:SetSize(38, 38)
+        cIconHolder:SetPoint("LEFT", card, "LEFT", 11, 0)
+
+        local cIcon = cIconHolder:CreateTexture(nil, "ARTWORK")
+        cIcon:SetAllPoints(cIconHolder)
         cIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
         cIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         card.classIcon = cIcon
+        card.classIconBorder = AddQuickSlotBorder(cIconHolder, 56, 0.85, 0.70, 0.36, 0.95)
 
         local nameText = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         nameText:SetPoint("TOPLEFT", card, "TOPLEFT", 58, -6)
@@ -994,7 +990,7 @@ function DungeonBots:BuildTab2(parent)
         local botBadge = CreateFrame("Button", nil, card)
         botBadge:SetSize(92, 18)
         botBadge:SetPoint("TOP", kickBtn, "BOTTOM", 0, -5)
-        ApplyHeaderBackdrop(botBadge)
+        ApplyInsetPanelBackdrop(botBadge, 8)
         local badgeText = botBadge:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         badgeText:SetPoint("CENTER", 0, 0)
         badgeText:SetText("[ BOT ]")
@@ -1726,47 +1722,6 @@ local GUIDE_TOPICS = {
     },
 }
 
-local function ApplyBlizzardStonePanel(frame, borderR, borderG, borderB)
-    frame:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 14,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 },
-    })
-    frame:SetBackdropColor(0.08, 0.07, 0.06, 0.96)
-    frame:SetBackdropBorderColor(borderR or 0.65, borderG or 0.54, borderB or 0.30, 0.95)
-
-    local stone = frame:CreateTexture(nil, "BACKGROUND")
-    stone:SetPoint("TOPLEFT", frame, "TOPLEFT", 3, -3)
-    stone:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -3, 3)
-    stone:SetTexture("Interface\\AchievementFrame\\UI-Achievement-AchievementBackground")
-    stone:SetVertexColor(0.75, 0.70, 0.62, 0.38)
-
-    local tint = frame:CreateTexture(nil, "BORDER")
-    tint:SetAllPoints(stone)
-    tint:SetTexture(0.03, 0.025, 0.02, 0.58)
-end
-
-local function ApplyBlizzardGoldTomeFrame(frame)
-    frame:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
-        tile = true, tileSize = 32, edgeSize = 16,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 },
-    })
-    frame:SetBackdropColor(0.09, 0.08, 0.06, 0.98)
-
-    local stone = frame:CreateTexture(nil, "BACKGROUND")
-    stone:SetPoint("TOPLEFT", frame, "TOPLEFT", 5, -5)
-    stone:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -5, 5)
-    stone:SetTexture("Interface\\AchievementFrame\\UI-Achievement-AchievementBackground")
-    stone:SetVertexColor(0.92, 0.86, 0.74, 0.45)
-
-    local tint = frame:CreateTexture(nil, "BORDER")
-    tint:SetAllPoints(stone)
-    tint:SetTexture(0.05, 0.04, 0.025, 0.52)
-end
-
 function DungeonBots:RefreshGuideLayout()
     local view = DungeonBots.guideDetailView
     if not view or not view.scrollChild or not view.scrollFrame then return end
@@ -1926,7 +1881,7 @@ function DungeonBots:BuildTab3(parent)
     indexPanel:SetPoint("TOPLEFT", parent, "TOPLEFT", 4, -2)
     indexPanel:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 4, 4)
     indexPanel:SetWidth(208)
-    ApplyBlizzardStonePanel(indexPanel, 0.68, 0.56, 0.32)
+    ApplyBlizzardStonePanel(indexPanel, 0.68, 0.56, 0.32, 14, 0.38)
 
     local idxHeaderIcon = indexPanel:CreateTexture(nil, "ARTWORK")
     idxHeaderIcon:SetSize(18, 18)
@@ -2020,7 +1975,7 @@ function DungeonBots:BuildTab3(parent)
     local detailPanel = CreateFrame("Frame", nil, parent)
     detailPanel:SetPoint("TOPLEFT", indexPanel, "TOPRIGHT", 8, 0)
     detailPanel:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -4, 4)
-    ApplyBlizzardGoldTomeFrame(detailPanel)
+    ApplyBlizzardGoldWindow(detailPanel, 16)
 
     local headerIconFrame = CreateFrame("Frame", nil, detailPanel)
     headerIconFrame:SetSize(38, 38)

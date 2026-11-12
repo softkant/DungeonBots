@@ -15,6 +15,27 @@ local function ApplyHeaderBackdrop(frame)
     return DB_Internal.ApplyHeaderBackdrop(frame)
 end
 
+local function ApplyInsetPanelBackdrop(frame, edgeSize)
+    if DB_Internal.ApplyInsetPanelBackdrop then
+        return DB_Internal.ApplyInsetPanelBackdrop(frame, edgeSize)
+    end
+    return ApplyDarkBackdrop(frame, edgeSize)
+end
+
+local function ApplyBlizzardGoldWindow(frame, edgeSize)
+    if DB_Internal.ApplyBlizzardGoldWindow then
+        return DB_Internal.ApplyBlizzardGoldWindow(frame, edgeSize)
+    end
+    return ApplyDarkBackdrop(frame, edgeSize)
+end
+
+local function ApplyBlizzardStonePanel(frame, r, g, b, edgeSize, bgAlpha)
+    if DB_Internal.ApplyBlizzardStonePanel then
+        return DB_Internal.ApplyBlizzardStonePanel(frame, r, g, b, edgeSize, bgAlpha)
+    end
+    return ApplyInsetPanelBackdrop(frame, edgeSize)
+end
+
 local function CreateRedIconButton(parent, width, height, text, iconPath, centerIcon)
     return DB_Internal.CreateRedIconButton(parent, width, height, text, iconPath, centerIcon)
 end
@@ -41,14 +62,7 @@ local function BuildGearPanel(sp)
     specCard:SetPoint("TOPLEFT", gearPanel, "TOPLEFT", 0, 0)
     specCard:SetPoint("TOPRIGHT", gearPanel, "TOPRIGHT", 0, 0)
     specCard:SetHeight(168)
-    specCard:SetBackdrop({
-        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 10,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    specCard:SetBackdropColor(0.03, 0.04, 0.07, 1.0)
-    specCard:SetBackdropBorderColor(0.28, 0.32, 0.40, 1.0)
+    ApplyBlizzardStonePanel(specCard, 0.66, 0.54, 0.30, 12, 0.30)
     gearPanel.specCard = specCard
 
     local specHeaderIcon = specCard:CreateTexture(nil, "ARTWORK")
@@ -81,21 +95,16 @@ local function BuildGearPanel(sp)
         local sBtn = CreateFrame("Button", "DungeonBots_GearSpecBtn_" .. idx, specCard)
         sBtn:SetSize(btnW, btnH)
         sBtn:SetPoint("TOPLEFT", specCard, "TOPLEFT", startX + (col * (btnW + gapX)), startY - (row * (btnH + gapY)))
-        sBtn:SetBackdrop({
-            bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
-            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-            tile = true, tileSize = 16, edgeSize = 8,
-            insets = { left = 2, right = 2, top = 2, bottom = 2 }
-        })
-        sBtn:SetBackdropColor(0.07, 0.09, 0.14, 0.95)
-        sBtn:SetBackdropBorderColor(0.28, 0.32, 0.42, 0.85)
+        ApplyInsetPanelBackdrop(sBtn, 8)
+        sBtn:SetBackdropColor(0.095, 0.080, 0.060, 0.95)
+        sBtn:SetBackdropBorderColor(0.56, 0.46, 0.28, 0.85)
         sBtn:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
 
         local accentBar = sBtn:CreateTexture(nil, "OVERLAY")
         accentBar:SetHeight(2)
         accentBar:SetPoint("BOTTOMLEFT", sBtn, "BOTTOMLEFT", 4, 2)
         accentBar:SetPoint("BOTTOMRIGHT", sBtn, "BOTTOMRIGHT", -4, 2)
-        accentBar:SetTexture(0.0, 0.85, 1.0, 1.0)
+        accentBar:SetTexture(1.0, 0.82, 0.24, 1.0)
         accentBar:Hide()
         sBtn.accentBar = accentBar
 
@@ -120,14 +129,7 @@ local function BuildGearPanel(sp)
     autogearCard:SetPoint("TOPLEFT", specCard, "BOTTOMLEFT", 0, -10)
     autogearCard:SetPoint("TOPRIGHT", specCard, "BOTTOMRIGHT", 0, -10)
     autogearCard:SetPoint("BOTTOMRIGHT", gearPanel, "BOTTOMRIGHT", 0, 0)
-    autogearCard:SetBackdrop({
-        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 10,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    autogearCard:SetBackdropColor(0.03, 0.04, 0.07, 1.0)
-    autogearCard:SetBackdropBorderColor(0.28, 0.32, 0.40, 1.0)
+    ApplyBlizzardStonePanel(autogearCard, 0.66, 0.54, 0.30, 12, 0.30)
     gearPanel.autogearCard = autogearCard
 
     local gearHeaderIcon = autogearCard:CreateTexture(nil, "ARTWORK")
@@ -147,14 +149,9 @@ local function BuildGearPanel(sp)
     local matchBox = CreateFrame("Frame", nil, autogearCard)
     matchBox:SetSize(248, 108)
     matchBox:SetPoint("TOPLEFT", autogearCard, "TOPLEFT", 14, -56)
-    matchBox:SetBackdrop({
-        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 8,
-        insets = { left = 2, right = 2, top = 2, bottom = 2 }
-    })
-    matchBox:SetBackdropColor(0.06, 0.08, 0.12, 0.90)
-    matchBox:SetBackdropBorderColor(0.30, 0.34, 0.42, 0.80)
+    ApplyInsetPanelBackdrop(matchBox, 8)
+    matchBox:SetBackdropColor(0.095, 0.080, 0.060, 0.94)
+    matchBox:SetBackdropBorderColor(0.56, 0.46, 0.28, 0.85)
 
     local matchBtn = CreateFrame("Button", "DungeonBots_GearMatchBtn", matchBox, "UIPanelButtonTemplate")
     matchBtn:SetSize(224, 26)
@@ -171,14 +168,9 @@ local function BuildGearPanel(sp)
     local blueBox = CreateFrame("Frame", nil, autogearCard)
     blueBox:SetSize(248, 108)
     blueBox:SetPoint("TOPRIGHT", autogearCard, "TOPRIGHT", -14, -56)
-    blueBox:SetBackdrop({
-        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 8,
-        insets = { left = 2, right = 2, top = 2, bottom = 2 }
-    })
-    blueBox:SetBackdropColor(0.06, 0.08, 0.12, 0.90)
-    blueBox:SetBackdropBorderColor(0.30, 0.34, 0.42, 0.80)
+    ApplyInsetPanelBackdrop(blueBox, 8)
+    blueBox:SetBackdropColor(0.095, 0.080, 0.060, 0.94)
+    blueBox:SetBackdropBorderColor(0.56, 0.46, 0.28, 0.85)
 
     local blueBtn = CreateFrame("Button", "DungeonBots_GearBlueBtn", blueBox, "UIPanelButtonTemplate")
     blueBtn:SetSize(224, 26)
@@ -363,7 +355,7 @@ local function UpdateSpellSelectionUI()
                 if diff then
                     row:SetBackdropBorderColor(diff.r, diff.g, diff.b, 0.70)
                 else
-                    row:SetBackdropBorderColor(0.26, 0.34, 0.50, 0.85)
+                    row:SetBackdropBorderColor(0.54, 0.44, 0.26, 0.85)
                 end
             end
         end
@@ -387,9 +379,9 @@ local function CreateSpellRowButton(parent, idx)
     local row = CreateFrame("Button", "DungeonBots_SpellRow_" .. idx, parent)
     row:SetSize(492, SPELL_ROW_HEIGHT)
     row:SetPoint("TOPLEFT", parent, "TOPLEFT", 4, -((idx - 1) * SPELL_ROW_PITCH) - 4)
-    ApplyDarkBackdrop(row, 8)
-    row:SetBackdropColor(0.06, 0.08, 0.12, 0.94)
-    row:SetBackdropBorderColor(0.26, 0.34, 0.50, 0.85)
+    ApplyInsetPanelBackdrop(row, 8)
+    row:SetBackdropColor(0.095, 0.080, 0.060, 0.94)
+    row:SetBackdropBorderColor(0.54, 0.44, 0.26, 0.85)
     row:RegisterForClicks("LeftButtonUp")
 
     local iconBg = row:CreateTexture(nil, "BACKGROUND")
@@ -558,13 +550,7 @@ function DungeonBots:BuildSpellsDialog()
     sp:SetScript("OnDragStart", sp.StartMoving)
     sp:SetScript("OnDragStop", sp.StopMovingOrSizing)
     sp:Hide()
-    ApplyDarkBackdrop(sp, 14)
-    sp:SetBackdropColor(0.04, 0.05, 0.08, 1.0)
-
-    local solidBg = sp:CreateTexture(nil, "BACKGROUND")
-    solidBg:SetPoint("TOPLEFT", sp, "TOPLEFT", 4, -4)
-    solidBg:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", -4, 4)
-    solidBg:SetTexture(0.04, 0.05, 0.08, 1.0)
+    ApplyBlizzardGoldWindow(sp, 16)
 
     tinsert(UISpecialFrames, "DungeonBots_SpellsFrame")
     sp.activeMode = "spells"
@@ -574,12 +560,6 @@ function DungeonBots:BuildSpellsDialog()
     header:SetPoint("TOPRIGHT", sp, "TOPRIGHT", -6, -6)
     header:SetHeight(30)
     ApplyHeaderBackdrop(header)
-    header:SetBackdropColor(0.10, 0.12, 0.16, 1.0)
-
-    local headerBg = header:CreateTexture(nil, "BACKGROUND")
-    headerBg:SetPoint("TOPLEFT", header, "TOPLEFT", 2, -2)
-    headerBg:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -2, 2)
-    headerBg:SetTexture(0.10, 0.12, 0.16, 1.0)
 
     local hIcon = header:CreateTexture(nil, "ARTWORK")
     hIcon:SetSize(18, 18)
@@ -661,15 +641,8 @@ function DungeonBots:BuildSpellsDialog()
     local listBg = CreateFrame("Frame", nil, sp)
     listBg:SetPoint("TOPLEFT", sp, "TOPLEFT", 10, -104)
     listBg:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", -10, 42)
-    ApplyDarkBackdrop(listBg, 10)
-    listBg:SetBackdropColor(0.02, 0.03, 0.05, 1.0)
-    listBg:SetBackdropBorderColor(0.28, 0.32, 0.40, 1.0)
+    ApplyBlizzardStonePanel(listBg, 0.66, 0.54, 0.30, 10, 0.30)
     sp.listBg = listBg
-
-    local listSolid = listBg:CreateTexture(nil, "BACKGROUND")
-    listSolid:SetPoint("TOPLEFT", listBg, "TOPLEFT", 3, -3)
-    listSolid:SetPoint("BOTTOMRIGHT", listBg, "BOTTOMRIGHT", -3, 3)
-    listSolid:SetTexture(0.02, 0.03, 0.05, 1.0)
 
     local scroll = CreateFrame("ScrollFrame", "DungeonBots_SpellsScroll", listBg, "UIPanelScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", listBg, "TOPLEFT", 6, -6)
@@ -873,14 +846,14 @@ local function RenderGearPanel(sp, targetBot, classToken)
             local displaySpec = DungeonBots.LocalizeSpecText and DungeonBots:LocalizeSpecText(specName) or specName
             local isActive = (activeSpec and string.lower(specName) == string.lower(activeSpec)) and true or false
             if isActive then
-                sBtn.label:SetText("|cff00e5ff" .. displaySpec .. " (Activa)|r")
-                sBtn:SetBackdropColor(0.08, 0.22, 0.34, 0.96)
-                sBtn:SetBackdropBorderColor(0.25, 0.80, 1.0, 0.95)
+                sBtn.label:SetText("|cffffd100" .. displaySpec .. " (Activa)|r")
+                sBtn:SetBackdropColor(0.22, 0.17, 0.09, 0.96)
+                sBtn:SetBackdropBorderColor(1.0, 0.82, 0.24, 0.95)
                 sBtn.accentBar:Show()
             else
-                sBtn.label:SetText("|cffe6ecf5" .. displaySpec .. "|r")
-                sBtn:SetBackdropColor(0.07, 0.09, 0.14, 0.95)
-                sBtn:SetBackdropBorderColor(0.28, 0.32, 0.42, 0.85)
+                sBtn.label:SetText("|cffeeddb8" .. displaySpec .. "|r")
+                sBtn:SetBackdropColor(0.095, 0.080, 0.060, 0.95)
+                sBtn:SetBackdropBorderColor(0.56, 0.46, 0.28, 0.85)
                 sBtn.accentBar:Hide()
             end
             sBtn.specValue = specName

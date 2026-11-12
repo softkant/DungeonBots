@@ -630,14 +630,18 @@ local function CreateFloatingToolbar(cfg)
         end
     end)
 
-    f:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 12, edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    f:SetBackdropColor(0.07, 0.08, 0.11, 0.92)
-    f:SetBackdropBorderColor(0.68, 0.62, 0.44, 1.0)
+    if DB_Internal and DB_Internal.ApplyBlizzardStonePanel then
+        DB_Internal.ApplyBlizzardStonePanel(f, 0.78, 0.64, 0.34, 12, 0.30)
+    else
+        f:SetBackdrop({
+            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = true, tileSize = 12, edgeSize = 12,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 }
+        })
+        f:SetBackdropColor(0.09, 0.075, 0.055, 0.94)
+        f:SetBackdropBorderColor(0.78, 0.64, 0.34, 1.0)
+    end
 
     for i, action in ipairs(actions) do
         local btn = CreateFrame("Button", cfg.btnPrefix .. i, f)
@@ -651,7 +655,7 @@ local function CreateFloatingToolbar(cfg)
             tile = true, tileSize = 8, edgeSize = 10,
             insets = { left = 2, right = 2, top = 2, bottom = 2 }
         })
-        btn:SetBackdropColor(0.06, 0.08, 0.12, 0.95)
+        btn:SetBackdropColor(0.09, 0.075, 0.055, 0.95)
         btn:SetBackdropBorderColor(action.color[1], action.color[2], action.color[3], 0.85)
 
         local icon = btn:CreateTexture(nil, "ARTWORK")

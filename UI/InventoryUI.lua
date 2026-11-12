@@ -7,8 +7,12 @@ DungeonBots.Internal = DungeonBots.Internal or {}
 
 local DB_Internal = DungeonBots.Internal
 
-local function ApplyDarkBackdrop(frame, edgeSize)
-    return DB_Internal.ApplyDarkBackdrop(frame, edgeSize)
+local function ApplyBlizzardGoldWindow(frame, edgeSize)
+    return DB_Internal.ApplyBlizzardGoldWindow(frame, edgeSize)
+end
+
+local function ApplyBlizzardStonePanel(frame, borderR, borderG, borderB, edgeSize, bgAlpha)
+    return DB_Internal.ApplyBlizzardStonePanel(frame, borderR, borderG, borderB, edgeSize, bgAlpha)
 end
 
 local function ApplyHeaderBackdrop(frame)
@@ -109,8 +113,8 @@ local function CreateInventorySlotButton(parent, idx)
         tile = true, tileSize = 10, edgeSize = 10,
         insets = { left = 2, right = 2, top = 2, bottom = 2 }
     })
-    btn:SetBackdropColor(0.05, 0.06, 0.09, 0.98)
-    btn:SetBackdropBorderColor(0.45, 0.48, 0.55, 0.9)
+    btn:SetBackdropColor(0.08, 0.068, 0.05, 0.96)
+    btn:SetBackdropBorderColor(0.50, 0.42, 0.26, 0.85)
 
     local icon = btn:CreateTexture(nil, "ARTWORK")
     icon:SetPoint("TOPLEFT", 4, -4)
@@ -218,27 +222,15 @@ function DungeonBots:BuildInventoryDialog()
     inv:SetScript("OnDragStart", inv.StartMoving)
     inv:SetScript("OnDragStop", inv.StopMovingOrSizing)
     inv:Hide()
-    ApplyDarkBackdrop(inv, 14)
-    inv:SetBackdropColor(0.04, 0.05, 0.08, 1.0)
-
-    local solidBg = inv:CreateTexture(nil, "BACKGROUND")
-    solidBg:SetPoint("TOPLEFT", inv, "TOPLEFT", 4, -4)
-    solidBg:SetPoint("BOTTOMRIGHT", inv, "BOTTOMRIGHT", -4, 4)
-    solidBg:SetTexture(0.04, 0.05, 0.08, 1.0)
+    ApplyBlizzardGoldWindow(inv, 16)
 
     table.insert(UISpecialFrames, "DungeonBots_InventoryFrame")
 
     local header = CreateFrame("Frame", nil, inv)
-    header:SetPoint("TOPLEFT", inv, "TOPLEFT", 6, -6)
-    header:SetPoint("TOPRIGHT", inv, "TOPRIGHT", -6, -6)
+    header:SetPoint("TOPLEFT", inv, "TOPLEFT", 7, -7)
+    header:SetPoint("TOPRIGHT", inv, "TOPRIGHT", -7, -7)
     header:SetHeight(30)
     ApplyHeaderBackdrop(header)
-    header:SetBackdropColor(0.10, 0.12, 0.16, 1.0)
-
-    local headerSolidBg = header:CreateTexture(nil, "BACKGROUND")
-    headerSolidBg:SetPoint("TOPLEFT", header, "TOPLEFT", 2, -2)
-    headerSolidBg:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -2, 2)
-    headerSolidBg:SetTexture(0.10, 0.12, 0.16, 1.0)
 
     local hIcon = header:CreateTexture(nil, "ARTWORK")
     hIcon:SetSize(18, 18)
@@ -314,14 +306,7 @@ function DungeonBots:BuildInventoryDialog()
     local bagBg = CreateFrame("Frame", nil, inv)
     bagBg:SetPoint("TOPLEFT", inv, "TOPLEFT", 10, -68)
     bagBg:SetPoint("BOTTOMRIGHT", inv, "BOTTOMRIGHT", -10, 42)
-    ApplyDarkBackdrop(bagBg, 10)
-    bagBg:SetBackdropColor(0.02, 0.03, 0.05, 1.0)
-    bagBg:SetBackdropBorderColor(0.28, 0.32, 0.40, 1.0)
-
-    local bagSolidBg = bagBg:CreateTexture(nil, "BACKGROUND")
-    bagSolidBg:SetPoint("TOPLEFT", bagBg, "TOPLEFT", 3, -3)
-    bagSolidBg:SetPoint("BOTTOMRIGHT", bagBg, "BOTTOMRIGHT", -3, 3)
-    bagSolidBg:SetTexture(0.02, 0.03, 0.05, 1.0)
+    ApplyBlizzardStonePanel(bagBg, 0.66, 0.54, 0.30, 10, 0.30)
 
     local scroll = CreateFrame("ScrollFrame", "DungeonBots_InvScroll", bagBg, "UIPanelScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", bagBg, "TOPLEFT", 6, -6)
@@ -507,7 +492,7 @@ function DungeonBots:UpdateInventoryDialog(botName)
             slot.icon:Hide()
             slot.countText:Hide()
             slot.selOverlay:Hide()
-            slot:SetBackdropBorderColor(0.22, 0.24, 0.30, 0.55)
+            slot:SetBackdropBorderColor(0.36, 0.30, 0.20, 0.55)
         end
         slot:Show()
     end

@@ -7,8 +7,16 @@ DungeonBots.Internal = DungeonBots.Internal or {}
 
 local DB_Internal = DungeonBots.Internal
 
-local function ApplyDarkBackdrop(frame, edgeSize)
-    return DB_Internal.ApplyDarkBackdrop(frame, edgeSize)
+local function ApplyBlizzardGoldWindow(frame, edgeSize)
+    return DB_Internal.ApplyBlizzardGoldWindow(frame, edgeSize)
+end
+
+local function ApplyBlizzardStonePanel(frame, borderR, borderG, borderB, edgeSize, bgAlpha)
+    return DB_Internal.ApplyBlizzardStonePanel(frame, borderR, borderG, borderB, edgeSize, bgAlpha)
+end
+
+local function ApplyInsetPanelBackdrop(frame, edgeSize)
+    return DB_Internal.ApplyInsetPanelBackdrop(frame, edgeSize)
 end
 
 local function ApplyHeaderBackdrop(frame)
@@ -91,27 +99,15 @@ function DungeonBots:BuildSettingsDialog()
     sf:SetScript("OnDragStart", sf.StartMoving)
     sf:SetScript("OnDragStop", sf.StopMovingOrSizing)
     sf:Hide()
-    ApplyDarkBackdrop(sf, 14)
-    sf:SetBackdropColor(0.04, 0.05, 0.08, 1.0)
-
-    local solidBg = sf:CreateTexture(nil, "BACKGROUND")
-    solidBg:SetPoint("TOPLEFT", sf, "TOPLEFT", 4, -4)
-    solidBg:SetPoint("BOTTOMRIGHT", sf, "BOTTOMRIGHT", -4, 4)
-    solidBg:SetTexture(0.04, 0.05, 0.08, 1.0)
+    ApplyBlizzardGoldWindow(sf, 16)
 
     tinsert(UISpecialFrames, "DungeonBots_SettingsFrame")
 
     local header = CreateFrame("Frame", nil, sf)
-    header:SetPoint("TOPLEFT", sf, "TOPLEFT", 6, -6)
-    header:SetPoint("TOPRIGHT", sf, "TOPRIGHT", -6, -6)
+    header:SetPoint("TOPLEFT", sf, "TOPLEFT", 7, -7)
+    header:SetPoint("TOPRIGHT", sf, "TOPRIGHT", -7, -7)
     header:SetHeight(30)
     ApplyHeaderBackdrop(header)
-    header:SetBackdropColor(0.10, 0.12, 0.16, 1.0)
-
-    local headerSolidBg = header:CreateTexture(nil, "BACKGROUND")
-    headerSolidBg:SetPoint("TOPLEFT", header, "TOPLEFT", 2, -2)
-    headerSolidBg:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -2, 2)
-    headerSolidBg:SetTexture(0.10, 0.12, 0.16, 1.0)
 
     local hIcon = header:CreateTexture(nil, "ARTWORK")
     hIcon:SetSize(16, 16)
@@ -304,20 +300,16 @@ end
 local function CreateHistoryRow(parent, idx)
     local row = CreateFrame("Frame", nil, parent)
     row:SetSize(480, 50)
-    ApplyDarkBackdrop(row, 8)
-    row:SetBackdropColor(0.10, 0.12, 0.17, 1.0)
-    row:SetBackdropBorderColor(0.35, 0.40, 0.50, 0.95)
-
-    local rowSolidBg = row:CreateTexture(nil, "BACKGROUND")
-    rowSolidBg:SetPoint("TOPLEFT", row, "TOPLEFT", 3, -3)
-    rowSolidBg:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -3, 3)
-    rowSolidBg:SetTexture(0.10, 0.12, 0.17, 1.0)
+    ApplyInsetPanelBackdrop(row, 8)
+    row:SetBackdropColor(0.10, 0.085, 0.065, 0.96)
+    row:SetBackdropBorderColor(0.56, 0.46, 0.28, 0.92)
 
     local iconFrame = CreateFrame("Frame", nil, row)
     iconFrame:SetSize(34, 34)
     iconFrame:SetPoint("LEFT", row, "LEFT", 8, 0)
-    ApplyDarkBackdrop(iconFrame, 6)
-    iconFrame:SetBackdropColor(0, 0, 0, 1)
+    ApplyInsetPanelBackdrop(iconFrame, 6)
+    iconFrame:SetBackdropColor(0.04, 0.03, 0.02, 1.0)
+    iconFrame:SetBackdropBorderColor(0.74, 0.60, 0.32, 0.95)
 
     row.icon = iconFrame:CreateTexture(nil, "ARTWORK")
     row.icon:SetPoint("TOPLEFT", iconFrame, "TOPLEFT", 2, -2)
@@ -370,27 +362,15 @@ function DungeonBots:BuildHistoryDialog()
     hf:SetScript("OnDragStart", hf.StartMoving)
     hf:SetScript("OnDragStop", hf.StopMovingOrSizing)
     hf:Hide()
-    ApplyDarkBackdrop(hf, 14)
-    hf:SetBackdropColor(0.04, 0.05, 0.08, 1.0)
-
-    local solidBg = hf:CreateTexture(nil, "BACKGROUND")
-    solidBg:SetPoint("TOPLEFT", hf, "TOPLEFT", 4, -4)
-    solidBg:SetPoint("BOTTOMRIGHT", hf, "BOTTOMRIGHT", -4, 4)
-    solidBg:SetTexture(0.04, 0.05, 0.08, 1.0)
+    ApplyBlizzardGoldWindow(hf, 16)
 
     table.insert(UISpecialFrames, "DungeonBots_HistoryFrame")
 
     local header = CreateFrame("Frame", nil, hf)
-    header:SetPoint("TOPLEFT", hf, "TOPLEFT", 6, -6)
-    header:SetPoint("TOPRIGHT", hf, "TOPRIGHT", -6, -6)
+    header:SetPoint("TOPLEFT", hf, "TOPLEFT", 7, -7)
+    header:SetPoint("TOPRIGHT", hf, "TOPRIGHT", -7, -7)
     header:SetHeight(30)
     ApplyHeaderBackdrop(header)
-    header:SetBackdropColor(0.10, 0.12, 0.16, 1.0)
-
-    local headerSolidBg = header:CreateTexture(nil, "BACKGROUND")
-    headerSolidBg:SetPoint("TOPLEFT", header, "TOPLEFT", 2, -2)
-    headerSolidBg:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -2, 2)
-    headerSolidBg:SetTexture(0.10, 0.12, 0.16, 1.0)
 
     local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("LEFT", 10, 0)
@@ -420,14 +400,7 @@ function DungeonBots:BuildHistoryDialog()
     local scrollBg = CreateFrame("Frame", nil, hf)
     scrollBg:SetPoint("TOPLEFT", hf, "TOPLEFT", 10, -68)
     scrollBg:SetPoint("BOTTOMRIGHT", hf, "BOTTOMRIGHT", -10, 40)
-    ApplyDarkBackdrop(scrollBg, 10)
-    scrollBg:SetBackdropColor(0.02, 0.03, 0.05, 1.0)
-    scrollBg:SetBackdropBorderColor(0.30, 0.34, 0.42, 1.0)
-
-    local scrollSolidBg = scrollBg:CreateTexture(nil, "BACKGROUND")
-    scrollSolidBg:SetPoint("TOPLEFT", scrollBg, "TOPLEFT", 3, -3)
-    scrollSolidBg:SetPoint("BOTTOMRIGHT", scrollBg, "BOTTOMRIGHT", -3, 3)
-    scrollSolidBg:SetTexture(0.02, 0.03, 0.05, 1.0)
+    ApplyBlizzardStonePanel(scrollBg, 0.66, 0.54, 0.30, 10, 0.28)
 
     local scrollFrame = CreateFrame("ScrollFrame", "DungeonBots_HistoryScrollFrame", scrollBg, "UIPanelScrollFrameTemplate")
     scrollFrame:SetPoint("TOPLEFT", scrollBg, "TOPLEFT", 6, -6)
