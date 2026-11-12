@@ -112,7 +112,7 @@ local function GetOrCreateHudBotDropDown()
     return hudBotDropDown
 end
 
-local function OpenHudBotDropdown(anchorBtn, headerTitle, emptyWarnMsg, onSelectBot, directIfSingle)
+local function OpenHudBotDropdown(anchorBtn, headerTitle, emptyWarnMsg, onSelectBot, directIfSingle, showProximity)
     local bots = DungeonBots.GetPartyBotsList and DungeonBots:GetPartyBotsList() or {}
     if #bots == 0 then
         if CloseDropDownMenus then CloseDropDownMenus() end
@@ -150,7 +150,14 @@ local function OpenHudBotDropdown(anchorBtn, headerTitle, emptyWarnMsg, onSelect
             local info = UIDropDownMenu_CreateInfo()
             local c = (bot.classToken and RAID_CLASS_COLORS and RAID_CLASS_COLORS[bot.classToken]) or { r = 1.0, g = 0.82, b = 0.0 }
             local hex = string.format("|cff%02x%02x%02x", math.floor(c.r * 255), math.floor(c.g * 255), math.floor(c.b * 255))
-            info.text = hex .. bot.name .. "|r"
+            local rowText = hex .. bot.name .. "|r"
+            if showProximity and DungeonBots.GetBotProximityInfo then
+                local prox = DungeonBots:GetBotProximityInfo(bot.name)
+                if prox and prox.shortLabel then
+                    rowText = rowText .. " " .. (prox.colorHex or "|cffaaaaaa") .. "(" .. prox.shortLabel .. ")|r"
+                end
+            end
+            info.text = rowText
             info.notCheckable = true
             local chosenName = bot.name
             info.func = function()
@@ -178,6 +185,7 @@ local function HandleHudTalkClick(anchorBtn)
         function(chosenName)
             DungeonBots:SendTalkCommand(chosenName, "talk")
         end,
+        true,
         true
     )
 end
@@ -212,7 +220,8 @@ local function HandleUtilActionClick(anchorBtn, action)
                     DungeonBots:QueryBotSpells(chosenName, "spells", "", false)
                 end
             end,
-            false
+            false,
+            true
         )
     end
 end

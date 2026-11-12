@@ -274,6 +274,7 @@ function DungeonBots:ArmTalkCapture(botName, cmd, resetLines)
             lastCmd = cmd or "talk",
             isAcceptCmd = isAcceptCmd,
             acceptError = false,
+            rangeError = false,
             playedAcceptSound = false,
             printedAcceptMsg = false,
             printedAcceptKeys = {},
@@ -292,6 +293,7 @@ function DungeonBots:ArmTalkCapture(botName, cmd, resetLines)
         data.lastCmd = cmd or data.lastCmd or "talk"
         data.isAcceptCmd = isAcceptCmd
         data.acceptError = false
+        data.rangeError = false
         data.playedAcceptSound = false
         data.printedAcceptMsg = false
         data.printedAcceptKeys = {}
@@ -734,7 +736,16 @@ local function DetectTalkQuestState(lowerText)
 end
 
 local function ClassifyTalkQuestLine(lowerClean, isAcceptCmd)
-    local isError = (string.find(lowerClean, "cannot", 1, true)
+    local isRangeError = (string.find(lowerClean, "out of range", 1, true)
+        or string.find(lowerClean, "too far", 1, true)
+        or string.find(lowerClean, "far away", 1, true)
+        or string.find(lowerClean, "cannot reach", 1, true)
+        or string.find(lowerClean, "not near", 1, true)
+        or string.find(lowerClean, "demasiado lejos", 1, true)
+        or string.find(lowerClean, "muy lejos", 1, true)) and true or false
+
+    local isError = (isRangeError
+        or string.find(lowerClean, "cannot", 1, true)
         or string.find(lowerClean, "couldn't", 1, true)
         or string.find(lowerClean, "could not", 1, true)
         or string.find(lowerClean, "unable", 1, true)
@@ -742,11 +753,10 @@ local function ClassifyTalkQuestLine(lowerClean, isAcceptCmd)
         or string.find(lowerClean, "failed", 1, true)
         or string.find(lowerClean, "don't meet", 1, true)
         or string.find(lowerClean, "quest log is full", 1, true)
-        or string.find(lowerClean, "no npc", 1, true)
-        or string.find(lowerClean, "out of range", 1, true)) and true or false
+        or string.find(lowerClean, "no npc", 1, true)) and true or false
 
     if isAcceptCmd then
-        return true, isError, nil
+        return true, isError, nil, isRangeError
     end
 
     if isError
@@ -754,11 +764,11 @@ local function ClassifyTalkQuestLine(lowerClean, isAcceptCmd)
         or string.find(lowerClean, "entregada", 1, true)
         or string.find(lowerClean, "accepted quest", 1, true)
         or string.find(lowerClean, "just accepted", 1, true) then
-        return true, isError, nil
+        return true, isError, nil, isRangeError
     end
 
     local state = DetectTalkQuestState(lowerClean)
-    return false, false, state
+    return false, false, state, isRangeError
 end
 
 function DB_Internal.ParseTalkCaptureWhisper(cleanSender, message)
@@ -839,7 +849,10 @@ function DB_Internal.ParseTalkCaptureWhisper(cleanSender, message)
             if hasQuestLinkInLine then
                 probeLower = string.lower(TrimText(StripWowFormatting(string.gsub(line, "|Hquest:[^|]+|h%[[^%]]+%]|h", " "))))
             end
-            local skipQuestAction, isAcceptErr, lineQuestState = ClassifyTalkQuestLine(probeLower, cap.isAcceptCmd)
+            local skipQuestAction, isAcceptErr, lineQuestState, isRangeErr = ClassifyTalkQuestLine(probeLower, cap.isAcceptCmd)
+            if isRangeErr then
+                data.rangeError = true
+            end
             if cap.isAcceptCmd then
                 if isAcceptErr then
                     data.acceptError = true

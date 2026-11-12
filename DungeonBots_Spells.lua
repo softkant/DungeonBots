@@ -762,7 +762,12 @@ local function StartTalentInspectQuery(cleanBot, tab, rec, isSilent)
         DungeonBots.pendingTalentInspect = nil
         tab.loading = false
         tab.done = true
-        tab.inspectError = "No se puede inspeccionar a |cffffd200" .. cleanBot .. "|r ahora (muy lejos o no disponible). Acércate a menos de 28 m y pulsa 'Actualizar'."
+        local prox = DungeonBots.GetBotProximityInfo and DungeonBots:GetBotProximityInfo(cleanBot) or nil
+        if prox and prox.detailMsg then
+            tab.inspectError = "|cffff5544" .. prox.detailMsg .. "|r Acércate a menos de 28 m y pulsa 'Actualizar'."
+        else
+            tab.inspectError = "No se puede inspeccionar a |cffffd200" .. cleanBot .. "|r ahora (muy lejos o no disponible). Acércate a menos de 28 m y pulsa 'Actualizar'."
+        end
         if DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == cleanBot then
             DungeonBots:UpdateSpellsDialog(cleanBot)
         end

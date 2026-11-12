@@ -497,6 +497,20 @@ function DungeonBots:BuildTalkDialog()
         tf:Hide()
     end)
 
+    -- Actualiza en vivo el indicador de cercanía cuando el diálogo está abierto
+    tf._proxAcc = 0
+    tf:SetScript("OnUpdate", function(self, elapsed)
+        if not self.currentBot or not DungeonBots.GetBotProximityInfo then return end
+        self._proxAcc = (self._proxAcc or 0) + (elapsed or 0)
+        if self._proxAcc < 0.6 then return end
+        self._proxAcc = 0
+        local prox = DungeonBots:GetBotProximityInfo(self.currentBot)
+        local newKey = prox and prox.key or nil
+        if newKey and newKey ~= self._lastProxKey then
+            DungeonBots:UpdateTalkDialog(self.currentBot)
+        end
+    end)
+
     DungeonBots.talkFrame = tf
 end
 
@@ -578,7 +592,10 @@ function DungeonBots:UpdateTalkDialog(botName)
     local isBusy = (DungeonBots.IsTalkBusy and DungeonBots:IsTalkBusy(targetBot)) and true or false
     local npcTitle = (data and data.npcName and data.npcName ~= "") and data.npcName or "PNJ seleccionado"
     local statusTag = isBusy and "|cff71d5ff[Consultando...]|r" or "|cff34c759[Listo]|r"
-    tf.npcLabel:SetText("PNJ: |cffffd200" .. npcTitle .. "|r  " .. statusTag)
+    local prox = DungeonBots.GetBotProximityInfo and DungeonBots:GetBotProximityInfo(targetBot) or nil
+    tf._lastProxKey = prox and prox.key or nil
+    local proxSuffix = (prox and prox.badgeText) and ("  " .. prox.badgeText) or ""
+    tf.npcLabel:SetText("PNJ: |cffffd200" .. npcTitle .. "|r  " .. statusTag .. proxSuffix)
 
     if tf.requeryBtn then
         if isBusy then
@@ -617,8 +634,13 @@ function DungeonBots:UpdateTalkDialog(botName)
         local lastLocalized = (#lines > 0)
             and ((DungeonBots.LocalizeHyperlinksInText and DungeonBots:LocalizeHyperlinksInText(lines[#lines])) or lines[#lines])
             or nil
-        if data and (data.loading or isBusy) then
-            if data.isAcceptCmd then
+        if data and data.rangeError then
+            local reasonTxt = lastLocalized and ("\n|cffaaaaaa(" .. DungeonBots:StripChatFormatting(lastLocalized) .. ")|r") or ""
+            tf.emptyOptLabel:SetText("|cffff5544" .. targetBot .. " está demasiado lejos del PNJ.|r" .. reasonTxt .. "\n\nAcércalo al PNJ (usa |cffffd200Seguir|r o |cffffd200Summon|r) y pulsa |cffffd200'Reconsultar'|r.")
+        elseif data and (data.loading or isBusy) then
+            if prox and prox.isFar then
+                tf.emptyOptLabel:SetText("|cffff7b30" .. (prox.detailMsg or (targetBot .. " está lejos.")) .. "|r\n\n|cffaaaaaaConsultando a " .. targetBot .. "... Si no aparece nada, acércalo con 'Seguir' o 'Summon' y pulsa 'Reconsultar'.|r")
+            elseif data.isAcceptCmd then
                 tf.emptyOptLabel:SetText("|cff71d5ffAceptando misión con " .. targetBot .. "...|r")
             else
                 tf.emptyOptLabel:SetText("|cff71d5ffConsultando opciones y misiones del PNJ con " .. targetBot .. "...|r")
@@ -633,9 +655,14 @@ function DungeonBots:UpdateTalkDialog(botName)
         elseif data and data.acceptError and lastLocalized then
             local cleanFallback = DungeonBots:StripChatFormatting(lastLocalized)
             tf.emptyOptLabel:SetText("|cffff5544No se pudo aceptar la misión:|r\n\n|cffffaaaa" .. cleanFallback .. "|r")
+        elseif prox and prox.isFar then
+            local extra = lastLocalized and ("\n\n|cffaaaaaa(" .. DungeonBots:StripChatFormatting(lastLocalized) .. ")|r") or ""
+            tf.emptyOptLabel:SetText("|cffff5544" .. (prox.detailMsg or (targetBot .. " está demasiado lejos.")) .. "|r\n\nAcércalo al PNJ (usa |cffffd200Seguir|r o |cffffd200Summon|r) y pulsa |cffffd200'Reconsultar'|r." .. extra)
         elseif lastLocalized then
             local cleanFallback = DungeonBots:StripChatFormatting(lastLocalized)
             tf.emptyOptLabel:SetText("No se detectaron opciones ni misiones disponibles.\n\n|cffaaaaaa(" .. cleanFallback .. ")|r")
+        elseif prox and prox.key == "medium" then
+            tf.emptyOptLabel:SetText("No se detectaron opciones ni misiones disponibles.\n|cffffd200" .. targetBot .. " está a media distancia (12-28 m); puede necesitar acercarse más al PNJ y pulsar 'Reconsultar'.|r")
         else
             tf.emptyOptLabel:SetText("No se detectaron opciones ni misiones disponibles.\nAsegúrate de tener seleccionado un PNJ cerca de " .. targetBot .. " y pulsa 'Reconsultar'.")
         end

@@ -171,6 +171,150 @@ function DungeonBots:FindPartyUnitByName(name)
     return nil
 end
 
+function DungeonBots:GetBotProximityInfo(botName)
+    local cleanName = (DB_Internal.NormalizePlayerName and DB_Internal.NormalizePlayerName(botName)) or tostring(botName or "Bot")
+    if cleanName == "" then cleanName = "Bot" end
+    local unit = self:FindPartyUnitByName(cleanName)
+    if not unit then
+        return {
+            key = "missing",
+            isNear = false,
+            isFar = true,
+            canTalkRange = false,
+            canInspectRange = false,
+            shortLabel = "Fuera del grupo",
+            badgeText = "|cff9d9d9d[No está en grupo]|r",
+            colorHex = "|cff9d9d9d",
+            detailMsg = cleanName .. " no está en tu grupo actual.",
+        }
+    end
+    if UnitIsConnected and not UnitIsConnected(unit) then
+        return {
+            key = "offline",
+            isNear = false,
+            isFar = true,
+            canTalkRange = false,
+            canInspectRange = false,
+            shortLabel = "Desconectado",
+            badgeText = "|cff9d9d9d[Desconectado]|r",
+            colorHex = "|cff9d9d9d",
+            detailMsg = cleanName .. " está desconectado.",
+        }
+    end
+    if UnitIsDeadOrGhost and UnitIsDeadOrGhost(unit) then
+        return {
+            key = "dead",
+            isNear = false,
+            isFar = true,
+            canTalkRange = false,
+            canInspectRange = false,
+            shortLabel = "Muerto",
+            badgeText = "|cffff5544[Muerto]|r",
+            colorHex = "|cffff5544",
+            detailMsg = cleanName .. " está muerto o en espíritu.",
+        }
+    end
+    if UnitIsVisible and not UnitIsVisible(unit) then
+        return {
+            key = "out_of_sight",
+            isNear = false,
+            isFar = true,
+            canTalkRange = false,
+            canInspectRange = false,
+            shortLabel = "Muy lejos / otra zona",
+            badgeText = "|cffff5544[Muy lejos]|r",
+            colorHex = "|cffff5544",
+            detailMsg = cleanName .. " está muy lejos (más de 100 m) o en otra zona.",
+        }
+    end
+
+    local inCloseTalk = (CheckInteractDistance and CheckInteractDistance(unit, 2)) and true or false
+    local inInspectRange = false
+    if CheckInteractDistance then
+        inInspectRange = CheckInteractDistance(unit, 1) and true or false
+    elseif CanInspect then
+        inInspectRange = CanInspect(unit) and true or false
+    end
+    local inPartyRange = (UnitInRange and UnitInRange(unit)) and true or false
+
+    if CheckInteractDistance then
+        if inCloseTalk then
+            return {
+                key = "close",
+                isNear = true,
+                isFar = false,
+                canTalkRange = true,
+                canInspectRange = true,
+                shortLabel = "Cerca",
+                badgeText = "|cff34c759[Cerca]|r",
+                colorHex = "|cff34c759",
+                detailMsg = nil,
+            }
+        elseif inInspectRange then
+            return {
+                key = "medium",
+                isNear = true,
+                isFar = false,
+                canTalkRange = true,
+                canInspectRange = true,
+                shortLabel = "< 28 m",
+                badgeText = "|cffffd200[< 28 m]|r",
+                colorHex = "|cffffd200",
+                detailMsg = cleanName .. " está a media distancia (12-28 m). Si no responde al PNJ, acércalo un poco más.",
+            }
+        elseif inPartyRange then
+            return {
+                key = "far_40",
+                isNear = false,
+                isFar = true,
+                canTalkRange = false,
+                canInspectRange = false,
+                shortLabel = "Lejos (> 28 m)",
+                badgeText = "|cffff7b30[Lejos (> 28 m)]|r",
+                colorHex = "|cffff7b30",
+                detailMsg = cleanName .. " está lejos (a más de 28 m de ti).",
+            }
+        else
+            return {
+                key = "far",
+                isNear = false,
+                isFar = true,
+                canTalkRange = false,
+                canInspectRange = false,
+                shortLabel = "Muy lejos (> 40 m)",
+                badgeText = "|cffff5544[Muy lejos (> 40 m)]|r",
+                colorHex = "|cffff5544",
+                detailMsg = cleanName .. " está muy lejos (a más de 40 m de ti).",
+            }
+        end
+    end
+
+    if CanInspect and CanInspect(unit) then
+        return {
+            key = "close",
+            isNear = true,
+            isFar = false,
+            canTalkRange = true,
+            canInspectRange = true,
+            shortLabel = "Cerca",
+            badgeText = "|cff34c759[Cerca]|r",
+            colorHex = "|cff34c759",
+            detailMsg = nil,
+        }
+    end
+    return {
+        key = inPartyRange and "far_40" or "far",
+        isNear = false,
+        isFar = true,
+        canTalkRange = false,
+        canInspectRange = false,
+        shortLabel = inPartyRange and "Lejos (> 28 m)" or "Muy lejos (> 40 m)",
+        badgeText = inPartyRange and "|cffff7b30[Lejos (> 28 m)]|r" or "|cffff5544[Muy lejos (> 40 m)]|r",
+        colorHex = inPartyRange and "|cffff7b30" or "|cffff5544",
+        detailMsg = cleanName .. (inPartyRange and " está lejos (a más de 28 m de ti)." or " está muy lejos (a más de 40 m de ti)."),
+    }
+end
+
 function DungeonBots:ToggleUnitBotStatus(name)
     if not name or name == "" then return end
     local current = DungeonBots:ShouldTreatAsBot(name)
