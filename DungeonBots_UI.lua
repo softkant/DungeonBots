@@ -877,9 +877,9 @@ end
 -- =========================================================================
 function DungeonBots:BuildTab2(parent)
     local topBar = CreateFrame("Frame", nil, parent)
-    topBar:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -4)
-    topBar:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -4)
-    topBar:SetHeight(28)
+    topBar:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -3)
+    topBar:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -3)
+    topBar:SetHeight(26)
     ApplyInsetPanelBackdrop(topBar)
 
     local scanBtn = CreateFrame("Button", nil, topBar, "UIPanelButtonTemplate")
@@ -898,10 +898,6 @@ function DungeonBots:BuildTab2(parent)
         GameTooltip:Show()
     end)
     scanBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
-    local scanHelp = topBar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    scanHelp:SetPoint("LEFT", scanBtn, "RIGHT", 10, 0)
-    scanHelp:SetText("|cff888888Pulsa |cff00e5ff[BOT]|r o |cffffb020[JUGADOR]|r para cambiar el rol.|r")
 
     local refreshStatsBtn = CreateFrame("Button", "DungeonBots_RefreshStatsBtn", topBar, "UIPanelButtonTemplate")
     refreshStatsBtn:SetSize(96, 22)
@@ -931,6 +927,12 @@ function DungeonBots:BuildTab2(parent)
     cardContainer:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0, 0)
     DungeonBots.cardContainer = cardContainer
 
+    local scanHelp = cardContainer:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    scanHelp:SetJustifyH("LEFT")
+    scanHelp:SetText("|cff888888Pulsa |cff00e5ff[BOT]|r o |cffffb020[JUGADOR]|r para cambiar el rol.|r")
+    scanHelp:Hide()
+    DungeonBots.tab2ScanHelp = scanHelp
+
     parent:HookScript("OnShow", function()
         if DungeonBots.QueryPartyBotStats then
             DungeonBots:QueryPartyBotStats(false)
@@ -940,19 +942,19 @@ function DungeonBots:BuildTab2(parent)
     -- Crear 4 tarjetas de bots para las unidades party1 a party4
     for i = 1, 4 do
         local card = CreateFrame("Frame", "DungeonBots_BotCard_" .. i, cardContainer)
-        card:SetSize(588, 78)
-        card:SetPoint("TOPLEFT", cardContainer, "TOPLEFT", 6, -1 - (i - 1) * 82)
+        card:SetSize(588, 70)
+        card:SetPoint("TOPLEFT", cardContainer, "TOPLEFT", 6, -1 - (i - 1) * 74)
         ApplyInsetPanelBackdrop(card)
 
         local cIcon = card:CreateTexture(nil, "ARTWORK")
         cIcon:SetSize(38, 38)
-        cIcon:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -10)
+        cIcon:SetPoint("LEFT", card, "LEFT", 10, 0)
         cIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
         cIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         card.classIcon = cIcon
 
         local nameText = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        nameText:SetPoint("TOPLEFT", cIcon, "TOPRIGHT", 10, 1)
+        nameText:SetPoint("TOPLEFT", card, "TOPLEFT", 58, -6)
         nameText:SetText("Bot " .. i)
         card.nameText = nameText
 
@@ -962,8 +964,8 @@ function DungeonBots:BuildTab2(parent)
         card.infoText = infoText
 
         local specDisplay = CreateFrame("Frame", "DungeonBots_SpecDisplay_" .. i, card)
-        specDisplay:SetSize(190, 16)
-        specDisplay:SetPoint("TOPLEFT", infoText, "BOTTOMLEFT", 0, -3)
+        specDisplay:SetSize(158, 15)
+        specDisplay:SetPoint("TOPLEFT", infoText, "BOTTOMLEFT", 0, -2)
         card.specDisplay = specDisplay
 
         local specIcon = specDisplay:CreateTexture(nil, "ARTWORK")
@@ -981,7 +983,7 @@ function DungeonBots:BuildTab2(parent)
         card.specText = specText
 
         local armorDisplay = CreateFrame("Button", "DungeonBots_BotArmorBtn_" .. i, card)
-        armorDisplay:SetSize(190, 16)
+        armorDisplay:SetSize(158, 15)
         armorDisplay:SetPoint("TOPLEFT", specDisplay, "BOTTOMLEFT", 0, -2)
         armorDisplay:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
         card.armorDisplay = armorDisplay
@@ -1001,14 +1003,14 @@ function DungeonBots:BuildTab2(parent)
         card.armorText = armorText
 
         local kickBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
-        kickBtn:SetSize(98, 22)
-        kickBtn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -13)
+        kickBtn:SetSize(92, 22)
+        kickBtn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -12)
         kickBtn:SetText("Despedir")
         card.kickBtn = kickBtn
 
         local botBadge = CreateFrame("Button", nil, card)
-        botBadge:SetSize(98, 18)
-        botBadge:SetPoint("TOP", kickBtn, "BOTTOM", 0, -6)
+        botBadge:SetSize(92, 18)
+        botBadge:SetPoint("TOP", kickBtn, "BOTTOM", 0, -5)
         ApplyHeaderBackdrop(botBadge)
         local badgeText = botBadge:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         badgeText:SetPoint("CENTER", 0, 0)
@@ -1018,12 +1020,12 @@ function DungeonBots:BuildTab2(parent)
 
         for idx, cfg in ipairs(CARD_ACTION_BUTTONS) do
             local actionBtn = CreateCardActionIconButton(card, cfg)
-            actionBtn:SetPoint("TOPLEFT", card, "TOPLEFT", 242 + (idx - 1) * 78, -14)
+            actionBtn:SetPoint("TOPLEFT", card, "TOPLEFT", 220 + (idx - 1) * 88, -11)
             card[cfg.key] = actionBtn
         end
 
         local humanNotice = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        humanNotice:SetPoint("TOPLEFT", card, "TOPLEFT", 248, -14)
+        humanNotice:SetPoint("TOPLEFT", card, "TOPLEFT", 224, -14)
         humanNotice:SetPoint("RIGHT", botBadge, "LEFT", -12, 0)
         humanNotice:SetJustifyH("LEFT")
         humanNotice:SetText("|cffffb020Jugador humano real.|r\n|cff888888Las opciones de control de bot están inactivas para este miembro.|r")
@@ -1107,6 +1109,7 @@ function DungeonBots:UpdatePartyUI()
 
     if numMembers == 0 then
         if DungeonBots.emptyPartyLabel then DungeonBots.emptyPartyLabel:Show() end
+        if DungeonBots.tab2ScanHelp then DungeonBots.tab2ScanHelp:Hide() end
         for i = 1, 4 do
             if botCards[i] then botCards[i]:Hide() end
         end
@@ -1115,12 +1118,14 @@ function DungeonBots:UpdatePartyUI()
 
     if DungeonBots.emptyPartyLabel then DungeonBots.emptyPartyLabel:Hide() end
 
+    local lastVisibleCard = nil
     for i = 1, 4 do
         local unit = "party" .. i
         local card = botCards[i]
         if card then
             if UnitExists(unit) then
                 card:Show()
+                lastVisibleCard = card
                 local name = UnitName(unit)
                 local _, classToken = UnitClass(unit)
                 local level = UnitLevel(unit)
@@ -1246,6 +1251,16 @@ function DungeonBots:UpdatePartyUI()
             else
                 card:Hide()
             end
+        end
+    end
+
+    if DungeonBots.tab2ScanHelp then
+        if lastVisibleCard then
+            DungeonBots.tab2ScanHelp:ClearAllPoints()
+            DungeonBots.tab2ScanHelp:SetPoint("TOPLEFT", lastVisibleCard, "BOTTOMLEFT", 4, -5)
+            DungeonBots.tab2ScanHelp:Show()
+        else
+            DungeonBots.tab2ScanHelp:Hide()
         end
     end
 end
