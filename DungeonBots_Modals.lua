@@ -225,6 +225,11 @@ function DungeonBots:BuildSettingsDialog()
         DungeonBots:Print("Ocultar chat de bots en Grupo/Decir: " .. (val and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
     end)
 
+    local versionLabel = sf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    versionLabel:SetPoint("BOTTOMLEFT", sf, "BOTTOMLEFT", 16, 17)
+    versionLabel:SetText("|cff71d5ffAsistente de Mazmorras|r |cff888888v" .. (DungeonBots.VERSION or "1.0.0") .. "|r")
+    sf.versionLabel = versionLabel
+
     local closeFooterBtn = CreateFrame("Button", nil, sf, "UIPanelButtonTemplate")
     closeFooterBtn:SetSize(90, 24)
     closeFooterBtn:SetPoint("BOTTOMRIGHT", sf, "BOTTOMRIGHT", -14, 12)

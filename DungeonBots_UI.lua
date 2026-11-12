@@ -170,7 +170,8 @@ function DungeonBots:InitUI()
 
     local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("LEFT", icon, "RIGHT", 6, 0)
-    title:SetText("|cff00ccffDungeon|r|cffffd200Bots|r  |cff71d5ffAsistente de Mazmorras|r |cff888888v" .. DungeonBots.VERSION .. "|r")
+    title:SetText("|cff00ccffDungeon|r|cffffd200Bots|r")
+    DungeonBots.mainTitleLabel = title
 
     -- Botón de cerrar
     local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
@@ -251,7 +252,7 @@ function DungeonBots:InitUI()
     -- Barra de Pestañas
     local tabNames = {
         { id = 1, title = "Armar Grupo", icon = "Interface\\Icons\\INV_Misc_GroupNeedMore" },
-        { id = 2, title = "Bots en el grupo (0)", icon = "Interface\\Icons\\INV_Misc_Head_ClockworkGnome_01" },
+        { id = 2, title = "Bots en el grupo (0)", icon = "Interface\\Icons\\INV_Misc_GroupLooking" },
         { id = 3, title = "Forja / Foso / Cámaras", icon = "Interface\\Icons\\INV_Misc_Head_Dragon_01" },
     }
 
@@ -267,6 +268,7 @@ function DungeonBots:InitUI()
         tIcon:SetPoint("LEFT", 8, 0)
         tIcon:SetTexture(tabData.icon)
         tIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        btn.icon = tIcon
 
         local tText = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         tText:SetPoint("LEFT", tIcon, "RIGHT", 6, 0)
