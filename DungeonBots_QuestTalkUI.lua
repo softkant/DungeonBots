@@ -357,8 +357,7 @@ function DungeonBots:UpdateQuestDialog(botName)
         end)
         row.dropBtn:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:AddLine("Abandonar Misión", 1, 0.35, 0.35)
-            GameTooltip:AddLine("Ordena a " .. targetBot .. " abandonar '" .. (q.title or "") .. "' y recarga la lista.", 0.8, 0.85, 0.95, true)
+            GameTooltip:AddLine("Abandonarás la misión con este bot", 1, 0.4, 0.4, true)
             GameTooltip:Show()
         end)
         row.dropBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -837,6 +836,17 @@ function DungeonBots:UpdateTalkDialog(botName)
                             DungeonBots:SendTalkCommand(targetBot, act.acceptCmd)
                         end
                     end)
+                    if style.btnAction == "drop" then
+                        row.acceptBtn:SetScript("OnEnter", function(self)
+                            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                            GameTooltip:AddLine("Abandonarás la misión con este bot", 1, 0.4, 0.4, true)
+                            GameTooltip:Show()
+                        end)
+                        row.acceptBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+                    else
+                        row.acceptBtn:SetScript("OnEnter", nil)
+                        row.acceptBtn:SetScript("OnLeave", nil)
+                    end
                 else
                     row.acceptBtn:Hide()
                     row.statusTag:SetText(style.rightBadge or "")
