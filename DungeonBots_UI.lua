@@ -121,6 +121,19 @@ local function SafeShowLinkTooltip(owner, linkRef, displayLink, title, rawLine)
 end
 DB_Internal.SafeShowLinkTooltip = SafeShowLinkTooltip
 
+function DungeonBots:UpdateHUDLockButtonState()
+    local btn = DungeonBots.hudLockHeaderBtn
+    if not btn or not btn.icon then return end
+    local isLocked = DungeonBots.IsHUDLocked and DungeonBots:IsHUDLocked() or false
+    if isLocked then
+        btn.icon:SetDesaturated(true)
+        btn.icon:SetVertexColor(0.55, 0.55, 0.58, 0.90)
+    else
+        btn.icon:SetDesaturated(false)
+        btn.icon:SetVertexColor(0.25, 1.0, 0.35, 1.0)
+    end
+end
+
 -- =========================================================================
 -- Creación de la Ventana Principal
 -- =========================================================================
@@ -190,6 +203,50 @@ function DungeonBots:InitUI()
         GameTooltip:Show()
     end)
     settingsBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    -- Botón de candado (verde = se pueden mover ambas barras; gris = ambas bloqueadas)
+    local hudLockBtn = CreateFrame("Button", "DungeonBots_HudLockHeaderBtn", header)
+    hudLockBtn:SetSize(20, 20)
+    hudLockBtn:SetPoint("RIGHT", settingsBtn, "LEFT", -4, 0)
+    hudLockBtn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+
+    local hudLockIcon = hudLockBtn:CreateTexture(nil, "ARTWORK")
+    hudLockIcon:SetPoint("TOPLEFT", 1, -1)
+    hudLockIcon:SetPoint("BOTTOMRIGHT", -1, 1)
+    hudLockIcon:SetTexture("Interface\\LFGFrame\\UI-LFG-ICON-LOCK")
+    hudLockIcon:SetTexCoord(0, 0.875, 0, 0.875)
+    hudLockBtn.icon = hudLockIcon
+    DungeonBots.hudLockHeaderBtn = hudLockBtn
+
+    hudLockBtn:SetScript("OnClick", function(self)
+        PlaySound("igMainMenuOptionCheckBoxOn")
+        if DungeonBots.ToggleHUDLock then
+            DungeonBots:ToggleHUDLock()
+        end
+        if GameTooltip and GameTooltip.IsOwned and GameTooltip:IsOwned(self) then
+            local onEnter = self:GetScript("OnEnter")
+            if onEnter then onEnter(self) end
+        end
+    end)
+    hudLockBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        local isLocked = DungeonBots.IsHUDLocked and DungeonBots:IsHUDLocked()
+        if isLocked then
+            GameTooltip:AddLine("Barras Flotantes: |cff9d9d9dBloqueadas|r", 1, 1, 1)
+            GameTooltip:AddLine("Gris: ambas barras están fijadas en su posición.", 0.75, 0.75, 0.78, true)
+            GameTooltip:AddLine("Haz clic para desbloquear (verde) y poder mover las 2 barras.", 0.7, 0.85, 1.0, true)
+        else
+            GameTooltip:AddLine("Barras Flotantes: |cff34c759Desbloqueadas|r", 1, 1, 1)
+            GameTooltip:AddLine("Verde: puedes arrastrar ambas barras flotantes.", 0.35, 0.95, 0.45, true)
+            GameTooltip:AddLine("Haz clic para bloquear (gris) y fijar las 2 barras.", 0.7, 0.85, 1.0, true)
+        end
+        GameTooltip:Show()
+    end)
+    hudLockBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    if DungeonBots.UpdateHUDLockButtonState then
+        DungeonBots:UpdateHUDLockButtonState()
+    end
 
     -- Barra de Pestañas
     local tabNames = {

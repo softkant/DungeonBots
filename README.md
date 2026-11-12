@@ -16,6 +16,8 @@
 * **Bot History (`Historial de bots` / `Ver Historial de bots`):** Automatically records bots you group with (name, class, race/gender portrait, and last known talent spec). Open the history window to individually summon & invite previous bots (`Invitar`, runs `.playerbots bot add <name>` + party invite), remove individual entries, or clear the list.
 * **Summon by Class (`Invocar Bot por Clase Individual`):** 10 class buttons that run `.playerbots bot addclass <class>`.
 * **Smart Auto-Invite & Human Safety:** Newly summoned bots that whisper on creation (within the summon window, when party size < 5) are invited automatically. Real players are never treated as bots unless explicitly confirmed or toggled.
+* **Floating Bar Lock Toggle (Header Lock Icon next to Settings):**
+  * Single lock button next to the header gear icon controlling **both** floating bars together: **green** = unlocked (both bars can be dragged), **gray** = locked (both bars fixed in place).
 * **Settings Modal (Header Gear Icon):**
   * Independently show or hide the Floating Combat HUD and the Floating Utility Bar (both enabled by default) and toggle hiding floating bars outside 5-player dungeons (`IsInInstance() == "party"`, enabled by default).
   * **Bot Whisper Hiding:** Toggle hiding all incoming and outgoing whispers with known bots (compatible with Blizzard chat and WIM without touching WIM's SavedVariables); when enabled, reveals an additional option to also hide bot messages in `/p`, `/y`, and `/s`. Real human players (`[JUGADOR]` or unknown players) are never filtered.
@@ -55,10 +57,10 @@ Automates the Forge of Souls -> Pit of Saron -> Halls of Reflection quest chain 
 ---
 
 ### 5. Floating Combat Bar & Utility Bar
-Both floating bars are draggable, independently lockable, individually toggleable in Settings (gear icon, both enabled by default), and share the 5-player dungeon visibility toggle:
+Both floating bars are draggable, locked/unlocked together from the padlock button next to the Settings gear on the main window header (**green** = movable, **gray** = locked), individually toggleable in Settings (gear icon, both enabled by default), and share the 5-player dungeon visibility toggle:
 
 #### Floating Combat HUD (`Barra Táctica`)
-Compact bar (plus quick lock toggle and main panel book button) with 6 party combat actions sent to `/p`:
+Compact bar (plus main panel book button) with 6 party combat actions sent to `/p`:
 1. **Focus Target:** `do attack my target`
 2. **Pull con Tanque:** `pull my target`
 3. **Quedarse:** `stay`

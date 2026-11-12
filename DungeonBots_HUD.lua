@@ -277,11 +277,37 @@ function DungeonBots:UpdateHUDVisibility()
     end
 end
 
+function DungeonBots:IsHUDLocked()
+    return (DungeonBotsDB and DungeonBotsDB.hudLocked) and true or false
+end
+
+function DungeonBots:SetHUDLocked(locked, silent)
+    local isLocked = locked and true or false
+    if DungeonBotsDB then
+        DungeonBotsDB.hudLocked = isLocked
+        DungeonBotsDB.utilHudLocked = isLocked
+    end
+    if DungeonBots.UpdateHUDLockButtonState then
+        DungeonBots:UpdateHUDLockButtonState()
+    end
+    if not silent then
+        if isLocked then
+            DungeonBots:Print("Barras flotantes: |cff9d9d9dBloqueadas|r (fijadas en su posición).")
+        else
+            DungeonBots:Print("Barras flotantes: |cff34c759Desbloqueadas|r (puedes mover ambas barras).")
+        end
+    end
+end
+
+function DungeonBots:ToggleHUDLock()
+    DungeonBots:SetHUDLocked(not DungeonBots:IsHUDLocked(), false)
+end
+
 local function CreateFloatingToolbar(cfg)
     local actions = cfg.actions or {}
     local btnSize = 34
     local spacing = 4
-    local startX = 28
+    local startX = 8
     local rightPad = cfg.showMainPanelBtn and 28 or 8
     local totalWidth = startX + (#actions * (btnSize + spacing)) - spacing + rightPad
 
@@ -296,7 +322,7 @@ local function CreateFloatingToolbar(cfg)
     f:SetPoint(pos.point or "BOTTOM", UIParent, pos.point or "BOTTOM", pos.x or 0, pos.y or cfg.defaultPos.y)
 
     f:SetScript("OnDragStart", function(self)
-        if not (DungeonBotsDB and DungeonBotsDB[cfg.lockKey]) then
+        if not DungeonBots:IsHUDLocked() then
             self:StartMoving()
         end
     end)
@@ -317,47 +343,6 @@ local function CreateFloatingToolbar(cfg)
     })
     f:SetBackdropColor(0.07, 0.08, 0.11, 0.92)
     f:SetBackdropBorderColor(0.68, 0.62, 0.44, 1.0)
-
-    local lockBtn = CreateFrame("Button", nil, f)
-    lockBtn:SetSize(18, 18)
-    lockBtn:SetPoint("LEFT", f, "LEFT", 5, 0)
-    lockBtn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
-
-    local lockIcon = lockBtn:CreateTexture(nil, "ARTWORK")
-    lockIcon:SetAllPoints()
-    lockIcon:SetTexture("Interface\\LFGFrame\\UI-LFG-ICON-LOCK")
-    lockIcon:SetTexCoord(0, 0.875, 0, 0.875)
-
-    local function updateLockVisual()
-        local isLocked = DungeonBotsDB and DungeonBotsDB[cfg.lockKey]
-        if isLocked then
-            lockIcon:SetVertexColor(1.0, 0.35, 0.35, 1.0)
-        else
-            lockIcon:SetVertexColor(0.35, 1.0, 0.35, 0.85)
-        end
-    end
-    updateLockVisual()
-
-    lockBtn:SetScript("OnClick", function()
-        if DungeonBotsDB then
-            DungeonBotsDB[cfg.lockKey] = not DungeonBotsDB[cfg.lockKey]
-            updateLockVisual()
-            if DungeonBotsDB[cfg.lockKey] then
-                DungeonBots:Print(cfg.barLabel .. ": |cffff3b30Bloqueada|r.")
-            else
-                DungeonBots:Print(cfg.barLabel .. ": |cff34c759Desbloqueada|r (puedes arrastrarla).")
-            end
-        end
-    end)
-
-    lockBtn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        local isLocked = DungeonBotsDB and DungeonBotsDB[cfg.lockKey]
-        GameTooltip:AddLine(cfg.barLabel .. (isLocked and ": Bloqueada" or ": Desbloqueada"), 1, 1, 1)
-        GameTooltip:AddLine("Haz clic para " .. (isLocked and "desbloquear y poder moverla." or "bloquear en su sitio."), 0.7, 0.7, 0.7)
-        GameTooltip:Show()
-    end)
-    lockBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     for i, action in ipairs(actions) do
         local btn = CreateFrame("Button", cfg.btnPrefix .. i, f)
@@ -452,12 +437,16 @@ local function CreateFloatingToolbar(cfg)
 end
 
 function DungeonBots:InitHUD()
+    if DungeonBotsDB then
+        local locked = DungeonBots:IsHUDLocked()
+        DungeonBotsDB.hudLocked = locked
+        DungeonBotsDB.utilHudLocked = locked
+    end
+
     if not hudFrame then
         hudFrame = CreateFloatingToolbar({
             frameName = "DungeonBots_HUDFrame",
             posKey = "hudPosition",
-            lockKey = "hudLocked",
-            barLabel = "Barra Táctica (HUD)",
             defaultPos = { point = "BOTTOM", x = 0, y = 140 },
             actions = TACTICAL_ACTIONS,
             btnPrefix = "DungeonBots_HUDExtBtn_",
@@ -473,8 +462,6 @@ function DungeonBots:InitHUD()
         utilHudFrame = CreateFloatingToolbar({
             frameName = "DungeonBots_UtilHUDFrame",
             posKey = "utilHudPosition",
-            lockKey = "utilHudLocked",
-            barLabel = "Barra de Utilidades",
             defaultPos = { point = "BOTTOM", x = 0, y = 194 },
             actions = UTIL_ACTIONS,
             btnPrefix = "DungeonBots_UtilExtBtn_",
@@ -488,6 +475,9 @@ function DungeonBots:InitHUD()
 
     DungeonBots:UpdateHUDTalkButtonState()
     DungeonBots:UpdateHUDVisibility()
+    if DungeonBots.UpdateHUDLockButtonState then
+        DungeonBots:UpdateHUDLockButtonState()
+    end
 end
 
 function DungeonBots:ResetHUDPositions()
