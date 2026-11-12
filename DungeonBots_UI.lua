@@ -1338,6 +1338,8 @@ end
 -- =========================================================================
 -- PESTAÑA 3: FOSO Y CÁMARAS (Comprobador de Misiones Previas)
 -- =========================================================================
+-- Comprobador de Misiones Previas (Frozen Halls / Foso y Cámaras)
+-- =========================================================================
 local FROZEN_HALLS_DATA = {
     {
         key = "foso",
@@ -1346,18 +1348,16 @@ local FROZEN_HALLS_DATA = {
         icon = "Interface\\Icons\\Spell_Shadow_ShadowPact",
         keywords = { "saron", "foso", "pit" },
         prereq = "La Forja de Almas",
-        fallbackNormalID = 250,
-        fallbackHeroicID = 251,
+        fallbackIDs = { 230, 231, 250, 251 },
     },
     {
         key = "camaras",
         name = "Cámaras de Reflexión",
         shortName = "2. Cámaras de Reflexión",
         icon = "Interface\\Icons\\Spell_Frost_FrostWard",
-        keywords = { "refle" },
+        keywords = { "refle", "reflection" },
         prereq = "Foso de Saron",
-        fallbackNormalID = 252,
-        fallbackHeroicID = 253,
+        fallbackIDs = { 232, 233, 252, 253 },
     },
 }
 
@@ -1376,64 +1376,102 @@ function DungeonBots:GetConnectedPartyBotCount()
 end
 
 local frozenHallsResolved = false
-function DungeonBots:ResolveFrozenHallsIDs()
-    if frozenHallsResolved then return end
-    if not GetLFGDungeonInfo then return end
+function DungeonBots:ResolveFrozenHallsIDs(force)
+    if frozenHallsResolved and not force then return end
 
-    for id = 1, 400 do
-        local name, typeID, subtypeID, minLevel, maxLevel, recLevel, minRecLevel, maxRecLevel, expansionLevel, groupID, textureFilename, difficulty = GetLFGDungeonInfo(id)
-        if name and name ~= "" and not (LFGIsIDHeader and LFGIsIDHeader(id)) then
-            local isHeroic = (subtypeID == (LFG_SUBTYPEID_HEROIC or 2))
-                or (difficulty == 1)
-                or (difficulty == 2)
-                or string.find(string.lower(name), "hero") ~= nil
-            local lowerName = string.lower(name)
-            for _, def in ipairs(FROZEN_HALLS_DATA) do
-                for _, kw in ipairs(def.keywords) do
-                    if string.find(lowerName, kw) then
-                        if isHeroic then
-                            if not def.heroicID then
-                                def.heroicID = id
-                                def.heroicName = name
-                            end
-                        else
-                            if not def.normalID then
-                                def.normalID = id
-                                def.normalName = name
+    for _, def in ipairs(FROZEN_HALLS_DATA) do
+        def.candidateIDs = {}
+        def.seenID = {}
+        if def.fallbackIDs then
+            for _, fid in ipairs(def.fallbackIDs) do
+                if not def.seenID[fid] then
+                    def.seenID[fid] = true
+                    table.insert(def.candidateIDs, fid)
+                end
+            end
+        end
+    end
+
+    if GetLFGDungeonInfo then
+        -- 1. Si LFDDungeonList existe en el entorno global de Blizzard, registrar IDs coincidentes
+        if _G.LFDDungeonList and type(_G.LFDDungeonList) == "table" then
+            for _, dID in ipairs(_G.LFDDungeonList) do
+                if type(dID) == "number" and dID > 0 then
+                    local name = select(1, GetLFGDungeonInfo(dID))
+                    if name and name ~= "" and not (LFGIsIDHeader and LFGIsIDHeader(dID)) then
+                        local lowerName = string.lower(name)
+                        for _, def in ipairs(FROZEN_HALLS_DATA) do
+                            for _, kw in ipairs(def.keywords) do
+                                if string.find(lowerName, kw) then
+                                    if not def.seenID[dID] then
+                                        def.seenID[dID] = true
+                                        table.insert(def.candidateIDs, dID)
+                                    end
+                                    break
+                                end
                             end
                         end
-                        break
+                    end
+                end
+            end
+        end
+
+        -- 2. Escaneo amplio de IDs (1..500)
+        for id = 1, 500 do
+            local name = select(1, GetLFGDungeonInfo(id))
+            if name and name ~= "" and not (LFGIsIDHeader and LFGIsIDHeader(id)) then
+                local lowerName = string.lower(name)
+                for _, def in ipairs(FROZEN_HALLS_DATA) do
+                    for _, kw in ipairs(def.keywords) do
+                        if string.find(lowerName, kw) then
+                            if not def.seenID[id] then
+                                def.seenID[id] = true
+                                table.insert(def.candidateIDs, id)
+                            end
+                            break
+                        end
                     end
                 end
             end
         end
     end
 
-    for _, def in ipairs(FROZEN_HALLS_DATA) do
-        if not def.normalID then def.normalID = def.fallbackNormalID end
-        if not def.heroicID then def.heroicID = def.fallbackHeroicID end
-    end
-
     frozenHallsResolved = true
 end
 
-local function IsQuestLockReason(lockedReason)
+local function IsQuestLockReason(lockedReason, codeStr, formattedText)
     if not lockedReason or lockedReason == 0 then return false end
+
+    -- Códigos numéricos de TrinityCore / AzerothCore / WotLK:
+    -- 1022: LFG_LOCKSTATUS_QUEST_NOT_COMPLETED
+    -- 1026: LFG_LOCKSTATUS_ATTUNEMENT
     if lockedReason == 1022 or lockedReason == 1026 then
         return true
     end
-    if LFG_INSTANCE_INVALID_CODES then
-        local code = LFG_INSTANCE_INVALID_CODES[lockedReason]
-        if code == "QUEST" or code == "ATTUNEMENT" then
+
+    -- Código de la tabla LFG_INSTANCE_INVALID_CODES (ej: "QUEST_NOT_COMPLETED", "QUEST", "ATTUNEMENT")
+    if codeStr and type(codeStr) == "string" then
+        local lowerCode = string.lower(codeStr)
+        if string.find(lowerCode, "quest") or string.find(lowerCode, "attun") or string.find(lowerCode, "misi") then
             return true
         end
     end
+
+    -- Texto traducido de la plantilla (ej. "%s no ha completado la misión necesaria.")
+    if formattedText and type(formattedText) == "string" then
+        local lowerText = string.lower(formattedText)
+        if string.find(lowerText, "misi") or string.find(lowerText, "quest") or string.find(lowerText, "cadena") then
+            return true
+        end
+    end
+
     if type(lockedReason) == "string" then
         local lower = string.lower(lockedReason)
-        if string.find(lower, "misi") or string.find(lower, "quest") or string.find(lower, "attune") then
+        if string.find(lower, "misi") or string.find(lower, "quest") or string.find(lower, "attun") then
             return true
         end
     end
+
     return false
 end
 
@@ -1446,54 +1484,78 @@ function DungeonBots:CheckDungeonQuestStatus(def)
         return nil, { { text = "API de buscador de mazmorras no disponible." } }
     end
 
-    local candidateIDs = {}
-    if def.heroicID then table.insert(candidateIDs, def.heroicID) end
-    if def.normalID and def.normalID ~= def.heroicID then table.insert(candidateIDs, def.normalID) end
-    if #candidateIDs == 0 then
-        if def.fallbackHeroicID then table.insert(candidateIDs, def.fallbackHeroicID) end
-        if def.fallbackNormalID and def.fallbackNormalID ~= def.fallbackHeroicID then table.insert(candidateIDs, def.fallbackNormalID) end
+    if not def.candidateIDs or #def.candidateIDs == 0 then
+        DungeonBots:ResolveFrozenHallsIDs()
     end
 
+    local candidateIDs = def.candidateIDs or def.fallbackIDs or {}
     local reasons = {}
     local seenLockedPlayers = {}
-    local hasAnyLockData = false
+    local hasAnyDataFromServer = false
+
+    local lockCount = (GetLFDLockPlayerCount and GetLFDLockPlayerCount()) or 0
+    local partyCount = (GetNumPartyMembers and GetNumPartyMembers() or 0) + 1
+    local totalToCheck = math.max(lockCount, partyCount, 5)
 
     for _, dID in ipairs(candidateIDs) do
-        local numPlayers = (GetLFDLockPlayerCount and GetLFDLockPlayerCount()) or 0
-        if numPlayers == 0 then
-            local pName = GetLFDLockInfo(dID, 1)
-            if pName and pName ~= "" then
-                numPlayers = 1
-            end
+        -- Si LFGLockList global tiene marcada esta ID
+        if _G.LFGLockList and _G.LFGLockList[dID] then
+            hasAnyDataFromServer = true
         end
 
-        if numPlayers > 0 then
-            hasAnyLockData = true
-            for i = 1, numPlayers do
-                local playerName, lockedReason = GetLFDLockInfo(dID, i)
+        for i = 1, totalToCheck do
+            local playerName, lockedReason, sub1, sub2 = GetLFDLockInfo(dID, i)
+
+            if (playerName and playerName ~= "") or (lockedReason and lockedReason ~= 0) then
+                hasAnyDataFromServer = true
+            end
+
+            if lockedReason and lockedReason ~= 0 then
                 if not playerName or playerName == "" then
-                    playerName = (i == 1) and (UnitName("player") or "Tú") or ("Miembro " .. i)
+                    if i == 1 then
+                        playerName = UnitName("player") or "Tú"
+                    else
+                        local pUnit = "party" .. (i - 1)
+                        playerName = (UnitExists(pUnit) and UnitName(pUnit)) or ("Miembro " .. i)
+                    end
                 end
 
-                local isSelf = (i == 1)
-                local unit = isSelf and "player" or DungeonBots:FindPartyUnitByName(playerName)
+                local isSelf = (i == 1) or (playerName == UnitName("player"))
+                local codeStr = (LFG_INSTANCE_INVALID_CODES and LFG_INSTANCE_INVALID_CODES[lockedReason]) or tostring(lockedReason)
 
-                -- Solo evaluar si el miembro está conectado (o es uno mismo)
-                if isSelf or (unit and UnitIsConnected(unit)) then
-                    if IsQuestLockReason(lockedReason) and not seenLockedPlayers[playerName] then
+                -- Construir texto descriptivo usando plantillas de Blizzard
+                local who = isSelf and "SELF_" or "OTHER_"
+                local template = _G["INSTANCE_UNAVAILABLE_" .. who .. (codeStr or "OTHER")]
+                    or _G["INSTANCE_UNAVAILABLE_" .. who .. "QUEST_NOT_COMPLETED"]
+                    or _G["INSTANCE_UNAVAILABLE_" .. who .. "OTHER"]
+
+                local formattedText = nil
+                if template then
+                    local ok, res = pcall(format, template, playerName, sub1 or "", sub2 or "")
+                    if ok and res and res ~= "" then
+                        formattedText = res
+                    end
+                end
+
+                if IsQuestLockReason(lockedReason, codeStr, formattedText) then
+                    if not seenLockedPlayers[playerName] then
                         seenLockedPlayers[playerName] = true
-                        local specificMissing
-                        if def.key == "foso" then
-                            specificMissing = (isSelf and "No has" or (playerName .. " no ha")) .. " completado las misiones previas de La Forja de Almas."
-                        elseif def.key == "camaras" then
-                            specificMissing = (isSelf and "No has" or (playerName .. " no ha")) .. " completado las misiones previas de Foso de Saron."
-                        else
-                            specificMissing = (isSelf and "No has" or (playerName .. " no ha")) .. " completado las misiones necesarias."
+
+                        local descText = formattedText
+                        if not descText or descText == "" then
+                            if def.key == "foso" then
+                                descText = (isSelf and "No has" or (playerName .. " no ha")) .. " completado las misiones previas de La Forja de Almas."
+                            elseif def.key == "camaras" then
+                                descText = (isSelf and "No has" or (playerName .. " no ha")) .. " completado las misiones previas de Foso de Saron."
+                            else
+                                descText = (isSelf and "No has" or (playerName .. " no ha")) .. " completado las misiones necesarias."
+                            end
                         end
+
                         table.insert(reasons, {
                             playerName = playerName,
                             reasonCode = lockedReason,
-                            text = specificMissing,
+                            text = descText,
                             isSelf = isSelf,
                         })
                     end
@@ -1502,7 +1564,7 @@ function DungeonBots:CheckDungeonQuestStatus(def)
         end
     end
 
-    if not hasAnyLockData then
+    if not hasAnyDataFromServer then
         return nil, { { text = "Consultando datos al servidor..." } }
     end
 
@@ -1519,6 +1581,8 @@ function DungeonBots:RequestDungeonLockInfo(force)
     lastLockReqTime = now
     if RequestLFDPartyLockInfo then
         RequestLFDPartyLockInfo()
+    elseif RequestLFDPlayerLockInfo then
+        RequestLFDPlayerLockInfo()
     end
 end
 
@@ -1744,13 +1808,18 @@ function DungeonBots:BuildTab3(parent)
                 GameTooltip:AddLine("Estado: |cffff4444Falta misión previa|r", 1, 1, 1)
                 GameTooltip:AddLine("Requiere completar la cadena de: |cffffd200" .. (def.prereq or "Mazmorra anterior") .. "|r", 1, 0.82, 0, true)
                 if self.reasons and #self.reasons > 0 then
-                    GameTooltip:AddLine("Miembros sin la misión previa:", 1, 0.82, 0)
+                    GameTooltip:AddLine(" ", 1, 1, 1)
+                    GameTooltip:AddLine("Miembros sin la misión necesaria:", 1, 0.82, 0)
                     for _, r in ipairs(self.reasons) do
                         local pColor = r.isSelf and "|cff00ccff" or "|cffffd200"
-                        GameTooltip:AddLine("  - " .. pColor .. r.playerName .. ":|r |cffff7777" .. r.text .. "|r", 1, 1, 1, true)
+                        if r.text and string.find(r.text, "^" .. r.playerName) then
+                            GameTooltip:AddLine("  • |cffff7777" .. r.text .. "|r", 1, 1, 1, true)
+                        else
+                            GameTooltip:AddLine("  • " .. pColor .. r.playerName .. ":|r |cffff7777" .. r.text .. "|r", 1, 1, 1, true)
+                        end
                     end
                 else
-                    GameTooltip:AddLine("  - Uno o más miembros no han completado la misión previa requerida.", 1, 0.4, 0.4, true)
+                    GameTooltip:AddLine("  • Uno o más miembros no han completado la misión previa requerida.", 1, 0.4, 0.4, true)
                 end
             else
                 GameTooltip:AddLine("Estado: |cffaaaaaaSin información del servidor|r", 1, 1, 1)
