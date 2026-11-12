@@ -539,7 +539,12 @@ function DungeonBots:InitUI()
     modalDimmer.bg = dimTex
 
     f.modalDimmer = modalDimmer
-    f:HookScript("OnShow", DB_Internal.UpdateMainModalDimmer)
+    f:HookScript("OnShow", function()
+        DB_Internal.UpdateMainModalDimmer()
+        if DungeonBots.QueryPartyBotStats then
+            DungeonBots:QueryPartyBotStats(false)
+        end
+    end)
     f:HookScript("OnHide", DB_Internal.UpdateMainModalDimmer)
 
     -- Construir los contenidos de cada pestaña

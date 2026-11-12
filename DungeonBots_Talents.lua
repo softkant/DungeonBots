@@ -516,10 +516,9 @@ joinQueryFrame:SetScript("OnUpdate", function(self, elapsed)
     end
 end)
 
-local function IsTab2CurrentlyVisible()
+local function IsMainFrameCurrentlyVisible()
     local mf = DungeonBots.mainFrame or _G["DungeonBots_MainFrame"]
-    local tab2 = _G["DungeonBots_TabFrame_2"]
-    return (mf and mf:IsShown() and tab2 and tab2:IsShown()) and true or false
+    return (mf and mf:IsShown()) and true or false
 end
 
 local function HasCachedActiveSpec(botName)
@@ -595,8 +594,8 @@ function DungeonBots:QueryBotLiveInfo(botName)
         StartTalentQuery(botName, false, false, false)
     end
 
-    -- 'stats' y 'quests all' solo se consultan al entrar si la pestana Bots en el grupo esta visible.
-    if IsTab2CurrentlyVisible() then
+    -- 'stats' y 'quests all' solo se consultan al entrar si la ventana principal esta visible.
+    if IsMainFrameCurrentlyVisible() then
         DungeonBots:QueryBotStats(botName, false)
         if DungeonBots.QueryBotQuestCount then
             DungeonBots:QueryBotQuestCount(botName, false, 0.90)
@@ -644,7 +643,7 @@ end
 function DungeonBots:CheckPartyForNewBots()
     DungeonBots:ResolvePendingPartyBots()
     local currentMembers = {}
-    local tab2Visible = IsTab2CurrentlyVisible()
+    local mainVisible = IsMainFrameCurrentlyVisible()
     for i = 1, 4 do
         local unit = "party" .. i
         if UnitExists(unit) then
@@ -652,7 +651,7 @@ function DungeonBots:CheckPartyForNewBots()
             if name and name ~= "" and name ~= UNKNOWNOBJECT and name ~= "Unknown" then
                 currentMembers[name] = true
                 if DungeonBots:ShouldTreatAsBot(name) and not DungeonBots.sessionQueriedBots[name] and not pendingJoinQueries[name] then
-                    if HasCachedActiveSpec(name) and not tab2Visible then
+                    if HasCachedActiveSpec(name) and not mainVisible then
                         DungeonBots.sessionQueriedBots[name] = true
                     else
                         pendingJoinQueries[name] = 1.2
