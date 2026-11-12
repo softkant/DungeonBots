@@ -433,8 +433,14 @@ end
 -- =========================================================================
 -- Motor de Consultas en Vivo, Cambio de Talentos y Autogear
 -- =========================================================================
+local STATS_AUTO_CACHE_TTL = 60.0
+local STATS_PENDING_RETRY_COOLDOWN = 10.0
+local SPECS_PENDING_RETRY_COOLDOWN = 15.0
+
 local pendingJoinQueries = {}
 local queryStates = {}
+local lastStatsQueryAt = {}
+local lastSpecListQueryAt = {}
 DB_Internal.queryStates = queryStates
 
 local joinQueryFrame = CreateFrame("Frame")
@@ -510,28 +516,51 @@ joinQueryFrame:SetScript("OnUpdate", function(self, elapsed)
     end
 end)
 
-local function StartTalentQuery(botName, atFront)
+local function IsTab2CurrentlyVisible()
+    local mf = DungeonBots.mainFrame or _G["DungeonBots_MainFrame"]
+    local tab2 = _G["DungeonBots_TabFrame_2"]
+    return (mf and mf:IsShown() and tab2 and tab2:IsShown()) and true or false
+end
+
+local function HasCachedActiveSpec(botName)
+    local cached = DungeonBotsDB and DungeonBotsDB.botActiveSpec and DungeonBotsDB.botActiveSpec[botName]
+    return (cached ~= nil and cached ~= "")
+end
+
+local function HasCachedSpecList(botName)
+    local specs = (DungeonBots.botSpecs and DungeonBots.botSpecs[botName])
+        or (DungeonBotsDB and DungeonBotsDB.botSpecs and DungeonBotsDB.botSpecs[botName])
+    return (specs and #specs > 0) and true or false
+end
+
+local function StartTalentQuery(botName, atFront, includeSpecList, clearActiveCache)
     if not botName or botName == "" then return end
+    local wantSpecList = (includeSpecList ~= false)
     local prevSpec = (DungeonBotsDB and DungeonBotsDB.botActiveSpec and DungeonBotsDB.botActiveSpec[botName])
         or (DungeonBotsDB and DungeonBotsDB.botHistory and DungeonBotsDB.botHistory[botName] and DungeonBotsDB.botHistory[botName].spec)
         or (queryStates[botName] and queryStates[botName].prevSpec)
         or nil
 
     DungeonBots.pendingSpecReset[botName] = true
-    DungeonBots.pendingListReset[botName] = true
     DungeonBots.liveTreePoints[botName] = {}
-    DungeonBots.botSpecTriplets[botName] = {}
+    if wantSpecList then
+        DungeonBots.pendingListReset[botName] = true
+        DungeonBots.botSpecTriplets[botName] = {}
+    else
+        DungeonBots.pendingListReset[botName] = nil
+        DungeonBots.botSpecTriplets[botName] = DungeonBots.botSpecTriplets[botName] or {}
+    end
     DungeonBots.lastDetectedTriplet[botName] = nil
     DungeonBots.lastDetectedTree[botName] = nil
 
-    if DungeonBotsDB and DungeonBotsDB.botActiveSpec then
+    if clearActiveCache and DungeonBotsDB and DungeonBotsDB.botActiveSpec then
         DungeonBotsDB.botActiveSpec[botName] = nil
     end
 
     local now = NowTime()
     queryStates[botName] = {
         prevSpec = prevSpec,
-        gotSpecList = false,
+        gotSpecList = (not wantSpecList),
         gotActiveSpec = false,
         retrySent = false,
         retryAt = now + 4.5,
@@ -539,12 +568,16 @@ local function StartTalentQuery(botName, atFront)
     }
     joinQueryFrame:Show()
 
-    if atFront then
-        DungeonBots:QueueWhisperCommand(botName, "talents", true)
-        DungeonBots:QueueWhisperCommand(botName, "talents spec list", true)
+    if wantSpecList then
+        if atFront then
+            DungeonBots:QueueWhisperCommand(botName, "talents", true)
+            DungeonBots:QueueWhisperCommand(botName, "talents spec list", true)
+        else
+            DungeonBots:QueueWhisperCommand(botName, "talents spec list")
+            DungeonBots:QueueWhisperCommand(botName, "talents")
+        end
     else
-        DungeonBots:QueueWhisperCommand(botName, "talents spec list")
-        DungeonBots:QueueWhisperCommand(botName, "talents")
+        DungeonBots:QueueWhisperCommand(botName, "talents", atFront == true)
     end
 
     if DungeonBots.UpdatePartyUI then
@@ -555,10 +588,19 @@ end
 function DungeonBots:QueryBotLiveInfo(botName)
     if not botName or botName == "" then return end
     if not DungeonBots:ShouldTreatAsBot(botName) then return end
-    StartTalentQuery(botName, false)
-    DungeonBots:QueueWhisperCommand(botName, "stats")
-    if DungeonBots.QueryBotQuestCount then
-        DungeonBots:QueryBotQuestCount(botName, true, 0.90)
+
+    -- Al entrar al mundo o unirse un bot: 0 comandos si su rama ya esta guardada (/reload);
+    -- si es un bot nuevo sin rama en cache, consulta unicamente 'talents' (ligero).
+    if not HasCachedActiveSpec(botName) then
+        StartTalentQuery(botName, false, false, false)
+    end
+
+    -- 'stats' y 'quests all' solo se consultan al entrar si la pestana Bots en el grupo esta visible.
+    if IsTab2CurrentlyVisible() then
+        DungeonBots:QueryBotStats(botName, false)
+        if DungeonBots.QueryBotQuestCount then
+            DungeonBots:QueryBotQuestCount(botName, false, 0.90)
+        end
     end
 end
 
@@ -566,10 +608,18 @@ function DungeonBots:QueryBotStats(botName, force)
     if not botName or botName == "" then return end
     if not DungeonBots:FindPartyUnitByName(botName) then return end
     if not DungeonBots:ShouldTreatAsBot(botName) then return end
+    local now = NowTime()
     local st = DungeonBots.botStats and DungeonBots.botStats[botName]
-    if not force and st and (NowTime() - (st.updatedAt or 0)) < 8.0 then
-        return
+    if not force then
+        if st and (now - (st.updatedAt or 0)) < STATS_AUTO_CACHE_TTL then
+            return
+        end
+        local lastReq = lastStatsQueryAt[botName]
+        if lastReq and (now - lastReq) < STATS_PENDING_RETRY_COOLDOWN then
+            return
+        end
     end
+    lastStatsQueryAt[botName] = now
     DungeonBots:QueueWhisperCommand(botName, "stats")
 end
 
@@ -580,6 +630,9 @@ function DungeonBots:QueryPartyBotStats(forceAll)
             local name = UnitName(unit)
             if name and name ~= "" and DungeonBots:ShouldTreatAsBot(name) then
                 DungeonBots:QueryBotStats(name, forceAll)
+                if forceAll and not HasCachedActiveSpec(name) and not queryStates[name] then
+                    StartTalentQuery(name, false, false, false)
+                end
             end
         end
     end
@@ -591,6 +644,7 @@ end
 function DungeonBots:CheckPartyForNewBots()
     DungeonBots:ResolvePendingPartyBots()
     local currentMembers = {}
+    local tab2Visible = IsTab2CurrentlyVisible()
     for i = 1, 4 do
         local unit = "party" .. i
         if UnitExists(unit) then
@@ -598,23 +652,31 @@ function DungeonBots:CheckPartyForNewBots()
             if name and name ~= "" and name ~= UNKNOWNOBJECT and name ~= "Unknown" then
                 currentMembers[name] = true
                 if DungeonBots:ShouldTreatAsBot(name) and not DungeonBots.sessionQueriedBots[name] and not pendingJoinQueries[name] then
-                    DungeonBots.pendingSpecReset[name] = true
-                    pendingJoinQueries[name] = 1.2
-                    joinQueryFrame:Show()
+                    if HasCachedActiveSpec(name) and not tab2Visible then
+                        DungeonBots.sessionQueriedBots[name] = true
+                    else
+                        pendingJoinQueries[name] = 1.2
+                        joinQueryFrame:Show()
+                    end
                 end
             end
         end
     end
 
-    -- Si un miembro sale del grupo, volver a consultarlo si se invita nuevamente
+    -- Si un miembro sale del grupo, limpiar estado de sesion para reconsultar si vuelve a unirse
     for queriedName in pairs(DungeonBots.sessionQueriedBots) do
         if not currentMembers[queriedName] then
             DungeonBots.sessionQueriedBots[queriedName] = nil
+            lastStatsQueryAt[queriedName] = nil
+            lastSpecListQueryAt[queriedName] = nil
             if DungeonBots.botStats then
                 DungeonBots.botStats[queriedName] = nil
             end
             if DungeonBots.botQuestCounts then
                 DungeonBots.botQuestCounts[queriedName] = nil
+            end
+            if DB_Internal.ClearBotQuestCountCooldown then
+                DB_Internal.ClearBotQuestCountCooldown(queriedName)
             end
         end
     end
@@ -625,10 +687,36 @@ function DungeonBots:CheckPartyForNewBots()
     end
 end
 
--- Pedir lista de ramas y talentos activos al bot
-function DungeonBots:QueryBotSpecs(botName)
+-- Pedir lista de ramas y talentos activos al bot (under-demand con onlyIfMissing=true o forzado al Actualizar)
+function DungeonBots:QueryBotSpecs(botName, onlyIfMissing)
     if not botName or botName == "" then return end
-    StartTalentQuery(botName, true)
+    if onlyIfMissing then
+        if HasCachedSpecList(botName) then
+            return
+        end
+        local now = NowTime()
+        local lastReq = lastSpecListQueryAt[botName]
+        if lastReq and (now - lastReq) < SPECS_PENDING_RETRY_COOLDOWN then
+            return
+        end
+        lastSpecListQueryAt[botName] = now
+        StartTalentQuery(botName, false, true, false)
+        return
+    end
+    lastSpecListQueryAt[botName] = NowTime()
+    StartTalentQuery(botName, true, true, true)
+end
+
+-- Carga bajo demanda para Informacion del Personaje -> Equipo
+function DungeonBots:EnsureGearTabData(botName, force)
+    if not botName or botName == "" then return end
+    if force then
+        DungeonBots:QueryBotSpecs(botName, false)
+        DungeonBots:QueryBotStats(botName, true)
+    else
+        DungeonBots:QueryBotStats(botName, false)
+        DungeonBots:QueryBotSpecs(botName, true)
+    end
 end
 
 -- Cambiar rama de talentos de un bot (mantiene comando canónico para el servidor)

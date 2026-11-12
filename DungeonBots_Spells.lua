@@ -622,6 +622,9 @@ function DungeonBots:QueryBotSpells(botName, mode, filterText, isSilent)
         tab.done = true
         tab.updatedAt = now
         DungeonBots.pendingSpellsCapture[cleanBot] = nil
+        if not isSilent and DungeonBots.EnsureGearTabData then
+            DungeonBots:EnsureGearTabData(cleanBot, false)
+        end
         if not isSilent and DungeonBots.OpenSpellsDialog then
             DungeonBots:OpenSpellsDialog(cleanBot, "gear")
         elseif DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == cleanBot then

@@ -579,11 +579,8 @@ function DungeonBots:BuildSpellsDialog()
         PlaySound("igMainMenuOptionCheckBoxOn")
         if sp.currentBot then
             if sp.activeMode == "gear" then
-                if DungeonBots.QueryBotSpecs then
-                    DungeonBots:QueryBotSpecs(sp.currentBot)
-                end
-                if DungeonBots.QueryBotStats then
-                    DungeonBots:QueryBotStats(sp.currentBot, true)
+                if DungeonBots.EnsureGearTabData then
+                    DungeonBots:EnsureGearTabData(sp.currentBot, true)
                 end
             elseif sp.activeMode == "quests" then
                 if DungeonBots.QueryQuests then
@@ -625,6 +622,11 @@ function DungeonBots:BuildSpellsDialog()
                 else
                     DungeonBots:UpdateSpellsDialog(sp.currentBot)
                 end
+            elseif tabDef.id == "gear" then
+                if sp.currentBot and DungeonBots.EnsureGearTabData then
+                    DungeonBots:EnsureGearTabData(sp.currentBot, false)
+                end
+                DungeonBots:UpdateSpellsDialog(sp.currentBot)
             elseif sp.currentBot and (not existingTab or (existingTab.updatedAt == 0 and not existingTab.loading)) then
                 DungeonBots:QueryBotSpells(sp.currentBot, tabDef.id, "", false)
             else

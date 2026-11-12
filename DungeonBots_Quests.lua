@@ -32,8 +32,12 @@ end
 -- =========================================================================
 DungeonBots.botQuestCounts = DungeonBots.botQuestCounts or {}
 
+local QUEST_COUNT_AUTO_CACHE_TTL = 60.0
+local QUEST_COUNT_PENDING_COOLDOWN = 10.0
+
 local pendingQuestCountQueue = {}
 local nextQuestCountDispatchAt = 0
+local lastQuestCountQueryAt = {}
 
 local function RemoveQueuedQuestCount(cleanBot)
     if not cleanBot then return end
@@ -42,6 +46,13 @@ local function RemoveQueuedQuestCount(cleanBot)
             table.remove(pendingQuestCountQueue, i)
         end
     end
+end
+
+function DB_Internal.ClearBotQuestCountCooldown(botName)
+    local cleanBot = NormalizePlayerName(botName)
+    if not cleanBot then return end
+    lastQuestCountQueryAt[cleanBot] = nil
+    RemoveQueuedQuestCount(cleanBot)
 end
 
 local function UpdateBotQuestCountCache(cleanBot, count, timestamp)
@@ -105,6 +116,7 @@ function DungeonBots:QueryQuests(botName, isSilent, suppressDialog)
             DungeonBots:Print("Consultando misiones de |cffffd200" .. cleanBot .. "|r...")
         end
     end
+    lastQuestCountQueryAt[cleanBot] = now
     DungeonBots:SendWhisperCommand(cleanBot, "quests all")
 end
 
@@ -116,13 +128,20 @@ function DungeonBots:QueryBotQuestCount(botName, force, delaySeconds)
 
     local now = NowTime()
     local cached = DungeonBots.botQuestCounts and DungeonBots.botQuestCounts[cleanBot]
-    if not force and cached and (now - (cached.updatedAt or 0)) < 10.0 then
-        return
+    if not force then
+        if cached and (now - (cached.updatedAt or 0)) < QUEST_COUNT_AUTO_CACHE_TTL then
+            return
+        end
+        local lastReq = lastQuestCountQueryAt[cleanBot]
+        if lastReq and (now - lastReq) < QUEST_COUNT_PENDING_COOLDOWN then
+            return
+        end
     end
     if DungeonBots.pendingQuestCapture and DungeonBots.pendingQuestCapture[cleanBot] then
         return
     end
 
+    lastQuestCountQueryAt[cleanBot] = now
     local sendAt = now + (delaySeconds or 0.25)
     for _, entry in ipairs(pendingQuestCountQueue) do
         if entry.botName == cleanBot then
@@ -635,10 +654,11 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
                     and (not DungeonBots.ShouldTreatAsBot or DungeonBots:ShouldTreatAsBot(item.botName)) then
                     nextQuestCountDispatchAt = now + 0.85
                     DungeonBots:QueryQuests(item.botName, true, true)
+                    hasAny = true
                 end
             end
         end
-        if #pendingQuestCountQueue > 0 then
+        if #pendingQuestCountQueue > 0 or (next(DungeonBots.pendingQuestCapture) ~= nil) then
             hasAny = true
         end
     end
