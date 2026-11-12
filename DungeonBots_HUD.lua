@@ -429,14 +429,17 @@ local function CreateFloatingToolbar(cfg)
     end
 
     if cfg.showMainPanelBtn then
-        local mainBtn = CreateFrame("Button", nil, f)
+        local mainBtn = CreateFrame("Button", "DungeonBots_HUDMainPanelBtn", f)
         mainBtn:SetSize(16, 16)
         mainBtn:SetPoint("RIGHT", f, "RIGHT", -6, 0)
+        mainBtn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
 
         local mainIcon = mainBtn:CreateTexture(nil, "ARTWORK")
         mainIcon:SetAllPoints()
-        mainIcon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
-        mainIcon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+        mainIcon:SetTexture("Interface\\Icons\\INV_Misc_Eye_02")
+        mainIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        mainBtn.icon = mainIcon
+        f.mainPanelBtn = mainBtn
 
         mainBtn:SetScript("OnClick", function()
             PlaySound("igMainMenuOptionCheckBoxOn")
