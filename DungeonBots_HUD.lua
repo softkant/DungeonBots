@@ -77,8 +77,8 @@ local UTIL_ACTIONS = {
     {
         name = "Misiones de Bot",
         actionKind = "quests",
-        icon = "Interface\\Buttons\\UI-MicroButton-Quest-Up",
-        texCoord = { 0.09, 0.79, 0.38, 0.88 },
+        icon = "Interface\\Icons\\INV_Misc_Book_09",
+        texCoord = { 0.08, 0.92, 0.08, 0.92 },
         title = "|cffffd200Misiones de Bot|r",
         desc = "Abre un menú desplegable para elegir un bot del grupo y ver sus misiones activas.\n\n|cff71d5ffPermite consultar los detalles de cada misión o abandonarla.|r",
         tooltipCmd = "Acción: |cffffd200Elegir bot -> /w <Bot> quests all|r",

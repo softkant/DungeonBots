@@ -433,7 +433,7 @@ function DungeonBots:InitUI()
             title = "Guía y Consejos",
             subtitle = "Manual de uso y solución de problemas",
             desc = "Consejos esenciales sobre misiones previas, invocación dentro de mazmorras, expulsión y bots ocupados.",
-            icon = "Interface\\Icons\\INV_Misc_Book_09",
+            icon = "Interface\\Icons\\INV_Misc_Book_03",
         },
     }
 
@@ -883,8 +883,8 @@ local CARD_ACTION_BUTTONS = {
     {
         key = "questsBtn",
         label = "Misiones",
-        icon = "Interface\\Buttons\\UI-MicroButton-Quest-Up",
-        texCoord = { 0.09, 0.79, 0.38, 0.88 },
+        icon = "Interface\\Icons\\INV_Misc_Book_09",
+        texCoord = { 0.08, 0.92, 0.08, 0.92 },
         tipTitle = "Misiones del Bot",
         tipDesc = "Consulta las misiones y abre la ventana de Misiones para ver detalles o abandonarlas.",
         onClick = function(name)
