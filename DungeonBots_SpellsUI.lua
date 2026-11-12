@@ -272,6 +272,70 @@ local function FormatPowerAndCastMeta(entry)
     return "|cff8899aa" .. table.concat(parts, "  |  ") .. "|r"
 end
 
+local function IsBotCastingNow(botName)
+    if not botName or botName == "" then return false, nil end
+    local unit = DungeonBots.FindPartyUnitByName and DungeonBots:FindPartyUnitByName(botName)
+    if not unit then return false, nil end
+    local castSpell = UnitCastingInfo and UnitCastingInfo(unit)
+    if castSpell then
+        return true, castSpell
+    end
+    local chanSpell = UnitChannelInfo and UnitChannelInfo(unit)
+    if chanSpell then
+        return true, chanSpell
+    end
+    return false, nil
+end
+
+local UpdateCancelCastButtonState
+
+local function OnCastWatchUpdate(self, elapsed)
+    self._acc = (self._acc or 0) + (elapsed or 0)
+    if self._acc < 0.1 then return end
+    self._acc = 0
+    if UpdateCancelCastButtonState then
+        UpdateCancelCastButtonState()
+    end
+end
+
+UpdateCancelCastButtonState = function()
+    local sp = DungeonBots.spellsFrame
+    if not sp or not sp.cancelBtn then return end
+
+    if not sp:IsShown() or sp.activeMode ~= "spells" then
+        sp.cancelBtn:UnlockHighlight()
+        sp.cancelBtn:Disable()
+        sp.cancelBtn:SetAlpha(0.45)
+        if sp.castWatchFrame then
+            sp.castWatchFrame:SetScript("OnUpdate", nil)
+        end
+        return
+    end
+
+    local isCasting, spellName = IsBotCastingNow(sp.currentBot)
+    sp.cancelBtn.activeCastSpell = spellName
+    if isCasting then
+        sp.cancelBtn:Enable()
+        sp.cancelBtn:SetAlpha(1.0)
+        sp.cancelBtn:LockHighlight()
+        if sp.castWatchFrame then
+            sp.castWatchFrame._acc = 0
+            sp.castWatchFrame:SetScript("OnUpdate", OnCastWatchUpdate)
+        end
+    else
+        sp.cancelBtn:UnlockHighlight()
+        sp.cancelBtn:Disable()
+        sp.cancelBtn:SetAlpha(0.45)
+        if sp.castWatchFrame then
+            sp.castWatchFrame:SetScript("OnUpdate", nil)
+        end
+    end
+
+    if GameTooltip and GameTooltip:IsShown() and GameTooltip:GetOwner() == sp.cancelBtn and sp.cancelBtn.RefreshTooltip then
+        sp.cancelBtn:RefreshTooltip()
+    end
+end
+
 local function UpdateSpellSelectionUI()
     local sp = DungeonBots.spellsFrame
     if not sp then return end
@@ -312,6 +376,9 @@ local function UpdateSpellSelectionUI()
         else
             sp.castBtn:Disable()
             sp.castBtn:SetAlpha(0.45)
+        end
+        if UpdateCancelCastButtonState then
+            UpdateCancelCastButtonState()
         end
     end
 end
@@ -659,6 +726,67 @@ function DungeonBots:BuildSpellsDialog()
     castBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
     sp.castBtn = castBtn
 
+    local cancelBtn = CreateRedIconButton(sp, 98, 24, "Cancelar", "Interface\\Icons\\Ability_Kick")
+    cancelBtn:SetPoint("RIGHT", castBtn, "LEFT", -8, 0)
+    cancelBtn:Disable()
+    cancelBtn:SetAlpha(0.45)
+    cancelBtn:SetScript("OnClick", function()
+        if not sp.currentBot then return end
+        if DungeonBots.CancelBotSpell then
+            DungeonBots:CancelBotSpell(sp.currentBot)
+        end
+        if UpdateCancelCastButtonState then
+            UpdateCancelCastButtonState()
+        end
+    end)
+    local function RefreshCancelTooltip(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Cancelar hechizo ('reset')", 1.0, 0.45, 0.35)
+        if self.activeCastSpell then
+            GameTooltip:AddLine("Casteando ahora: |cffffd200" .. self.activeCastSpell .. "|r", 1, 1, 1, true)
+            GameTooltip:AddLine("Haz clic para enviar 'reset' al bot actual y detener el lanzamiento.", 0.85, 0.85, 0.85, true)
+        else
+            GameTooltip:AddLine("Envía 'reset' al bot actual (se ilumina y habilita cuando está casteando o canalizando).", 0.85, 0.85, 0.85, true)
+        end
+        GameTooltip:Show()
+    end
+    cancelBtn.RefreshTooltip = RefreshCancelTooltip
+    cancelBtn:SetScript("OnEnter", RefreshCancelTooltip)
+    cancelBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    sp.cancelBtn = cancelBtn
+
+    local castWatchFrame = CreateFrame("Frame", nil, sp)
+    local CAST_WATCH_EVENTS = {
+        "UNIT_SPELLCAST_START",
+        "UNIT_SPELLCAST_STOP",
+        "UNIT_SPELLCAST_FAILED",
+        "UNIT_SPELLCAST_INTERRUPTED",
+        "UNIT_SPELLCAST_SUCCEEDED",
+        "UNIT_SPELLCAST_CHANNEL_START",
+        "UNIT_SPELLCAST_CHANNEL_STOP",
+        "UNIT_SPELLCAST_CHANNEL_UPDATE",
+        "UNIT_SPELLCAST_DELAYED",
+        "PARTY_MEMBERS_CHANGED",
+    }
+    castWatchFrame:SetScript("OnEvent", function(_, event, unitArg)
+        if not sp:IsShown() or sp.activeMode ~= "spells" then return end
+        if event == "PARTY_MEMBERS_CHANGED" or not unitArg or string.sub(unitArg, 1, 5) == "party" then
+            UpdateCancelCastButtonState()
+        end
+    end)
+    sp.castWatchFrame = castWatchFrame
+
+    sp:HookScript("OnShow", function()
+        for _, ev in ipairs(CAST_WATCH_EVENTS) do
+            castWatchFrame:RegisterEvent(ev)
+        end
+        UpdateCancelCastButtonState()
+    end)
+    sp:HookScript("OnHide", function()
+        castWatchFrame:UnregisterAllEvents()
+        castWatchFrame:SetScript("OnUpdate", nil)
+    end)
+
     DungeonBots.spellsFrame = sp
     if DB_Internal.RegisterSubModalDimmer then
         DB_Internal.RegisterSubModalDimmer(sp)
@@ -836,6 +964,7 @@ function DungeonBots:UpdateSpellsDialog(botName)
         sp.filterBar:Hide()
         sp.listBg:Hide()
         sp.castBtn:Hide()
+        if sp.cancelBtn then sp.cancelBtn:Hide() end
         sp.emptyLabel:Hide()
         HideRowPool(spellRowButtons, 1)
         if sp.gearPanel then
@@ -843,6 +972,7 @@ function DungeonBots:UpdateSpellsDialog(botName)
             RenderGearPanel(sp, targetBot, targetClassToken)
         end
         UpdateCycleFooter(sp, targetBot)
+        UpdateCancelCastButtonState()
         return
     end
 
@@ -860,6 +990,7 @@ function DungeonBots:UpdateSpellsDialog(botName)
     if mode == "spells" then
         sp.filterBar:Show()
         sp.castBtn:Show()
+        if sp.cancelBtn then sp.cancelBtn:Show() end
 
         filterRaw = sp.localSearchBox and sp.localSearchBox:GetText() or ""
         local filterText = string.lower(string.gsub(filterRaw, "^%s*(.-)%s*$", "%1"))
@@ -900,8 +1031,10 @@ function DungeonBots:UpdateSpellsDialog(botName)
     else
         sp.filterBar:Hide()
         sp.castBtn:Hide()
+        if sp.cancelBtn then sp.cancelBtn:Hide() end
         sp.selectedSpell = nil
         visibleEntries = allItems
+        UpdateCancelCastButtonState()
     end
 
     if sp.listBg then

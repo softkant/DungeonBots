@@ -716,6 +716,15 @@ function DungeonBots:CastBotSpell(botName, spellEntry)
     DungeonBots:Print("Orden enviada a |cffffd200" .. cleanBot .. "|r -> lanzar " .. display)
 end
 
+function DungeonBots:CancelBotSpell(botName)
+    local cleanBot = NormalizePlayerName(botName)
+    if not cleanBot or cleanBot == "" then return end
+
+    DungeonBots:SendWhisperCommand(cleanBot, "reset")
+    PlaySound("igMainMenuOptionCheckBoxOn")
+    DungeonBots:Print("Orden enviada a |cffffd200" .. cleanBot .. "|r -> cancelar hechizo (|cffffd200reset|r).")
+end
+
 function DungeonBots:CycleNextSpellsBot(currentBot, activeMode, serverFilter)
     if not DungeonBots.GetTalkBotCycleInfo then return nil end
     local _, total, nextBot = DungeonBots:GetTalkBotCycleInfo(currentBot)
