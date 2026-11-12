@@ -102,6 +102,42 @@ function DungeonBots:SendWhisperCommand(botName, cmd)
     isSendingAddonWhisper = false
 end
 
+function DungeonBots:SendBotWhisperUnchecked(botName, cmd)
+    local cleanBot = NormalizePlayerName(botName)
+    if not cleanBot or cleanBot == "" or not cmd or cmd == "" then return false end
+    local playerName = UnitName and UnitName("player")
+    if cleanBot == playerName then return false end
+    DungeonBots:MarkAddonOutgoingWhisper(cleanBot, cmd, 4.0)
+    isSendingAddonWhisper = true
+    SendChatMessage(cmd, "WHISPER", nil, cleanBot)
+    isSendingAddonWhisper = false
+    return true
+end
+
+function DungeonBots:RequestBotWhoCheck(botName, reason, force)
+    local cleanBot = NormalizePlayerName(botName)
+    if not cleanBot or cleanBot == "" then return false end
+    local now = NowTime()
+    DungeonBots.pendingWhoCheck = DungeonBots.pendingWhoCheck or {}
+    local existing = DungeonBots.pendingWhoCheck[cleanBot]
+    if not force and existing and (existing.requestedAt or 0) + 3.0 > now then
+        if reason and reason ~= "" then
+            existing.reason = reason
+        end
+        return false
+    end
+    DungeonBots.pendingWhoCheck[cleanBot] = {
+        reason = reason or "check",
+        requestedAt = now,
+        expiresAt = now + 8.0,
+        warnedTimeout = false,
+    }
+    if DB_Internal.ShowWhoCheckFrame then
+        DB_Internal.ShowWhoCheckFrame()
+    end
+    return DungeonBots:SendBotWhisperUnchecked(cleanBot, "who")
+end
+
 -- =========================================================================
 -- Cola Escalonada de Susurros para Evitar Saturación
 -- =========================================================================
@@ -185,6 +221,7 @@ end
 
 function DB_Internal.IsBotDetectionText(message)
     local lowerMsg = string.lower(message or "")
+    local lowerClean = string.lower(TrimText(StripWowFormatting(message or "")))
     return (string.find(lowerMsg, "follow distance")
         or string.find(lowerMsg, "following")
         or string.find(lowerMsg, "staying")
@@ -214,6 +251,8 @@ function DB_Internal.IsBotDetectionText(message)
         or string.find(lowerMsg, "=== spells ===")
         or string.find(lowerMsg, "=== glyphs ===")
         or string.find(lowerMsg, "inventory is empty")
+        or string.find(lowerClean, "playing with", 1, true)
+        or (string.find(lowerClean, "lvl)", 1, true) and string.find(lowerClean, "gs (", 1, true))
         or string.match(lowerMsg, "%d+[-/]%d+[-/]%d+")) and true or false
 end
 
@@ -275,6 +314,53 @@ function DB_Internal.ParseBotStatsWhisper(message)
     }
 end
 
+function DB_Internal.ParseWhoWhisper(message)
+    local cleanMsg = TrimText(StripWowFormatting(message or ""))
+    if cleanMsg == "" then return nil end
+    local lowerMsg = string.lower(cleanMsg)
+
+    local hasLvlAndGs = (string.find(lowerMsg, "lvl)", 1, true) and string.find(lowerMsg, "gs (", 1, true))
+    local hasPlayingWith = (string.find(lowerMsg, "playing with", 1, true) ~= nil)
+    if not hasLvlAndGs and not hasPlayingWith then
+        return nil
+    end
+
+    local playingWith = string.match(cleanMsg, "[Pp]laying%s+with%s+([^%s,%.%!%?]+)")
+    if playingWith then
+        playingWith = NormalizePlayerName(playingWith)
+    end
+
+    local zone = nil
+    local withoutOwner = string.gsub(cleanMsg, ",?%s*[Pp]laying%s+with%s+.*$", "")
+    local afterGs = string.match(withoutOwner, "[Gg][Ss]%s*%b()%s*,%s*(.+)$")
+    if afterGs then
+        zone = string.match(afterGs, "%(([^%)]+)%)")
+    end
+    if not zone then
+        local afterLvl = string.match(withoutOwner, "lvl%)%s*,%s*(.+)$")
+        if afterLvl then
+            local candidate = nil
+            for paren in string.gmatch(afterLvl, "%(([^%)]+)%)") do
+                candidate = paren
+            end
+            if candidate and not string.match(candidate, "^%d+$") then
+                zone = candidate
+            end
+        end
+    end
+    if zone then
+        zone = TrimText(zone)
+        if zone == "" then zone = nil end
+    end
+
+    return {
+        isWho = true,
+        zone = zone,
+        playingWith = playingWith,
+        raw = cleanMsg,
+    }
+end
+
 function DB_Internal.ExtractBusyBotOwnerFromWhisper(message)
     local cleanMsg = TrimText(StripWowFormatting(message or ""))
     if cleanMsg == "" then return nil, false end
@@ -318,6 +404,12 @@ function DB_Internal.ExtractBusyBotFromSystem(message)
             or (string.find(lowerRest, "ya est", 1, true) and string.find(lowerRest, "conectado", 1, true)) then
             return NormalizePlayerName(firstWord), "already_logged_in"
         end
+        if string.find(lowerRest, "is already in a group", 1, true)
+            or string.find(lowerRest, "is already in another group", 1, true)
+            or (string.find(lowerRest, "ya est", 1, true) and string.find(lowerRest, "en un grupo", 1, true))
+            or string.find(lowerRest, "ya forma parte de un grupo", 1, true) then
+            return NormalizePlayerName(firstWord), "already_in_group"
+        end
         if (string.find(lowerRest, "no est", 1, true) and string.find(lowerRest, "en tu estancia", 1, true))
             or string.find(lowerRest, "is not in your instance", 1, true) then
             return NormalizePlayerName(firstWord), "not_in_instance"
@@ -334,9 +426,10 @@ function DungeonBots:EvaluateWhisperSender(cleanSender, message, allowPromote)
         return { isBot = false, explicitHuman = true }
     end
 
-    local inParty = (DungeonBots:FindPartyUnitByName(cleanSender) ~= nil)
+    local inParty = (DungeonBots:FindPartyUnitByName(cleanSender, true) ~= nil)
     local isKnownOrHistory = DungeonBots:ShouldTreatAsBot(cleanSender)
     local hasPendingScan = DungeonBots:HasPendingScan(cleanSender)
+    local hasPendingWho = (DungeonBots.pendingWhoCheck and DungeonBots.pendingWhoCheck[cleanSender] ~= nil) and true or false
     local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
     local inRaid = (GetNumRaidMembers and GetNumRaidMembers() > 0)
     local canConsumeClassSummon = (not isKnownOrHistory)
@@ -347,7 +440,12 @@ function DungeonBots:EvaluateWhisperSender(cleanSender, message, allowPromote)
         and DungeonBots:HasPendingClassSummon()
 
     local isBotText = DB_Internal.IsBotDetectionText(message)
-    local _, isBusyWhisper = DB_Internal.ExtractBusyBotOwnerFromWhisper(message)
+    local whoInfo = hasPendingWho and DB_Internal.ParseWhoWhisper(message) or nil
+    local busyOwner, isBusyWhisper = DB_Internal.ExtractBusyBotOwnerFromWhisper(message)
+    local myName = UnitName and NormalizePlayerName(UnitName("player"))
+    if busyOwner and myName and busyOwner == myName then
+        isBusyWhisper = false
+    end
     local justPromoted = ((DungeonBots.justPromotedBotWhisper[cleanSender] or 0) > NowTime())
 
     if isBusyWhisper and not inParty then
@@ -359,6 +457,10 @@ function DungeonBots:EvaluateWhisperSender(cleanSender, message, allowPromote)
             isBotText = true,
             justPromoted = false,
         }
+    end
+
+    if whoInfo and hasPendingWho and not isKnownOrHistory then
+        isKnownOrHistory = true
     end
 
     if not isKnownOrHistory and not hasPendingScan and not canConsumeClassSummon then
