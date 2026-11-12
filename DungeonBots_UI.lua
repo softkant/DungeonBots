@@ -695,10 +695,6 @@ function DungeonBots:BuildTab1(parent)
     classTitle:SetPoint("TOPLEFT", 10, -8)
     classTitle:SetText("|cffffd200Invocar Bot por Clase Individual|r")
 
-    local classHint = classBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    classHint:SetPoint("TOPRIGHT", -10, -9)
-    classHint:SetText("|cff888888Clic en una clase para invocar e invitar|r")
-
     AddPanelDivider(classBox, -24)
 
     -- 10 botones de clases distribuidos en 2 filas de 5
