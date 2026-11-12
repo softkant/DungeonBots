@@ -144,6 +144,10 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         end
 
         DungeonBotsDB.historyMigrated = true
+        if not DungeonBotsDB.uiThemeDefaultDarkV1 then
+            DungeonBotsDB.uiTheme = "dark"
+            DungeonBotsDB.uiThemeDefaultDarkV1 = true
+        end
 
         DungeonBots:SetupChatFilters()
         DungeonBots:SetupWIMCompatibility()

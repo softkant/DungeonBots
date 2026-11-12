@@ -73,17 +73,18 @@ function DungeonBots:UpdateSettingsDialog()
         sf.muteWhispersCheck:SetPoint("TOPLEFT", sf.formHudVisibleCheck, "BOTTOMLEFT", 0, -10)
     end
 
+    sf.themeLabel:ClearAllPoints()
     if muteShow then
         sf.muteGroupCheck:Show()
-        sf.themeLabel:SetPoint("TOPLEFT", sf.muteGroupCheck, "BOTTOMLEFT", -18, -12)
+        sf.themeLabel:SetPoint("TOPLEFT", sf.muteGroupCheck, "BOTTOMLEFT", -18, -22)
     else
         sf.muteGroupCheck:Hide()
-        sf.themeLabel:SetPoint("TOPLEFT", sf.muteWhispersCheck, "BOTTOMLEFT", 0, -12)
+        sf.themeLabel:SetPoint("TOPLEFT", sf.muteWhispersCheck, "BOTTOMLEFT", 0, -22)
     end
 
-    local curTheme = DB_Internal.GetThemeId and DB_Internal.GetThemeId() or "gold"
+    local curTheme = DB_Internal.GetThemeId and DB_Internal.GetThemeId() or "dark"
     local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
-    if sf.themeGoldBtn and sf.themeDarkBtn and p then
+    if sf.themeDarkBtn and sf.themeGoldBtn and p then
         local function StyleThemeChoice(btn, isSelected, displayName)
             if isSelected then
                 btn:SetBackdropColor(p.specActiveBg[1], p.specActiveBg[2], p.specActiveBg[3], p.specActiveBg[4])
@@ -95,11 +96,11 @@ function DungeonBots:UpdateSettingsDialog()
                 btn.label:SetText(p.specInactiveHex .. displayName .. "|r")
             end
         end
-        StyleThemeChoice(sf.themeGoldBtn, curTheme == "gold", "Dorado Clásico")
-        StyleThemeChoice(sf.themeDarkBtn, curTheme == "dark", "Oscuro Acero")
+        StyleThemeChoice(sf.themeDarkBtn, curTheme == "dark", "Oscuro Azulado")
+        StyleThemeChoice(sf.themeGoldBtn, curTheme == "gold", "Dorado")
     end
 
-    local totalH = 242 + (anyBarShow and 26 or 0) + (muteShow and 26 or 0)
+    local totalH = 258 + (anyBarShow and 26 or 0) + (muteShow and 26 or 0)
     sf:SetHeight(totalH)
 end
 
@@ -254,7 +255,7 @@ function DungeonBots:BuildSettingsDialog()
         DungeonBots:Print("Ocultar chat de bots en Grupo/Decir: " .. (val and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
     end)
 
-    -- Opción 3: Selector de Tema visual (Dorado Clásico / Oscuro Acero)
+    -- Opción 3: Selector de Tema visual (Oscuro Azulado / Dorado)
     local themeLabel = sf:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     themeLabel:SetText("|cffffd200Tema visual:|r")
     sf.themeLabel = themeLabel
@@ -276,7 +277,7 @@ function DungeonBots:BuildSettingsDialog()
             if DungeonBots.SetUITheme then
                 DungeonBots:SetUITheme(themeId)
             end
-            local labelText = (themeId == "dark") and "|cff66d4ffOscuro Acero|r" or "|cffffd100Dorado Clásico|r"
+            local labelText = (themeId == "dark") and "|cff66d4ffOscuro Azulado|r" or "|cffffd100Dorado|r"
             DungeonBots:Print("Tema de interfaz cambiado a: " .. labelText)
         end)
         btn:SetScript("OnEnter", function(self)
@@ -296,21 +297,21 @@ function DungeonBots:BuildSettingsDialog()
         return btn
     end
 
-    local themeGoldBtn = CreateThemeChoiceBtn(
-        "DungeonBots_ThemeGoldBtn", "gold",
-        "Tema: Dorado Clásico (WoW)",
-        "Estilo clásico Blizzard WotLK con bordes dorados tallados y paneles piedra/bronce cálidos."
-    )
-    themeGoldBtn:SetPoint("LEFT", themeLabel, "RIGHT", 12, 0)
-    sf.themeGoldBtn = themeGoldBtn
-
     local themeDarkBtn = CreateThemeChoiceBtn(
         "DungeonBots_ThemeDarkBtn", "dark",
-        "Tema: Oscuro Acero",
-        "Variante oscura de acero y pizarra nocturna con textura de piedra Blizzard y bordes plateados."
+        "Tema: Oscuro Azulado",
+        "Variante oscura azulada y acero con textura de piedra Blizzard y bordes plateados."
     )
-    themeDarkBtn:SetPoint("LEFT", themeGoldBtn, "RIGHT", 8, 0)
+    themeDarkBtn:SetPoint("LEFT", themeLabel, "RIGHT", 12, 0)
     sf.themeDarkBtn = themeDarkBtn
+
+    local themeGoldBtn = CreateThemeChoiceBtn(
+        "DungeonBots_ThemeGoldBtn", "gold",
+        "Tema: Dorado",
+        "Estilo clásico Blizzard WotLK con bordes dorados tallados y paneles piedra/bronce cálidos."
+    )
+    themeGoldBtn:SetPoint("LEFT", themeDarkBtn, "RIGHT", 8, 0)
+    sf.themeGoldBtn = themeGoldBtn
 
     local versionLabel = sf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     versionLabel:SetPoint("BOTTOMLEFT", sf, "BOTTOMLEFT", 16, 17)

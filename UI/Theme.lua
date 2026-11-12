@@ -10,7 +10,7 @@ local DB_Internal = DungeonBots.Internal
 local THEME_PALETTES = {
     gold = {
         id = "gold",
-        label = "Dorado Clásico",
+        label = "Dorado",
         windowEdge = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
         windowBorderColor = { 1.0, 1.0, 1.0, 1.0 },
         windowBg = { 0.09, 0.08, 0.06, 0.98 },
@@ -63,7 +63,7 @@ local THEME_PALETTES = {
     },
     dark = {
         id = "dark",
-        label = "Oscuro Acero",
+        label = "Oscuro Azulado",
         windowEdge = "Interface\\DialogFrame\\UI-DialogBox-Border",
         windowBorderColor = { 0.62, 0.70, 0.84, 1.0 },
         windowBg = { 0.058, 0.072, 0.105, 0.98 },
@@ -117,15 +117,15 @@ local THEME_PALETTES = {
 }
 
 local function GetThemeId()
-    if DungeonBotsDB and DungeonBotsDB.uiTheme == "dark" then
-        return "dark"
+    if DungeonBotsDB and DungeonBotsDB.uiTheme == "gold" then
+        return "gold"
     end
-    return "gold"
+    return "dark"
 end
 DB_Internal.GetThemeId = GetThemeId
 
 local function GetThemePalette()
-    return THEME_PALETTES[GetThemeId()] or THEME_PALETTES.gold
+    return THEME_PALETTES[GetThemeId()] or THEME_PALETTES.dark
 end
 DB_Internal.GetThemePalette = GetThemePalette
 
@@ -336,9 +336,10 @@ end
 DB_Internal.RefreshTheme = RefreshTheme
 
 function DungeonBots:SetUITheme(themeId)
-    local normalized = (themeId == "dark") and "dark" or "gold"
+    local normalized = (themeId == "gold") and "gold" or "dark"
     if DungeonBotsDB then
         DungeonBotsDB.uiTheme = normalized
+        DungeonBotsDB.uiThemeDefaultDarkV1 = true
     end
     RefreshTheme()
 end
