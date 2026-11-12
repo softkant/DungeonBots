@@ -1494,13 +1494,19 @@ local function IsQuestLockReason(lockedReason, lfgCode)
     return false
 end
 
+local function NormalizeMemberKey(name)
+    if not name or name == "" then return "" end
+    local short = string.match(name, "^([^%-]+)") or name
+    return string.lower(short)
+end
+
 function DungeonBots:CheckDungeonQuestStatus(def)
     if not def then
-        return nil, { { text = "Mazmorra no identificada." } }
+        return nil, { { text = "Mazmorra no identificada." } }, {}
     end
 
     if not GetLFDLockInfo then
-        return nil, { { text = "API de buscador de mazmorras no disponible." } }
+        return nil, { { text = "API de buscador de mazmorras no disponible." } }, {}
     end
 
     if not def.candidateIDs or #def.candidateIDs == 0 then
@@ -1509,7 +1515,7 @@ function DungeonBots:CheckDungeonQuestStatus(def)
 
     local candidateIDs = def.candidateIDs or def.fallbackIDs or {}
     local reasons = {}
-    local seenLockedPlayers = {}
+    local lockedByKey = {}
     local hasAnyDataFromServer = false
 
     local lockCount = (GetLFDLockPlayerCount and GetLFDLockPlayerCount()) or 0
@@ -1542,13 +1548,12 @@ function DungeonBots:CheckDungeonQuestStatus(def)
                             playerName = (UnitExists(pUnit) and UnitName(pUnit)) or ("Miembro " .. i)
                         end
                     end
-                    if myName and playerName == myName then
+                    if myName and NormalizeMemberKey(playerName) == NormalizeMemberKey(myName) then
                         isSelf = true
                     end
 
-                    if not seenLockedPlayers[playerName] then
-                        seenLockedPlayers[playerName] = true
-
+                    local key = NormalizeMemberKey(playerName)
+                    if key ~= "" and not lockedByKey[key] then
                         local descText
                         if def.key == "foso" then
                             descText = "no ha completado las misiones previas de La Forja de Almas."
@@ -1558,12 +1563,14 @@ function DungeonBots:CheckDungeonQuestStatus(def)
                             descText = "no ha completado la misión necesaria."
                         end
 
-                        table.insert(reasons, {
+                        local reasonObj = {
                             playerName = playerName,
                             reasonCode = lockedReason,
                             text = descText,
                             isSelf = isSelf,
-                        })
+                        }
+                        lockedByKey[key] = reasonObj
+                        table.insert(reasons, reasonObj)
                     end
                 end
             end
@@ -1571,11 +1578,56 @@ function DungeonBots:CheckDungeonQuestStatus(def)
     end
 
     if not hasAnyDataFromServer then
-        return nil, { { text = "Consultando datos al servidor..." } }
+        return nil, { { text = "Consultando datos al servidor..." } }, {}
+    end
+
+    -- Construir el estado completo de cada miembro actual del grupo (Tú + bots en grupo)
+    local memberStatuses = {}
+    local seenKeys = {}
+
+    local myName = UnitName("player") or "Tú"
+    local myKey = NormalizeMemberKey(myName)
+    seenKeys[myKey] = true
+    table.insert(memberStatuses, {
+        name = myName,
+        isSelf = true,
+        canEnter = (lockedByKey[myKey] == nil),
+        reason = lockedByKey[myKey],
+    })
+
+    for p = 1, 4 do
+        local unit = "party" .. p
+        if UnitExists(unit) then
+            local pName = UnitName(unit)
+            if pName and pName ~= "" and pName ~= "Desconocido" and pName ~= UNKNOWN and pName ~= "Unknown" then
+                local pKey = NormalizeMemberKey(pName)
+                if not seenKeys[pKey] then
+                    seenKeys[pKey] = true
+                    table.insert(memberStatuses, {
+                        name = pName,
+                        isSelf = false,
+                        canEnter = (lockedByKey[pKey] == nil),
+                        reason = lockedByKey[pKey],
+                    })
+                end
+            end
+        end
+    end
+
+    for key, r in pairs(lockedByKey) do
+        if not seenKeys[key] then
+            seenKeys[key] = true
+            table.insert(memberStatuses, {
+                name = r.playerName,
+                isSelf = r.isSelf,
+                canEnter = false,
+                reason = r,
+            })
+        end
     end
 
     local canEnter = (#reasons == 0)
-    return canEnter, reasons
+    return canEnter, reasons, memberStatuses
 end
 
 local lastLockReqTime = 0
@@ -1600,22 +1652,57 @@ function DungeonBots:UpdateDungeonAccessUI()
     local data = DungeonBots.FROZEN_HALLS_DATA or FROZEN_HALLS_DATA
     if not data then return end
 
+    local currentBot = DungeonBots.questFrame and DungeonBots.questFrame.currentBot
+    local currentBotKey = currentBot and NormalizeMemberKey(currentBot) or ""
+
     for i, def in ipairs(data) do
         local btn = DungeonBots.dungeonButtons and DungeonBots.dungeonButtons[def.key]
-        local canEnter, reasons = DungeonBots:CheckDungeonQuestStatus(def)
+        local canEnter, reasons, memberStatuses = DungeonBots:CheckDungeonQuestStatus(def)
 
         if btn then
-            if canEnter == true then
+            local botCanEnter = canEnter
+            local botNotInParty = false
+
+            if canEnter ~= nil and currentBotKey ~= "" then
+                local foundBot = nil
+                if memberStatuses then
+                    for _, m in ipairs(memberStatuses) do
+                        if not m.isSelf and NormalizeMemberKey(m.name) == currentBotKey then
+                            foundBot = m
+                            break
+                        end
+                    end
+                end
+                if foundBot then
+                    botCanEnter = foundBot.canEnter
+                else
+                    botCanEnter = nil
+                    botNotInParty = true
+                end
+            end
+
+            if botCanEnter == true then
                 btn.statusText:SetText("|cff00ff00Puede ir|r")
-            elseif canEnter == false then
+            elseif botCanEnter == false then
                 btn.statusText:SetText("|cffff4444Falta misión|r")
+            elseif botNotInParty then
+                btn.statusText:SetText("|cff888888No en grupo|r")
             else
                 btn.statusText:SetText("|cffaaaaaa...|r")
             end
 
             btn.canEnter = canEnter
+            btn.botCanEnter = botCanEnter
+            btn.botNotInParty = botNotInParty
+            btn.currentBot = currentBot
             btn.reasons = reasons
+            btn.memberStatuses = memberStatuses
             btn.dungeonName = def.name
+            btn.prereq = def.prereq
+
+            if GameTooltip and GameTooltip:IsShown() and GameTooltip:GetOwner() == btn and btn.RefreshTooltip then
+                btn:RefreshTooltip()
+            end
         end
     end
 end

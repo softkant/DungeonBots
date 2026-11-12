@@ -278,7 +278,65 @@ function DungeonBots:BuildQuestDialog()
         statusText:SetText("|cffaaaaaa...|r")
         btn.statusText = statusText
 
-        btn:SetScript("OnClick", function()
+        local function PopulateDungeonTooltip(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:AddLine(self.dungeonName or def.name, 1, 0.82, 0)
+
+            if self.canEnter == nil and self.botCanEnter == nil and not self.botNotInParty then
+                GameTooltip:AddLine("Estado: |cffaaaaaaConsultando al servidor...|r", 1, 1, 1)
+                GameTooltip:AddLine("Haz clic para solicitar la información de acceso actualizada.", 0.8, 0.8, 0.8, true)
+                GameTooltip:Show()
+                return
+            end
+
+            if self.currentBot and self.currentBot ~= "" then
+                if self.botCanEnter == true then
+                    GameTooltip:AddLine(self.currentBot .. ": |cff00ff00Puede ir|r", 1, 1, 1)
+                elseif self.botCanEnter == false then
+                    GameTooltip:AddLine(self.currentBot .. ": |cffff4444Falta misión previa|r", 1, 1, 1)
+                elseif self.botNotInParty then
+                    GameTooltip:AddLine(self.currentBot .. ": |cffaaaaaaNo está en el grupo actual|r", 1, 1, 1)
+                end
+            end
+
+            local prereqName = self.prereq or def.prereq or "Mazmorra anterior"
+            GameTooltip:AddLine("Requiere cadena previa: |cffffd200" .. prereqName .. "|r", 0.85, 0.85, 0.85, true)
+
+            if self.memberStatuses and #self.memberStatuses > 0 then
+                GameTooltip:AddLine(" ", 1, 1, 1)
+                GameTooltip:AddLine("Estado del grupo:", 1, 0.82, 0)
+                local curKey = self.currentBot and string.lower(string.match(self.currentBot, "^([^%-]+)") or self.currentBot) or ""
+                for _, m in ipairs(self.memberStatuses) do
+                    local mShort = string.match(m.name or "", "^([^%-]+)") or (m.name or "Miembro")
+                    local mKey = string.lower(mShort)
+                    local nameLabel
+                    if m.isSelf then
+                        nameLabel = "|cff00ccff" .. m.name .. " (Tú)|r"
+                    elseif curKey ~= "" and mKey == curKey then
+                        nameLabel = "|cffffd200" .. m.name .. "|r |cff88ccff(Actual)|r"
+                    else
+                        nameLabel = "|cffffd200" .. m.name .. "|r"
+                    end
+                    local statusStr = m.canEnter and "|cff00ff00Puede ir|r" or "|cffff5555Falta misión|r"
+                    GameTooltip:AddLine("  • " .. nameLabel .. ": " .. statusStr, 1, 1, 1, true)
+                end
+            elseif self.reasons and #self.reasons > 0 then
+                GameTooltip:AddLine(" ", 1, 1, 1)
+                GameTooltip:AddLine("Miembros sin la misión necesaria:", 1, 0.82, 0)
+                for _, r in ipairs(self.reasons) do
+                    local pColor = r.isSelf and "|cff00ccff" or "|cffffd200"
+                    local displayName = r.isSelf and (r.playerName .. " (Tú)") or r.playerName
+                    GameTooltip:AddLine("  • " .. pColor .. displayName .. ":|r |cffff7777" .. (r.text or "no ha completado la misión necesaria.") .. "|r", 1, 1, 1, true)
+                end
+            end
+
+            GameTooltip:AddLine(" ", 1, 1, 1)
+            GameTooltip:AddLine("|cff888888Clic para actualizar desde el servidor.|r", 0.7, 0.7, 0.7)
+            GameTooltip:Show()
+        end
+        btn.RefreshTooltip = PopulateDungeonTooltip
+
+        btn:SetScript("OnClick", function(self)
             PlaySound("igMainMenuOptionCheckBoxOn")
             if DungeonBots.RequestDungeonLockInfo then
                 DungeonBots:RequestDungeonLockInfo(true)
@@ -286,35 +344,12 @@ function DungeonBots:BuildQuestDialog()
             if DungeonBots.UpdateDungeonAccessUI then
                 DungeonBots:UpdateDungeonAccessUI()
             end
+            PopulateDungeonTooltip(self)
         end)
 
         btn:SetScript("OnEnter", function(self)
             self:SetBackdropBorderColor(0.45, 0.55, 0.70, 1.0)
-            GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:AddLine(self.dungeonName or def.name, 1, 0.82, 0)
-            if self.canEnter == true then
-                GameTooltip:AddLine("Estado: |cff00ff00Puede ir|r", 1, 1, 1)
-                GameTooltip:AddLine("Todos los miembros tienen las misiones necesarias completadas.", 0.7, 0.8, 1, true)
-                GameTooltip:AddLine("Requiere cadena previa: |cffffd200" .. (def.prereq or "Forja de Almas") .. "|r", 0.7, 0.7, 0.7)
-            elseif self.canEnter == false then
-                GameTooltip:AddLine("Estado: |cffff4444Falta misión previa|r", 1, 1, 1)
-                GameTooltip:AddLine("Requiere completar la cadena de: |cffffd200" .. (def.prereq or "Mazmorra anterior") .. "|r", 1, 0.82, 0, true)
-                if self.reasons and #self.reasons > 0 then
-                    GameTooltip:AddLine(" ", 1, 1, 1)
-                    GameTooltip:AddLine("Miembros sin la misión necesaria:", 1, 0.82, 0)
-                    for _, r in ipairs(self.reasons) do
-                        local pColor = r.isSelf and "|cff00ccff" or "|cffffd200"
-                        local displayName = r.isSelf and (r.playerName .. " (Tú)") or r.playerName
-                        GameTooltip:AddLine("  • " .. pColor .. displayName .. ":|r |cffff7777" .. (r.text or "no ha completado la misión necesaria.") .. "|r", 1, 1, 1, true)
-                    end
-                else
-                    GameTooltip:AddLine("  • Uno o más miembros no han completado la misión previa requerida.", 1, 0.4, 0.4, true)
-                end
-            else
-                GameTooltip:AddLine("Estado: |cffaaaaaaConsultando al servidor...|r", 1, 1, 1)
-                GameTooltip:AddLine("Haz clic para solicitar la información de acceso actualizada.", 0.8, 0.8, 0.8, true)
-            end
-            GameTooltip:Show()
+            PopulateDungeonTooltip(self)
         end)
         btn:SetScript("OnLeave", function(self)
             self:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.85)
