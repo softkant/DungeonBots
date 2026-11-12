@@ -28,7 +28,7 @@ local TACTICAL_ACTIONS = {
         name = "Pull Tanque",
         cmd = "pull my target",
         icon = "Interface\\Icons\\Ability_Hunter_AimedShot",
-        title = "|cffff9900Pull con Tanque (Pull Target)|r",
+        title = "|cffff9900Pull con Tanque|r",
         desc = "Ordena al bot tanque jalar al objetivo seleccionado usando disparo a distancia, lanzamiento heroico o taunt sin que el resto del grupo se lance antes de tiempo.\n\n|cff71d5ffEsencial para no atraer patrullas en mazmorras.|r",
         color = { 1.0, 0.6, 0.1 }
     },
@@ -36,7 +36,7 @@ local TACTICAL_ACTIONS = {
         name = "Quedarse",
         cmd = "stay",
         icon = "Interface\\Icons\\Spell_Nature_TimeStop",
-        title = "|cffffff00Quedarse (Stay)|r",
+        title = "|cffffff00Quedarse|r",
         desc = "Ordena a los bots frenar en seco y mantener su posición actual.\n\n|cff71d5ffÚtil antes de que jalen patrullas o para posicionar el grupo.|r",
         color = { 1.0, 0.9, 0.2 }
     },
@@ -44,7 +44,7 @@ local TACTICAL_ACTIONS = {
         name = "Seguir",
         cmd = "follow",
         icon = "Interface\\Icons\\Ability_Tracking",
-        title = "|cff00ff00Seguir (Follow)|r",
+        title = "|cff00ff00Seguir|r",
         desc = "Ordena a todos los bots reanudar el seguimiento normal tras de ti.",
         color = { 0.2, 1.0, 0.2 }
     },
@@ -52,7 +52,7 @@ local TACTICAL_ACTIONS = {
         name = "Summon",
         cmd = "summon",
         icon = "Interface\\Icons\\Spell_Nature_AstralRecalGroup",
-        title = "|cff00ccffTeletransportar a Mí (Summon)|r",
+        title = "|cff00ccffTeletransportar a Mí|r",
         desc = "Teletransporta a todos los bots directamente a tu posición.\n\n|cff71d5ffSalva a bots atascados en el suelo, rampas o puertas.|r",
         color = { 0.2, 0.8, 1.0 }
     },
@@ -60,7 +60,7 @@ local TACTICAL_ACTIONS = {
         name = "¡Huir!",
         cmd = "flee",
         icon = "Interface\\Icons\\Spell_Magic_LesserInvisibilty",
-        title = "|cffff3b30¡HUIR! (Flee)|r",
+        title = "|cffff3b30¡HUIR!|r",
         desc = "¡Botón de pánico! Fuerza a los bots a romper el combate y correr hacia ti.\n\n|cff71d5ffPerfecto para salvar un wipe o hacer un pull tras una esquina.|r",
         color = { 1.0, 0.3, 0.3 }
     },
@@ -72,9 +72,8 @@ local UTIL_ACTIONS = {
         actionKind = "talk",
         isTalkPicker = true,
         icon = "Interface\\Icons\\Achievement_Reputation_01",
-        title = "|cff00e5ffHablar con PNJ (Talk)|r",
+        title = "|cff00e5ffHablar con PNJ|r",
         desc = "Consulta los diálogos y misiones del PNJ seleccionado mediante un bot.\n\n|cff71d5ffSi hay varios bots en grupo abre un menú para elegir cuál; si solo hay uno, lo envía directo.|r",
-        tooltipCmd = "Acción: |cffffd200/w <Bot> talk|r (menú si hay 2+ bots)",
         color = { 0.2, 0.8, 1.0 }
     },
     {
@@ -83,8 +82,7 @@ local UTIL_ACTIONS = {
         icon = "Interface\\Icons\\INV_Misc_Book_09",
         texCoord = { 0.13, 0.87, 0.13, 0.87 },
         title = "|cffffd200Misiones de Bot|r",
-        desc = "Abre un menú desplegable para elegir un bot del grupo y ver sus misiones activas.\n\n|cff71d5ffPermite consultar los detalles de cada misión o abandonarla.|r",
-        tooltipCmd = "Acción: |cffffd200Elegir bot -> /w <Bot> quests all|r",
+        desc = "Abre las misiones activas del bot del grupo (o un menú si hay 2 o más bots).\n\n|cff71d5ffPermite consultar los detalles de cada misión o abandonarla.|r",
         color = { 1.0, 0.62, 0.15 }
     },
     {
@@ -93,7 +91,6 @@ local UTIL_ACTIONS = {
         icon = "Interface\\Icons\\INV_Misc_GroupLooking",
         title = "|cffffd200Bots en el Grupo|r",
         desc = "Abre directamente la pestaña de gestión del grupo actual (talentos, equipo y misiones).\n\n|cff71d5ffAtajo rápido a la segunda pestaña de DungeonBots.|r",
-        tooltipCmd = "Acción: |cffffd200Abrir pestaña Bots en el grupo|r",
         color = { 0.95, 0.78, 0.25 }
     },
     {
@@ -101,8 +98,7 @@ local UTIL_ACTIONS = {
         actionKind = "inventory",
         icon = "Interface\\Icons\\INV_Misc_Bag_08",
         title = "|cff34c759Inventario y Bolsas de Bot|r",
-        desc = "Abre un menú desplegable para elegir un bot del grupo y ver sus bolsas.\n\n|cff71d5ffPermite inspeccionar sus objetos y destruir los que no necesites.|r",
-        tooltipCmd = "Acción: |cffffd200Elegir bot -> /w <Bot> c|r",
+        desc = "Abre las bolsas del bot del grupo (o un menú si hay 2 o más bots).\n\n|cff71d5ffPermite inspeccionar sus objetos y destruir los que no necesites.|r",
         color = { 0.35, 0.88, 0.45 }
     },
     {
@@ -110,8 +106,7 @@ local UTIL_ACTIONS = {
         actionKind = "spells",
         icon = "Interface\\Icons\\Achievement_Character_Human_Male",
         title = "|cffb266ffInformación del Personaje|r",
-        desc = "Abre un menú desplegable para elegir un bot del grupo y gestionar su equipo, hechizos y glifos.\n\n|cff71d5ffPermite cambiar rama/equipo, consultar sus poderes y lanzar 'cast'.|r",
-        tooltipCmd = "Acción: |cffffd200Elegir bot -> Info. Personaje|r",
+        desc = "Abre la ventana del personaje (o un menú si hay 2 o más bots) para gestionar equipo, hechizos y glifos.\n\n|cff71d5ffPermite cambiar rama/equipo, consultar sus poderes y lanzar sus hechizos.|r",
         color = { 0.68, 0.45, 1.0 }
     },
 }
@@ -122,7 +117,7 @@ local FORMATION_ACTIONS = {
         cmd = "formation arrow",
         formationId = "arrow",
         icon = "Interface\\Icons\\Ability_TrueShot",
-        title = "|cff33d9ffFormación: Flecha (Arrow)|r",
+        title = "|cff33d9ffFormación: Flecha|r",
         desc = "Coloca a tus bots en punta de flecha detrás de ti al moverse.\n\n|cff71d5ffIdeal para avanzar ordenado por pasillos de mazmorra.|r",
         color = { 0.20, 0.85, 1.0 }
     },
@@ -131,7 +126,7 @@ local FORMATION_ACTIONS = {
         cmd = "formation far",
         formationId = "far",
         icon = "Interface\\Icons\\Ability_Hunter_EagleEye",
-        title = "|cff60b3ffFormación: Lejos (Far)|r",
+        title = "|cff60b3ffFormación: Lejos|r",
         desc = "Mantiene a tus bots posicionados más atrás de ti.\n\n|cff71d5ffÚtil para asomarte a esquinas o pasillos sin que el grupo jale patrullas por error.|r",
         color = { 0.38, 0.70, 1.0 }
     },
@@ -140,24 +135,22 @@ local FORMATION_ACTIONS = {
         actionKind = "formation_menu",
         icon = "Interface\\Icons\\Ability_Hunter_HuntingParty",
         title = "|cffffd200Otras Formaciones y Combate|r",
-        desc = "Cambia entre el resto de formaciones (|cffffd200chaos|r por defecto, |cffffd200shield|r, |cffffd200circle|r, |cffffd200near|r, |cffffd200line|r, etc.), consulta la actual o fija la formación durante el combate.",
-        tooltipCmd = "Menú: |cffffd200formation ... / co ±combat formation|r",
+        desc = "Cambia entre el resto de formaciones (caos por defecto, escudo, círculo, cerca, fila, etc.), consulta la actual o fija la formación durante el combate.",
         color = { 0.95, 0.78, 0.25 }
     },
     {
         name = "Disperse",
         actionKind = "disperse_menu",
         icon = "Interface\\Icons\\Spell_Arcane_Blink",
-        title = "|cffc673ffDisperse (Separación mínima)|r",
+        title = "|cffc673ffDispersión (Separación mínima)|r",
         desc = "Fija una distancia mínima en metros entre cada bot para que NO se queden apilados encima uno de otro.\n\n|cff71d5ffCómo usarlo:|r Actívalo (p. ej. 12m) antes de jefes con bombas, cadenas o daño AoE, y desactívalo al terminar.",
-        tooltipCmd = "Menú: |cffffd200disperse set <m> / disperse disable|r",
         color = { 0.78, 0.45, 1.0 }
     },
     {
         name = "Move From Group",
         cmd = "move from group",
         icon = "Interface\\Icons\\Ability_Rogue_Sprint",
-        title = "|cff57d98cSepararse del Grupo (Move From Group)|r",
+        title = "|cff57d98cSepararse del Grupo|r",
         desc = "Orden puntual e inmediata para que los bots se aparten del montón en ese instante.\n\n|cff71d5ffIdeal en emergencias cuando cae un charco o mecánica AoE justo donde están parados.|r",
         color = { 0.34, 0.85, 0.55 }
     },
@@ -166,8 +159,7 @@ local FORMATION_ACTIONS = {
         actionKind = "pull_wait_menu",
         icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",
         title = "|cffff9e26Control de Pull y Espera|r",
-        desc = "Configura cuántos segundos esperan los DPS/Healers antes de atacar al iniciar combate (|cffffd200wait for attack|r), además de pull hacia atrás, ataque solo del tanque y modo pasivo.",
-        tooltipCmd = "Menú: |cffffd200wait for attack / pull back / tank attack / passive|r",
+        desc = "Configura cuántos segundos esperan los DPS/Healers antes de atacar al iniciar combate, además de pull hacia atrás, ataque solo del tanque y modo pasivo.",
         color = { 1.0, 0.62, 0.15 }
     },
 }
@@ -335,7 +327,7 @@ local function ApplyFormationCommand(formationId, labelText)
         DungeonBotsDB.activeFormation = formationId
     end
     DungeonBots:SendPartyCommand("formation " .. formationId)
-    DungeonBots:Print("Formación del grupo: |cff33d9ff" .. (labelText or formationId) .. "|r (/p formation " .. formationId .. ").")
+    DungeonBots:Print("Formación del grupo: |cff33d9ff" .. (labelText or formationId) .. "|r.")
 end
 
 local function ApplyDisperseSetting(yards)
@@ -372,7 +364,7 @@ local function HandleFormationActionClick(anchorBtn, action)
         else
             DungeonBots:SendPartyCommand(action.cmd)
             if action.cmd == "move from group" then
-                DungeonBots:Print("Orden enviada: |cff57d98cSepararse del grupo|r (/p move from group).")
+                DungeonBots:Print("Orden enviada: |cff57d98cSepararse del grupo|r.")
             end
         end
         return
@@ -398,16 +390,16 @@ local function HandleFormationActionClick(anchorBtn, action)
                 end)
             end
             AddHudMenuTitle(level, "-- Combate y Mapa --")
-            AddHudMenuAction(level, "Mantener formación en combate (+combat formation)", combatForm, function()
+            AddHudMenuAction(level, "Mantener formación en combate", combatForm, function()
                 local nextVal = not combatForm
                 if DungeonBotsDB then DungeonBotsDB.combatFormationActive = nextVal end
                 DungeonBots:SendPartyCommand(nextVal and "co +combat formation" or "co -combat formation")
                 DungeonBots:Print("Mantener formación en combate: " .. (nextVal and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
             end)
-            AddHudMenuAction(level, "Mostrar puntos en mapa (formation show)", nil, function()
+            AddHudMenuAction(level, "Mostrar puntos en mapa", nil, function()
                 DungeonBots:SendPartyCommand("formation show")
             end)
-            AddHudMenuAction(level, "Consultar formación actual (formation ?)", nil, function()
+            AddHudMenuAction(level, "Consultar formación actual", nil, function()
                 DungeonBots:SendPartyCommand("formation ?")
             end)
         end)
@@ -446,13 +438,13 @@ local function HandleFormationActionClick(anchorBtn, action)
                 ApplyWaitForAttackSeconds(0)
             end)
             AddHudMenuTitle(level, "-- Control de Pull y Pasivo --")
-            AddHudMenuAction(level, "Pull hacia atrás (pull back)", nil, function()
+            AddHudMenuAction(level, "Pull hacia atrás", nil, function()
                 DungeonBots:SendPartyCommand("pull back")
-                DungeonBots:Print("Orden enviada: |cffff9e26Pull hacia atrás|r (/p pull back).")
+                DungeonBots:Print("Orden enviada: |cffff9e26Pull hacia atrás|r.")
             end)
-            AddHudMenuAction(level, "Solo Tanque ataca mi target (tank attack)", nil, function()
+            AddHudMenuAction(level, "Solo Tanque ataca mi objetivo", nil, function()
                 DungeonBots:SendPartyCommand("tank attack")
-                DungeonBots:Print("Orden enviada: |cffff9e26Solo el tanque ataca tu objetivo|r (/p tank attack).")
+                DungeonBots:Print("Orden enviada: |cffff9e26Solo el tanque ataca tu objetivo|r.")
             end)
             AddHudMenuAction(level, "Modo Pasivo (No atacar / para skips)", isPassive, function()
                 local nextPassive = not isPassive
@@ -703,10 +695,6 @@ local function CreateFloatingToolbar(cfg)
             GameTooltip:AddLine(action.desc, 0.85, 0.85, 0.85, true)
             if action.isTalkPicker and DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
                 GameTooltip:AddLine("Nota: Haz clic primero en un PNJ válido (los bots no cuentan).", 1.0, 0.72, 0.25, true)
-            elseif action.tooltipCmd then
-                GameTooltip:AddLine(action.tooltipCmd, 0.5, 0.8, 1.0)
-            elseif action.cmd then
-                GameTooltip:AddLine("Comando enviado: |cffffd200/p " .. action.cmd .. "|r", 0.5, 0.8, 1.0)
             end
             GameTooltip:Show()
         end)

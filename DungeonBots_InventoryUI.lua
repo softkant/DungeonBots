@@ -20,7 +20,7 @@ local function CreateRedIconButton(parent, width, height, text, iconPath, center
 end
 
 StaticPopupDialogs["DUNGEONBOTS_DESTROY_BOT_ITEM"] = {
-    text = "¿Seguro que quieres ordenar a |cffffd200%s|r destruir este objeto?\n\n%s\n\n|cffff3b30Se enviará 'destroy' al bot y no se puede deshacer.|r",
+    text = "¿Seguro que quieres ordenar a |cffffd200%s|r destruir este objeto?\n\n%s\n\n|cffff3b30Esta acción no se puede deshacer.|r",
     button1 = "Destruir",
     button2 = "Cancelar",
     OnAccept = function(self, data)
@@ -386,7 +386,7 @@ function DungeonBots:BuildInventoryDialog()
     destroyBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:AddLine("Destruir objeto seleccionado", 1, 0.35, 0.35)
-        GameTooltip:AddLine("Envía 'destroy [link]' directamente al bot tras confirmar.", 0.85, 0.85, 0.85, true)
+        GameTooltip:AddLine("Ordena al bot destruir el objeto seleccionado tras confirmar.", 0.85, 0.85, 0.85, true)
         GameTooltip:Show()
     end)
     destroyBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)

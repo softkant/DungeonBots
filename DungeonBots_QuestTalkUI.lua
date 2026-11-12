@@ -731,12 +731,12 @@ function DungeonBots:BuildTalkDialog()
     end)
     nextBotBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Siguiente Bot (talk)", 1, 0.85, 0.2)
+        GameTooltip:AddLine("Siguiente Bot", 1, 0.85, 0.2)
         if DungeonBots.GetTalkBotCycleInfo then
             local curIdx, total = DungeonBots:GetTalkBotCycleInfo(tf.currentBot)
             if total >= 2 then
                 local posLabel = (curIdx > 0) and (curIdx .. "/" .. total) or ("0/" .. total)
-                GameTooltip:AddLine("Cambia en orden por los bots del grupo y consulta 'talk' con el siguiente (" .. posLabel .. ").", 0.8, 0.9, 1.0, true)
+                GameTooltip:AddLine("Pasa al siguiente bot del grupo para hablar con el PNJ (" .. posLabel .. ").", 0.8, 0.9, 1.0, true)
             else
                 GameTooltip:AddLine("Se necesitan al menos 2 bots en el grupo para pasar al siguiente.", 0.8, 0.8, 0.8, true)
             end
@@ -768,7 +768,7 @@ function DungeonBots:BuildTalkDialog()
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:AddLine("Registro de Misiones del Bot", 1, 0.85, 0.2)
         if tf.currentBot then
-            GameTooltip:AddLine("Abre la ventana de Misiones para " .. tf.currentBot .. " (quests all).", 0.8, 0.9, 1.0, true)
+            GameTooltip:AddLine("Abre la ventana de Misiones para " .. tf.currentBot .. ".", 0.8, 0.9, 1.0, true)
         else
             GameTooltip:AddLine("Abre la ventana de Misiones del bot seleccionado.", 0.8, 0.9, 1.0, true)
         end
@@ -1060,7 +1060,8 @@ function DungeonBots:UpdateTalkDialog(botName)
                 row.mainBtn:SetScript("OnEnter", function(self)
                     row:SetBackdropBorderColor(0.25, 0.78, 1.0, 1.0)
                     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                    GameTooltip:AddLine("Enviar: " .. (act.cmd or ""), 0.45, 0.85, 1.0)
+                    GameTooltip:AddLine(act.label or "Seleccionar opción", 0.45, 0.85, 1.0)
+                    GameTooltip:AddLine("Haz clic para elegir esta opción con el bot.", 0.85, 0.85, 0.85, true)
                     GameTooltip:Show()
                 end)
                 row.mainBtn:SetScript("OnLeave", function()

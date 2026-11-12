@@ -851,7 +851,7 @@ function DungeonBots:CancelBotSpell(botName)
 
     DungeonBots:SendWhisperCommand(cleanBot, "reset")
     PlaySound("igMainMenuOptionCheckBoxOn")
-    DungeonBots:Print("Orden enviada a |cffffd200" .. cleanBot .. "|r -> cancelar hechizo (|cffffd200reset|r).")
+    DungeonBots:Print("Orden enviada a |cffffd200" .. cleanBot .. "|r -> cancelar hechizo.")
 end
 
 function DungeonBots:CycleNextSpellsBot(currentBot, activeMode, serverFilter)

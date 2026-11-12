@@ -532,7 +532,7 @@ function DungeonBots:UpdateHistoryUI()
             row.inviteBtn:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_TOP")
                 GameTooltip:AddLine("Invitar a " .. botName, 1, 1, 1)
-                GameTooltip:AddLine("Ejecuta |cffffd200.playerbots bot add " .. botName .. "|r y lo invita a tu grupo automáticamente.", 0.7, 0.8, 1.0, true)
+                GameTooltip:AddLine("Invoca a " .. botName .. " y lo invita a tu grupo automáticamente.", 0.7, 0.8, 1.0, true)
                 GameTooltip:Show()
             end)
         end
