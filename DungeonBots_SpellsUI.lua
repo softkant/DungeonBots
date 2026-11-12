@@ -25,9 +25,9 @@ end
 
 local MODE_TABS = {
     { id = "gear",   label = "Equipo",   icon = "Interface\\Icons\\INV_Chest_Plate01" },
+    { id = "quests", label = "Misiones", icon = "Interface\\QuestFrame\\UI-QuestLog-BookIcon", texCoord = { 0.16, 0.84, 0.16, 0.84 } },
     { id = "spells", label = "Hechizos", icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
     { id = "glyphs", label = "Glifos",   icon = "Interface\\Icons\\INV_Inscription_Tradeskill01" },
-    { id = "quests", label = "Misiones", icon = "Interface\\QuestFrame\\UI-QuestLog-BookIcon", texCoord = { 0.16, 0.84, 0.16, 0.84 } },
 }
 
 local function BuildGearPanel(sp)
@@ -593,7 +593,7 @@ function DungeonBots:BuildSpellsDialog()
     end)
     sp.refreshBtn = refreshBtn
 
-    -- Subpestanas de modo: Equipo / Hechizos / Glifos / Misiones
+    -- Subpestanas de modo: Equipo / Misiones / Hechizos / Glifos
     sp.modeButtons = {}
     local modeBtnW = 122
     local modeBtnGap = 8
