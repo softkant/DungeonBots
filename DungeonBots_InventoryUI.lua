@@ -391,6 +391,9 @@ function DungeonBots:BuildInventoryDialog()
     inv.destroyBtn = destroyBtn
 
     DungeonBots.inventoryFrame = inv
+    if DB_Internal.RegisterSubModalDimmer then
+        DB_Internal.RegisterSubModalDimmer(inv)
+    end
 end
 
 function DungeonBots:UpdateInventoryDialog(botName)

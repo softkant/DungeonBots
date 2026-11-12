@@ -178,6 +178,9 @@ function DungeonBots:BuildQuestDialog()
     end)
 
     DungeonBots.questFrame = qf
+    if DB_Internal.RegisterSubModalDimmer then
+        DB_Internal.RegisterSubModalDimmer(qf)
+    end
 end
 
 function DungeonBots:UpdateQuestDialog(botName)

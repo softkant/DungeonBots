@@ -673,6 +673,9 @@ function DungeonBots:BuildSpellsDialog()
     sp.castBtn = castBtn
 
     DungeonBots.spellsFrame = sp
+    if DB_Internal.RegisterSubModalDimmer then
+        DB_Internal.RegisterSubModalDimmer(sp)
+    end
 end
 
 local function IsValidMode(mode)

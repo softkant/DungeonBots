@@ -28,6 +28,47 @@ local function ApplyDarkBackdrop(frame, edgeSize)
 end
 DB_Internal.ApplyDarkBackdrop = ApplyDarkBackdrop
 
+local SUB_MODAL_KEYS = { "spellsFrame", "inventoryFrame", "questFrame" }
+
+function DB_Internal.UpdateMainModalDimmer()
+    local mf = DungeonBots.mainFrame
+    local dimmer = mf and mf.modalDimmer
+    if not dimmer then return end
+
+    local hasOpenSubModal = false
+    if mf:IsShown() then
+        for _, key in ipairs(SUB_MODAL_KEYS) do
+            local sub = DungeonBots[key]
+            if sub and sub:IsShown() then
+                hasOpenSubModal = true
+                break
+            end
+        end
+    end
+
+    if hasOpenSubModal then
+        dimmer:SetFrameStrata("DIALOG")
+        dimmer:SetFrameLevel(2)
+        dimmer:Show()
+    else
+        dimmer:Hide()
+    end
+end
+
+function DB_Internal.RegisterSubModalDimmer(frame)
+    if not frame or frame._modalDimmerHooked then return end
+    frame._modalDimmerHooked = true
+    frame:HookScript("OnShow", function()
+        DB_Internal.UpdateMainModalDimmer()
+    end)
+    frame:HookScript("OnHide", function()
+        DB_Internal.UpdateMainModalDimmer()
+    end)
+    if frame:IsShown() then
+        DB_Internal.UpdateMainModalDimmer()
+    end
+end
+
 local function ApplyInsetPanelBackdrop(frame, edgeSize)
     edgeSize = edgeSize or 10
     frame:SetBackdrop({
@@ -435,6 +476,23 @@ function DungeonBots:InitUI()
 
     mainFrame = f
     DungeonBots.mainFrame = f
+
+    -- Velo oscuro sobre la ventana principal cuando se abre Personaje, Inventario o Misiones
+    local modalDimmer = CreateFrame("Frame", "DungeonBots_MainModalDimmer", f)
+    modalDimmer:SetAllPoints(f)
+    modalDimmer:SetFrameStrata("DIALOG")
+    modalDimmer:SetFrameLevel(2)
+    modalDimmer:EnableMouse(true)
+    modalDimmer:Hide()
+
+    local dimTex = modalDimmer:CreateTexture(nil, "BACKGROUND")
+    dimTex:SetAllPoints(modalDimmer)
+    dimTex:SetTexture(0.0, 0.0, 0.0, 0.76)
+    modalDimmer.bg = dimTex
+
+    f.modalDimmer = modalDimmer
+    f:HookScript("OnShow", DB_Internal.UpdateMainModalDimmer)
+    f:HookScript("OnHide", DB_Internal.UpdateMainModalDimmer)
 
     -- Construir los contenidos de cada pestaña
     DungeonBots:BuildTab1(tabFrames[1])
