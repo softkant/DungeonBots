@@ -190,6 +190,7 @@ function DB_Internal.IsBotDetectionText(message)
         or string.find(lowerMsg, "nc %+")
         or string.find(lowerMsg, "fleeing")
         or string.find(lowerMsg, "stats:")
+        or (string.find(lowerMsg, "bag", 1, true) and string.find(lowerMsg, "dur", 1, true) and string.find(lowerMsg, "%d+/%d+"))
         or string.find(lowerMsg, "money:")
         or string.find(lowerMsg, "greetings")
         or string.find(lowerMsg, "ready")
@@ -206,6 +207,64 @@ function DB_Internal.IsBotDetectionText(message)
         or string.find(lowerMsg, "=== glyphs ===")
         or string.find(lowerMsg, "inventory is empty")
         or string.match(lowerMsg, "%d+[-/]%d+[-/]%d+")) and true or false
+end
+
+function DB_Internal.ParseBotStatsWhisper(message)
+    if not message or message == "" then return nil end
+    local rawMsg = TrimText(message)
+    local cleanFull = TrimText(StripWowFormatting(rawMsg))
+    if cleanFull == "" then return nil end
+
+    local goldText = nil
+    local bagNum, bagTotal, bagColor = nil, nil, nil
+    local durPct, durExtra, durColor = nil, nil, nil
+
+    for seg in string.gmatch(rawMsg, "([^,]+)") do
+        local segColor = string.match(seg, "(|c%x%x%x%x%x%x%x%x)")
+        local cleanSeg = TrimText(StripWowFormatting(seg))
+        local lowerSeg = string.lower(cleanSeg)
+
+        if not bagNum then
+            local bA, bB = string.match(cleanSeg, "(%d+)%s*/%s*(%d+)%s+[Bb][Aa][Gg]")
+            if bA and bB then
+                bagNum = tonumber(bA)
+                bagTotal = tonumber(bB)
+                bagColor = segColor
+            end
+        end
+        if not durPct and string.find(lowerSeg, "dur", 1, true) then
+            local dP, dEx = string.match(cleanSeg, "(%d+)%%%s*%(([^%)]+)%)%s+[Dd][Uu][Rr]")
+            if not dP then
+                dP = string.match(cleanSeg, "(%d+)%%%s+[Dd][Uu][Rr]")
+            end
+            if dP then
+                durPct = tonumber(dP)
+                durExtra = dEx and TrimText(dEx) or nil
+                durColor = segColor
+            end
+        end
+        if not goldText then
+            local gMatch = string.match(cleanSeg, "(%d+g[%d%s%a]*)")
+            if gMatch then
+                goldText = TrimText(gMatch)
+            end
+        end
+    end
+
+    if not bagNum or not bagTotal or not durPct then
+        return nil
+    end
+
+    return {
+        goldText = goldText,
+        bagUsed = bagNum,
+        bagTotal = bagTotal,
+        bagColorHex = bagColor,
+        durPct = durPct,
+        durExtra = durExtra,
+        durColorHex = durColor,
+        rawText = cleanFull,
+    }
 end
 
 function DB_Internal.ExtractBusyBotOwnerFromWhisper(message)

@@ -556,6 +556,30 @@ function DungeonBots:QueryBotLiveInfo(botName)
     if not botName or botName == "" then return end
     if not DungeonBots:ShouldTreatAsBot(botName) then return end
     StartTalentQuery(botName, false)
+    DungeonBots:QueueWhisperCommand(botName, "stats")
+end
+
+function DungeonBots:QueryBotStats(botName, force)
+    if not botName or botName == "" then return end
+    if not DungeonBots:FindPartyUnitByName(botName) then return end
+    if not DungeonBots:ShouldTreatAsBot(botName) then return end
+    local st = DungeonBots.botStats and DungeonBots.botStats[botName]
+    if not force and st and (NowTime() - (st.updatedAt or 0)) < 8.0 then
+        return
+    end
+    DungeonBots:QueueWhisperCommand(botName, "stats")
+end
+
+function DungeonBots:QueryPartyBotStats(forceAll)
+    for i = 1, 4 do
+        local unit = "party" .. i
+        if UnitExists(unit) then
+            local name = UnitName(unit)
+            if name and name ~= "" and DungeonBots:ShouldTreatAsBot(name) then
+                DungeonBots:QueryBotStats(name, forceAll)
+            end
+        end
+    end
 end
 
 function DungeonBots:CheckPartyForNewBots()
@@ -580,6 +604,9 @@ function DungeonBots:CheckPartyForNewBots()
     for queriedName in pairs(DungeonBots.sessionQueriedBots) do
         if not currentMembers[queriedName] then
             DungeonBots.sessionQueriedBots[queriedName] = nil
+            if DungeonBots.botStats then
+                DungeonBots.botStats[queriedName] = nil
+            end
         end
     end
     for pendingName in pairs(pendingJoinQueries) do
@@ -618,6 +645,7 @@ function DungeonBots:AutogearMatch(botName)
     if not botName then return end
     DungeonBots:Print("Adaptando equipo a talentos para |cffffd200" .. botName .. "|r...")
     DungeonBots:SendWhisperCommand(botName, "autogear match")
+    DungeonBots:QueueWhisperCommand(botName, "stats")
 end
 
 -- Equipar ítems azules (autogear blue)
@@ -625,4 +653,5 @@ function DungeonBots:AutogearBlue(botName)
     if not botName then return end
     DungeonBots:Print("Equipando ítems azules a |cffffd200" .. botName .. "|r...")
     DungeonBots:SendWhisperCommand(botName, "autogear blue")
+    DungeonBots:QueueWhisperCommand(botName, "stats")
 end

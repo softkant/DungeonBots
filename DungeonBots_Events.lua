@@ -231,6 +231,16 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             DB_Internal.ParseSpellsCaptureWhisper(cleanSender, message)
         end
 
+        local parsedStats = nil
+        if DB_Internal.ParseBotStatsWhisper then
+            parsedStats = DB_Internal.ParseBotStatsWhisper(message)
+        end
+        if parsedStats then
+            parsedStats.updatedAt = NowTime()
+            DungeonBots.botStats = DungeonBots.botStats or {}
+            DungeonBots.botStats[cleanSender] = parsedStats
+        end
+
         -- Parser dinámico de ramas de talentos y especialización activa en vivo
         local foundAnySpec, detectedActiveSpec = false, nil
         if DB_Internal.ParseTalentWhisper then
@@ -300,7 +310,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             end
         end
 
-        local isBotResponse = (foundAnySpec or detectedActiveSpec or isBotText) and true or false
+        local isBotResponse = (foundAnySpec or detectedActiveSpec or isBotText or (parsedStats ~= nil)) and true or false
         if isBotResponse then
             DungeonBots.confirmedBots[cleanSender] = true
             DungeonBots:RegisterBot(cleanSender, true)

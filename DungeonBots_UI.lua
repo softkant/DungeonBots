@@ -513,6 +513,9 @@ function DungeonBots:SelectTab(tabIndex)
     DungeonBots:UpdateActiveSectionHeader()
     if tabIndex == 2 then
         DungeonBots:UpdatePartyUI()
+        if DungeonBots.QueryPartyBotStats then
+            DungeonBots:QueryPartyBotStats(false)
+        end
     end
 end
 
@@ -774,7 +777,25 @@ function DungeonBots:BuildTab2(parent)
 
     local scanHelp = topBar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     scanHelp:SetPoint("LEFT", scanBtn, "RIGHT", 10, 0)
-    scanHelp:SetText("|cff888888Pulsa la etiqueta |cff00e5ff[BOT]|r o |cffffb020[JUGADOR]|r para cambiar el rol manualmente.|r")
+    scanHelp:SetText("|cff888888Pulsa |cff00e5ff[BOT]|r o |cffffb020[JUGADOR]|r para cambiar el rol.|r")
+
+    local refreshStatsBtn = CreateFrame("Button", "DungeonBots_RefreshStatsBtn", topBar, "UIPanelButtonTemplate")
+    refreshStatsBtn:SetSize(96, 22)
+    refreshStatsBtn:SetPoint("RIGHT", topBar, "RIGHT", -6, 0)
+    refreshStatsBtn:SetText("Actualizar")
+    refreshStatsBtn:SetScript("OnClick", function()
+        PlaySound("igMainMenuOptionCheckBoxOn")
+        if DungeonBots.QueryPartyBotStats then
+            DungeonBots:QueryPartyBotStats(true)
+        end
+    end)
+    refreshStatsBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Actualizar Armadura y Bolsas (stats)", 1, 1, 1)
+        GameTooltip:AddLine("Consulta |cffffd200stats|r a todos los bots del grupo para refrescar su durabilidad de armadura y espacio en bolsas.", 0.7, 0.8, 1.0, true)
+        GameTooltip:Show()
+    end)
+    refreshStatsBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     local emptyLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     emptyLabel:SetPoint("CENTER", parent, "CENTER", 0, 20)
@@ -786,33 +807,39 @@ function DungeonBots:BuildTab2(parent)
     cardContainer:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0, 0)
     DungeonBots.cardContainer = cardContainer
 
+    parent:HookScript("OnShow", function()
+        if DungeonBots.QueryPartyBotStats then
+            DungeonBots:QueryPartyBotStats(false)
+        end
+    end)
+
     -- Crear 4 tarjetas de bots para las unidades party1 a party4
     for i = 1, 4 do
         local card = CreateFrame("Frame", "DungeonBots_BotCard_" .. i, cardContainer)
-        card:SetSize(588, 86)
-        card:SetPoint("TOPLEFT", cardContainer, "TOPLEFT", 6, -2 - (i - 1) * 92)
+        card:SetSize(588, 92)
+        card:SetPoint("TOPLEFT", cardContainer, "TOPLEFT", 6, -1 - (i - 1) * 95)
         ApplyInsetPanelBackdrop(card)
 
         local cIcon = card:CreateTexture(nil, "ARTWORK")
         cIcon:SetSize(38, 38)
-        cIcon:SetPoint("LEFT", 10, 0)
+        cIcon:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -13)
         cIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
         cIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         card.classIcon = cIcon
 
         local nameText = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        nameText:SetPoint("TOPLEFT", cIcon, "TOPRIGHT", 10, 8)
+        nameText:SetPoint("TOPLEFT", cIcon, "TOPRIGHT", 10, 4)
         nameText:SetText("Bot " .. i)
         card.nameText = nameText
 
         local infoText = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        infoText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -4)
+        infoText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -2)
         infoText:SetText("Nivel 80")
         card.infoText = infoText
 
         local botBadge = CreateFrame("Button", nil, card)
-        botBadge:SetSize(86, 18)
-        botBadge:SetPoint("TOPLEFT", infoText, "BOTTOMLEFT", 0, -6)
+        botBadge:SetSize(86, 17)
+        botBadge:SetPoint("TOPLEFT", infoText, "BOTTOMLEFT", 0, -4)
         ApplyHeaderBackdrop(botBadge)
         local badgeText = botBadge:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         badgeText:SetPoint("CENTER", 0, 0)
@@ -821,7 +848,7 @@ function DungeonBots:BuildTab2(parent)
         card.botBadge = botBadge
 
         local humanNotice = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        humanNotice:SetPoint("LEFT", card, "LEFT", 195, 0)
+        humanNotice:SetPoint("TOPLEFT", card, "TOPLEFT", 195, -18)
         humanNotice:SetPoint("RIGHT", card, "RIGHT", -15, 0)
         humanNotice:SetJustifyH("LEFT")
         humanNotice:SetText("|cffffb020Jugador humano real.|r\n|cff888888Las opciones de control de bot están inactivas para este miembro.|r")
@@ -829,14 +856,14 @@ function DungeonBots:BuildTab2(parent)
         card.humanNotice = humanNotice
 
         local specDropDown = CreateFrame("Frame", "DungeonBots_SpecDropDown_" .. i, card, "UIDropDownMenuTemplate")
-        specDropDown:SetPoint("TOPLEFT", card, "TOPLEFT", 175, -10)
+        specDropDown:SetPoint("TOPLEFT", card, "TOPLEFT", 175, -6)
         UIDropDownMenu_SetWidth(specDropDown, 185)
         UIDropDownMenu_JustifyText(specDropDown, "LEFT")
         card.specDropDown = specDropDown
 
         local matchGearBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
         matchGearBtn:SetSize(118, 22)
-        matchGearBtn:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 193, 12)
+        matchGearBtn:SetPoint("TOPLEFT", card, "TOPLEFT", 193, -38)
         matchGearBtn:SetText("Adaptar Equipo")
         card.matchGearBtn = matchGearBtn
 
@@ -847,20 +874,97 @@ function DungeonBots:BuildTab2(parent)
         card.blueGearBtn = blueGearBtn
 
         local questsBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
-        questsBtn:SetSize(120, 24)
-        questsBtn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -16)
+        questsBtn:SetSize(120, 22)
+        questsBtn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -9)
         questsBtn:SetText("Misiones")
         card.questsBtn = questsBtn
 
         local kickBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
-        kickBtn:SetSize(120, 24)
-        kickBtn:SetPoint("TOP", questsBtn, "BOTTOM", 0, -6)
+        kickBtn:SetSize(120, 22)
+        kickBtn:SetPoint("TOP", questsBtn, "BOTTOM", 0, -5)
         kickBtn:SetText("Despedir")
         card.kickBtn = kickBtn
+
+        -- Franja inferior por bot: estado de armadura y llenado de bolsas (comando stats)
+        local statusRule = card:CreateTexture(nil, "ARTWORK")
+        statusRule:SetHeight(1)
+        statusRule:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -64)
+        statusRule:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -64)
+        statusRule:SetTexture(0.55, 0.48, 0.32, 0.28)
+        card.statusRule = statusRule
+
+        local statusBtn = CreateFrame("Button", "DungeonBots_BotStatusBtn_" .. i, card)
+        statusBtn:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 8, 3)
+        statusBtn:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -8, 3)
+        statusBtn:SetHeight(23)
+        statusBtn:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+        card.statusBtn = statusBtn
+
+        local armorIcon = statusBtn:CreateTexture(nil, "ARTWORK")
+        armorIcon:SetSize(14, 14)
+        armorIcon:SetPoint("LEFT", statusBtn, "LEFT", 4, 0)
+        armorIcon:SetTexture("Interface\\Icons\\INV_Chest_Plate01")
+        armorIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        card.armorIcon = armorIcon
+
+        local armorText = statusBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        armorText:SetPoint("LEFT", armorIcon, "RIGHT", 5, 0)
+        armorText:SetJustifyH("LEFT")
+        armorText:SetText("Armadura: |cff888888Consultando...|r")
+        card.armorText = armorText
+
+        local bagIcon = statusBtn:CreateTexture(nil, "ARTWORK")
+        bagIcon:SetSize(14, 14)
+        bagIcon:SetPoint("LEFT", statusBtn, "LEFT", 290, 0)
+        bagIcon:SetTexture("Interface\\Icons\\INV_Misc_Bag_08")
+        bagIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        card.bagIcon = bagIcon
+
+        local bagText = statusBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        bagText:SetPoint("LEFT", bagIcon, "RIGHT", 5, 0)
+        bagText:SetJustifyH("LEFT")
+        bagText:SetText("Bolsas: |cff888888Consultando...|r")
+        card.bagText = bagText
 
         card:Hide()
         botCards[i] = card
     end
+end
+
+local function FormatBotCardStats(botName)
+    local st = DungeonBots.botStats and DungeonBots.botStats[botName]
+    if not st then
+        return "Armadura: |cff888888Consultando...|r", "Bolsas: |cff888888Consultando...|r", nil
+    end
+
+    local dmgPct = st.durPct or 0
+    local intactPct = math.max(0, math.min(100, 100 - dmgPct))
+    local durColor = st.durColorHex
+    if not durColor or durColor == "" then
+        if intactPct >= 80 then
+            durColor = "|cff34c759"
+        elseif intactPct >= 40 then
+            durColor = "|cffffd200"
+        else
+            durColor = "|cffff3b30"
+        end
+    end
+
+    local armorStr
+    if dmgPct == 0 then
+        armorStr = "Armadura: " .. durColor .. "100%|r |cff9aa5b4(0% daño)|r"
+    elseif st.durExtra and st.durExtra ~= "" and st.durExtra ~= "0" then
+        armorStr = "Armadura: " .. durColor .. intactPct .. "%|r |cff9aa5b4(" .. dmgPct .. "% daño, " .. st.durExtra .. ")|r"
+    else
+        armorStr = "Armadura: " .. durColor .. intactPct .. "%|r |cff9aa5b4(" .. dmgPct .. "% daño)|r"
+    end
+
+    local bagColor = st.bagColorHex
+    if not bagColor or bagColor == "" then
+        bagColor = "|cffe6ecf5"
+    end
+    local bagStr = "Bolsas: " .. bagColor .. tostring(st.bagUsed) .. "/" .. tostring(st.bagTotal) .. "|r"
+    return armorStr, bagStr, st
 end
 
 -- Actualiza la lista de miembros y sus tarjetas
@@ -942,6 +1046,37 @@ function DungeonBots:UpdatePartyUI()
                     card.blueGearBtn:Show()
                     card.questsBtn:Show()
                     card.kickBtn:Show()
+                    card.statusRule:Show()
+                    card.statusBtn:Show()
+
+                    local armorStr, bagStr, st = FormatBotCardStats(name)
+                    card.armorText:SetText(armorStr)
+                    card.bagText:SetText(bagStr)
+                    card.statusBtn:SetScript("OnClick", function()
+                        PlaySound("igMainMenuOptionCheckBoxOn")
+                        if DungeonBots.QueryBotStats then
+                            DungeonBots:QueryBotStats(name, true)
+                        end
+                    end)
+                    card.statusBtn:SetScript("OnEnter", function(self)
+                        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                        GameTooltip:AddLine("Estado de " .. name .. " (stats)", 1, 1, 1)
+                        if st then
+                            GameTooltip:AddLine(armorStr, 1, 1, 1)
+                            GameTooltip:AddLine(bagStr, 1, 1, 1)
+                            if st.goldText and st.goldText ~= "" then
+                                GameTooltip:AddLine("Oro: |cffffd200" .. st.goldText .. "|r", 1, 1, 1)
+                            end
+                            if st.rawText and st.rawText ~= "" then
+                                GameTooltip:AddLine("\nRespuesta: " .. st.rawText, 0.7, 0.8, 1.0, true)
+                            end
+                        else
+                            GameTooltip:AddLine("Consultando estado de armadura y bolsas...", 0.75, 0.75, 0.78)
+                        end
+                        GameTooltip:AddLine("\nHaz clic para actualizar ahora (/w " .. name .. " stats).", 1, 0.82, 0.2)
+                        GameTooltip:Show()
+                    end)
+                    card.statusBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
                 else
                     card.botBadge.text:SetText("|cffffb020[ JUGADOR ]|r")
                     card.botBadge:SetBackdropBorderColor(1.0, 0.7, 0.2, 0.9)
@@ -952,6 +1087,8 @@ function DungeonBots:UpdatePartyUI()
                     card.blueGearBtn:Hide()
                     card.questsBtn:Hide()
                     card.kickBtn:Hide()
+                    card.statusRule:Hide()
+                    card.statusBtn:Hide()
                 end
 
                 card.botBadge:SetScript("OnClick", function()

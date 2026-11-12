@@ -156,6 +156,7 @@ DungeonBots.busyExternalBots = {}
 DungeonBots.busyBotLastAlert = {}
 DungeonBots.lastBotCallAttempt = {}
 DungeonBots.recentUserWhisperTargets = {}
+DungeonBots.botStats = {}
 DungeonBots.pendingQuestCapture = {}
 DungeonBots.questDialogData = {}
 DungeonBots.pendingQuestRefresh = {}
