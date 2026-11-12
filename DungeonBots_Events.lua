@@ -31,6 +31,7 @@ eventFrame:RegisterEvent("UNIT_NAME_UPDATE")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 eventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
+eventFrame:RegisterEvent("INSPECT_TALENT_READY")
 
 local function HandlePartyChanged(isEnteringWorld)
     DungeonBots:ResolvePendingPartyBots()
@@ -219,6 +220,9 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             if DungeonBots.UpdatePartyUI then
                 DungeonBots:UpdatePartyUI()
             end
+            if DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == cleanSender then
+                DungeonBots:UpdateSpellsDialog(cleanSender)
+            end
         end
 
         if detectedActiveSpec and detectedActiveSpec ~= "" then
@@ -235,6 +239,9 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             DungeonBots:RecordBotHistory(cleanSender, nil, detectedActiveSpec, nil)
             if DungeonBots.UpdatePartyUI then
                 DungeonBots:UpdatePartyUI()
+            end
+            if DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == cleanSender then
+                DungeonBots:UpdateSpellsDialog(cleanSender)
             end
         end
 
@@ -285,6 +292,11 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     elseif event == "PLAYER_TARGET_CHANGED" then
         if DungeonBots.UpdateHUDTalkButtonState then
             DungeonBots:UpdateHUDTalkButtonState()
+        end
+
+    elseif event == "INSPECT_TALENT_READY" then
+        if DB_Internal.HandleInspectTalentReady then
+            DB_Internal.HandleInspectTalentReady()
         end
     end
 end)
