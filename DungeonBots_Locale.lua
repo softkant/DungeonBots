@@ -188,7 +188,7 @@ local pendingLocaleResolves = {}
 local localeResolveFrame = CreateFrame("Frame")
 localeResolveFrame:Hide()
 
-local RETRY_DELAYS = { 0.25, 0.50, 0.85, 1.30 }
+local RETRY_DELAYS = { 0.25, 0.50, 0.85, 1.30, 2.00, 3.00 }
 
 local function EnsureScanTooltip()
     if scanTip then return scanTip end
@@ -203,10 +203,12 @@ local function IsPlaceholderTooltipText(text)
     if trimmed == "" then return true end
     local lower = string.lower(trimmed)
     if _G.RETRIEVING_DATA and lower == string.lower(_G.RETRIEVING_DATA) then return true end
+    if _G.RETRIEVING_ITEM_INFO and lower == string.lower(_G.RETRIEVING_ITEM_INFO) then return true end
     if _G.UNKNOWN and lower == string.lower(_G.UNKNOWN) then return true end
     if _G.UNKNOWNOBJECT and lower == string.lower(_G.UNKNOWNOBJECT) then return true end
     if string.find(lower, "^retrieving")
         or string.find(lower, "^recuperando")
+        or string.find(lower, "^obteniendo")
         or string.find(lower, "^cargando")
         or lower == "loading..."
         or lower == "loading"
@@ -216,6 +218,7 @@ local function IsPlaceholderTooltipText(text)
     end
     return false
 end
+DB_Internal.IsPlaceholderTooltipText = IsPlaceholderTooltipText
 
 local function ScanHyperlinkTitle(hyperlink)
     if not hyperlink or hyperlink == "" then return nil end
@@ -250,6 +253,12 @@ local function QueueLocaleResolve(kind, idStr, extra)
     localeResolveFrame:Show()
 end
 
+function DB_Internal.QueueItemLocaleResolution(itemId)
+    local idNum = itemId and tonumber(itemId) or nil
+    if not idNum then return end
+    QueueLocaleResolve("item", tostring(idNum), nil)
+end
+
 -- =========================================================================
 -- Resolución Localizada de Misiones, Objetos y Hechizos
 -- =========================================================================
@@ -265,8 +274,11 @@ function DungeonBots:GetLocalizedQuestTitle(questId, questLevel, fallbackTitle, 
 
     DungeonBots.localizedQuestTitles = DungeonBots.localizedQuestTitles or {}
     local cached = DungeonBots.localizedQuestTitles[qIdStr]
-    if cached and cached ~= "" then
+    if cached and cached ~= "" and not IsPlaceholderTooltipText(cached) then
         return cached
+    end
+    if cached then
+        DungeonBots.localizedQuestTitles[qIdStr] = nil
     end
 
     -- 1. Consultar el registro de misiones del propio jugador
@@ -318,8 +330,11 @@ function DungeonBots:GetLocalizedItemName(itemId, fallbackName, skipQueue)
 
     DungeonBots.localizedItemNames = DungeonBots.localizedItemNames or {}
     local cached = DungeonBots.localizedItemNames[idStr]
-    if cached and cached ~= "" then
+    if cached and cached ~= "" and not IsPlaceholderTooltipText(cached) then
         return cached
+    end
+    if cached then
+        DungeonBots.localizedItemNames[idStr] = nil
     end
 
     if GetItemInfo then
@@ -483,6 +498,19 @@ localeResolveFrame:SetScript("OnUpdate", function(self, elapsed)
                 resolved = DungeonBots:GetLocalizedQuestTitle(req.id, req.extra, nil, true)
             elseif req.kind == "item" then
                 resolved = DungeonBots:GetLocalizedItemName(req.id, nil, true)
+                if (not resolved or resolved == "") and GetItemInfo then
+                    local idNum = tonumber(req.id)
+                    local itemName = idNum and GetItemInfo(idNum)
+                    if itemName and itemName ~= "" and not IsPlaceholderTooltipText(itemName) then
+                        resolved = itemName
+                    end
+                end
+                if not resolved or resolved == "" then
+                    local scanned = ScanHyperlinkTitle("item:" .. tostring(req.id) .. ":0:0:0:0:0:0:0")
+                    if scanned and scanned ~= "" then
+                        resolved = scanned
+                    end
+                end
             end
 
             if resolved and resolved ~= "" then

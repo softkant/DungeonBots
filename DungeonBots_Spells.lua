@@ -150,12 +150,30 @@ local function ResolveSpellEntryVisuals(entry, skipQueue)
             changed = true
         end
     elseif entry.itemId and GetItemInfo then
+        local isPh = DB_Internal.IsPlaceholderTooltipText
+        if isPh and isPh(entry.name) and entry.rawName and entry.rawName ~= "" and not isPh(entry.rawName) then
+            entry.name = entry.rawName
+            changed = true
+        end
+        if isPh and isPh(entry.displayLink) and entry.rawLink and entry.rawLink ~= "" and not isPh(entry.rawLink) then
+            entry.displayLink = entry.rawLink
+            changed = true
+        end
         local locName, locLink, _, _, _, _, _, _, _, icon = GetItemInfo(entry.itemId)
-        if locName and locName ~= "" and entry.name ~= locName then
+        local validLocName = locName and locName ~= "" and not (isPh and isPh(locName))
+        local validLocLink = locLink and locLink ~= "" and not (isPh and isPh(locLink))
+        if not validLocName and DungeonBots.GetLocalizedItemName then
+            local scanName = DungeonBots:GetLocalizedItemName(entry.itemId, nil, true)
+            if scanName and scanName ~= "" and not (isPh and isPh(scanName)) then
+                locName = scanName
+                validLocName = true
+            end
+        end
+        if validLocName and entry.name ~= locName then
             entry.name = locName
             changed = true
         end
-        if locLink and locLink ~= "" and entry.displayLink ~= locLink then
+        if validLocLink and entry.displayLink ~= locLink then
             entry.displayLink = locLink
             changed = true
         end
@@ -163,7 +181,7 @@ local function ResolveSpellEntryVisuals(entry, skipQueue)
             entry.icon = icon
             changed = true
         end
-        if not locName and not skipQueue and DB_Internal.QueueItemLocaleResolution then
+        if not validLocName and not skipQueue and DB_Internal.QueueItemLocaleResolution then
             DB_Internal.QueueItemLocaleResolution(entry.itemId)
         end
     end
@@ -177,18 +195,21 @@ local function ResolveSpellEntryVisuals(entry, skipQueue)
     end
 
     if type(entry.reagents) == "table" then
+        local isPh = DB_Internal.IsPlaceholderTooltipText
         for _, reg in ipairs(entry.reagents) do
             if reg.itemId and GetItemInfo then
                 local locName, locLink = GetItemInfo(reg.itemId)
-                if locName and locName ~= "" and reg.name ~= locName then
+                local validRegName = locName and locName ~= "" and not (isPh and isPh(locName))
+                local validRegLink = locLink and locLink ~= "" and not (isPh and isPh(locLink))
+                if validRegName and reg.name ~= locName then
                     reg.name = locName
                     changed = true
                 end
-                if locLink and locLink ~= "" and reg.displayLink ~= locLink then
+                if validRegLink and reg.displayLink ~= locLink then
                     reg.displayLink = locLink
                     changed = true
                 end
-                if not locName and not skipQueue and DB_Internal.QueueItemLocaleResolution then
+                if not validRegName and not skipQueue and DB_Internal.QueueItemLocaleResolution then
                     DB_Internal.QueueItemLocaleResolution(reg.itemId)
                 end
             end
@@ -197,6 +218,8 @@ local function ResolveSpellEntryVisuals(entry, skipQueue)
 
     return changed
 end
+
+DB_Internal.ResolveSpellEntryVisuals = ResolveSpellEntryVisuals
 
 function DB_Internal.RefreshSpellVisuals(skipQueue)
     if not DungeonBots.spellsDialogData then return end
@@ -475,25 +498,95 @@ local function ParseGlyphEntriesFromLine(line, cleanLine, tab)
     return false
 end
 
+local function PruneExpiredSpellCaptures(capGroup, botName, now)
+    for modeKey, cap in pairs(capGroup.modes) do
+        if now > (cap.expiresAt or 0) then
+            capGroup.modes[modeKey] = nil
+            local tab = GetOrCreateModeTab(botName, modeKey)
+            tab.loading = false
+            tab.done = true
+            tab.dirty = false
+        end
+    end
+end
+
+local function DetectHeaderCaptureMode(headerText, modes, fallbackMode)
+    local lowerHeader = string.lower(headerText or "")
+    if (string.find(lowerHeader, "glyph", 1, true) or string.find(lowerHeader, "glifo", 1, true)) and modes.glyphs then
+        return "glyphs"
+    end
+    if (string.find(lowerHeader, "spell", 1, true) or string.find(lowerHeader, "hechizo", 1, true)) and modes.spells then
+        return "spells"
+    end
+    if fallbackMode and modes[fallbackMode] then
+        return fallbackMode
+    end
+    return modes.spells and "spells" or (modes.glyphs and "glyphs" or nil)
+end
+
+local function DetectLineCaptureMode(line, cleanLine, lowerClean, modes, currentStreamMode)
+    local hasSpells = modes.spells ~= nil
+    local hasGlyphs = modes.glyphs ~= nil
+    local prefixRaw = string.match(cleanLine or "", "^%s*([^:%[]+)%s*:")
+    if prefixRaw then
+        local lowerPrefix = string.lower(TrimText(prefixRaw))
+        if (string.find(lowerPrefix, "major", 1, true)
+            or string.find(lowerPrefix, "sublim", 1, true)
+            or string.find(lowerPrefix, "minor", 1, true)
+            or string.find(lowerPrefix, "menor", 1, true)) and hasGlyphs then
+            return "glyphs"
+        end
+    end
+    if (string.find(lowerClean, "no glyph", 1, true) or string.find(lowerClean, "glyphs: none", 1, true)) and hasGlyphs then
+        return "glyphs"
+    end
+    local tailDiff = ExtractDifficultySuffix(line)
+    if (string.find(line, "|Hspell:", 1, true)
+        or string.find(line, "|Henchant:", 1, true)
+        or string.find(line, "|Htrade:", 1, true)
+        or tailDiff ~= nil
+        or string.find(lowerClean, "no spell", 1, true)
+        or string.find(lowerClean, "nothing found", 1, true)
+        or string.find(lowerClean, "total:", 1, true)
+        or string.find(lowerClean, "spells found", 1, true)) and hasSpells then
+        return "spells"
+    end
+    if currentStreamMode and modes[currentStreamMode] then
+        return currentStreamMode
+    end
+    if hasGlyphs and not hasSpells then
+        return "glyphs"
+    end
+    if hasSpells and not hasGlyphs then
+        return "spells"
+    end
+    if string.find(line, "|Hitem:", 1, true) and hasGlyphs then
+        return "glyphs"
+    end
+    return nil
+end
+
 function DB_Internal.ParseSpellsCaptureWhisper(cleanSender, message)
     local now = NowTime()
-    local cap = DungeonBots.pendingSpellsCapture and DungeonBots.pendingSpellsCapture[cleanSender]
-    if not cap then
+    local capGroup = DungeonBots.pendingSpellsCapture and DungeonBots.pendingSpellsCapture[cleanSender]
+    if not capGroup or type(capGroup.modes) ~= "table" then
         return ParseSpellDetailWhisper(cleanSender, message, now)
     end
 
-    if now > (cap.expiresAt or 0) then
+    PruneExpiredSpellCaptures(capGroup, cleanSender, now)
+    if next(capGroup.modes) == nil then
         DungeonBots.pendingSpellsCapture[cleanSender] = nil
         return ParseSpellDetailWhisper(cleanSender, message, now)
     end
 
-    if not message or message == "" or IsSpellsNoiseMessage(message, cap.mode) then
+    local activeModeHint = capGroup.streamMode or (capGroup.modes.spells and "spells" or "glyphs")
+    if not message or message == "" or IsSpellsNoiseMessage(message, activeModeHint) then
         return false
     end
 
-    local tab = GetOrCreateModeTab(cleanSender, cap.mode)
     local localizedMsg = (DungeonBots.LocalizeHyperlinksInText and DungeonBots:LocalizeHyperlinksInText(message)) or message
-    local matchedRelevant = false
+    local touchedModes = {}
+    local matchedAny = false
 
     for rawLine in string.gmatch(localizedMsg, "[^\r\n]+") do
         local line = TrimText(rawLine)
@@ -503,53 +596,76 @@ function DB_Internal.ParseSpellsCaptureWhisper(cleanSender, message)
         if cleanLine ~= "" then
             local headerText = string.match(cleanLine, "^===+%s*(.-)%s*===+$")
             if headerText and headerText ~= "" then
-                matchedRelevant = true
-                tab.sawHeader = true
-            elseif cap.mode == "spells" then
-                local tailDiff = ExtractDifficultySuffix(line)
-                if string.find(line, "|Hspell:", 1, true)
-                    or string.find(line, "|Henchant:", 1, true)
-                    or string.find(line, "|Htrade:", 1, true)
-                    or string.find(line, "|Hitem:", 1, true)
-                    or tailDiff ~= nil then
-                    local entry = ParseSpellEntryFromLine(line)
-                    if entry then
-                        matchedRelevant = true
-                        entry.index = #tab.items + 1
-                        table.insert(tab.items, entry)
-                    end
-                elseif string.find(lowerClean, "no spell", 1, true)
-                    or string.find(lowerClean, "nothing found", 1, true)
-                    or string.find(lowerClean, "total:", 1, true)
-                    or string.find(lowerClean, "spells found", 1, true) then
-                    matchedRelevant = true
-                    if string.find(lowerClean, "no spell", 1, true) or string.find(lowerClean, "nothing found", 1, true) then
-                        tab.emptyHint = cleanLine
-                    end
+                local headerMode = DetectHeaderCaptureMode(headerText, capGroup.modes, capGroup.streamMode)
+                if headerMode and capGroup.modes[headerMode] then
+                    capGroup.streamMode = headerMode
+                    local tab = GetOrCreateModeTab(cleanSender, headerMode)
+                    tab.sawHeader = true
+                    touchedModes[headerMode] = true
+                    matchedAny = true
                 end
-            elseif cap.mode == "glyphs" then
-                if ParseGlyphEntriesFromLine(line, cleanLine, tab) then
-                    matchedRelevant = true
+            else
+                local lineMode = DetectLineCaptureMode(line, cleanLine, lowerClean, capGroup.modes, capGroup.streamMode)
+                if lineMode and capGroup.modes[lineMode] then
+                    local tab = GetOrCreateModeTab(cleanSender, lineMode)
+                    if lineMode == "spells" then
+                        local tailDiff = ExtractDifficultySuffix(line)
+                        if string.find(line, "|Hspell:", 1, true)
+                            or string.find(line, "|Henchant:", 1, true)
+                            or string.find(line, "|Htrade:", 1, true)
+                            or string.find(line, "|Hitem:", 1, true)
+                            or tailDiff ~= nil then
+                            local entry = ParseSpellEntryFromLine(line)
+                            if entry then
+                                entry.index = #tab.items + 1
+                                table.insert(tab.items, entry)
+                                touchedModes[lineMode] = true
+                                matchedAny = true
+                            end
+                        elseif string.find(lowerClean, "no spell", 1, true)
+                            or string.find(lowerClean, "nothing found", 1, true)
+                            or string.find(lowerClean, "total:", 1, true)
+                            or string.find(lowerClean, "spells found", 1, true) then
+                            touchedModes[lineMode] = true
+                            matchedAny = true
+                            if string.find(lowerClean, "no spell", 1, true) or string.find(lowerClean, "nothing found", 1, true) then
+                                tab.emptyHint = cleanLine
+                            end
+                        end
+                    elseif lineMode == "glyphs" then
+                        if ParseGlyphEntriesFromLine(line, cleanLine, tab) then
+                            touchedModes[lineMode] = true
+                            matchedAny = true
+                        end
+                    end
                 end
             end
         end
     end
 
-    if not matchedRelevant then
+    if not matchedAny then
         return false
     end
 
-    cap.gotAnyLine = true
-    cap.finalizeAt = math.min((cap.startedAt or now) + 6.5, now + 0.65)
-    cap.expiresAt = math.min((cap.startedAt or now) + 7.5, math.max(cap.expiresAt, now + 1.4))
-    tab.updatedAt = now
-    tab.dirty = true
+    local shouldRender = false
+    for modeKey in pairs(touchedModes) do
+        local cap = capGroup.modes[modeKey]
+        local tab = GetOrCreateModeTab(cleanSender, modeKey)
+        if cap then
+            cap.gotAnyLine = true
+            cap.finalizeAt = math.min((cap.startedAt or now) + 6.5, now + 0.65)
+            cap.expiresAt = math.min((cap.startedAt or now) + 7.5, math.max(cap.expiresAt, now + 1.4))
+        end
+        tab.updatedAt = now
+        tab.dirty = true
+        if (#tab.items <= 20) or ((now - (tab.lastUiRefresh or 0)) >= 0.15) then
+            tab.dirty = false
+            tab.lastUiRefresh = now
+            shouldRender = true
+        end
+    end
 
-    local totalCount = #tab.items
-    local shouldRenderNow = (totalCount <= 20) or ((now - (tab.lastUiRefresh or 0)) >= 0.15)
-    if shouldRenderNow and DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == cleanSender then
-        tab.dirty = false
-        tab.lastUiRefresh = now
+    if shouldRender and DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == cleanSender then
         DungeonBots:UpdateSpellsDialog(cleanSender)
     end
     return true
@@ -559,27 +675,36 @@ function DB_Internal.TickSpellsCapture(now)
     local hasAny = false
 
     if DungeonBots.pendingSpellsCapture then
-        for botName, cap in pairs(DungeonBots.pendingSpellsCapture) do
-            local tab = GetOrCreateModeTab(botName, cap.mode)
-            local readyToFinalize = (cap.gotAnyLine and cap.finalizeAt and now >= cap.finalizeAt)
-            if readyToFinalize or now >= (cap.expiresAt or 0) then
+        for botName, capGroup in pairs(DungeonBots.pendingSpellsCapture) do
+            if type(capGroup) ~= "table" or type(capGroup.modes) ~= "table" then
                 DungeonBots.pendingSpellsCapture[botName] = nil
-                tab.loading = false
-                tab.done = true
-                tab.dirty = false
-                tab.lastUiRefresh = now
-                if DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == botName then
-                    DungeonBots:UpdateSpellsDialog(botName)
-                end
             else
-                if tab.dirty and ((now - (tab.lastUiRefresh or 0)) >= 0.15) then
-                    tab.dirty = false
-                    tab.lastUiRefresh = now
-                    if DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == botName then
-                        DungeonBots:UpdateSpellsDialog(botName)
+                local needUiRefresh = false
+                for modeKey, cap in pairs(capGroup.modes) do
+                    local tab = GetOrCreateModeTab(botName, modeKey)
+                    local readyToFinalize = (cap.gotAnyLine and cap.finalizeAt and now >= cap.finalizeAt)
+                    if readyToFinalize or now >= (cap.expiresAt or 0) then
+                        capGroup.modes[modeKey] = nil
+                        tab.loading = false
+                        tab.done = true
+                        tab.dirty = false
+                        tab.lastUiRefresh = now
+                        needUiRefresh = true
+                    else
+                        if tab.dirty and ((now - (tab.lastUiRefresh or 0)) >= 0.15) then
+                            tab.dirty = false
+                            tab.lastUiRefresh = now
+                            needUiRefresh = true
+                        end
+                        hasAny = true
                     end
                 end
-                hasAny = true
+                if next(capGroup.modes) == nil then
+                    DungeonBots.pendingSpellsCapture[botName] = nil
+                end
+                if needUiRefresh and DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == botName then
+                    DungeonBots:UpdateSpellsDialog(botName)
+                end
             end
         end
     end
@@ -623,7 +748,6 @@ function DungeonBots:QueryBotSpells(botName, mode, filterText, isSilent)
         tab.loading = false
         tab.done = true
         tab.updatedAt = now
-        DungeonBots.pendingSpellsCapture[cleanBot] = nil
         if not isSilent and DungeonBots.EnsureGearTabData then
             DungeonBots:EnsureGearTabData(cleanBot, false)
         end
@@ -649,7 +773,13 @@ function DungeonBots:QueryBotSpells(botName, mode, filterText, isSilent)
     tab.dirty = false
     tab.lastUiRefresh = now
 
-    DungeonBots.pendingSpellsCapture[cleanBot] = {
+    local capGroup = DungeonBots.pendingSpellsCapture[cleanBot]
+    if type(capGroup) ~= "table" or type(capGroup.modes) ~= "table" then
+        capGroup = { streamMode = targetMode, modes = {} }
+        DungeonBots.pendingSpellsCapture[cleanBot] = capGroup
+    end
+    capGroup.streamMode = targetMode
+    capGroup.modes[targetMode] = {
         mode = targetMode,
         startedAt = now,
         expiresAt = now + 4.0,

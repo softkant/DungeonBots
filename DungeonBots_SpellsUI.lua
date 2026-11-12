@@ -437,6 +437,18 @@ local function CreateSpellRowButton(parent, idx)
     hl:SetBlendMode("ADD")
     hl:SetAlpha(0.18)
 
+    local function SyncRowVisuals(self, entry)
+        if not entry or not DB_Internal.ResolveSpellEntryVisuals then return end
+        if DB_Internal.ResolveSpellEntryVisuals(entry, false) then
+            self.icon:SetTexture(entry.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+            local titleTxt = entry.name or entry.rawName or (entry.kind == "glyph" and "Glifo" or "Hechizo")
+            if entry.rank and entry.rank ~= "" then
+                titleTxt = titleTxt .. " |cff888888(" .. entry.rank .. ")|r"
+            end
+            self.nameLabel:SetText(titleTxt)
+        end
+    end
+
     row:SetScript("OnEnter", function(self)
         local entry = self.spellEntry
         if not entry then return end
@@ -463,6 +475,8 @@ local function CreateSpellRowButton(parent, idx)
             local fallbackTitle = entry.name or entry.rawName or (isGlyph and "Glifo" or "Hechizo")
             GameTooltip:AddLine(fallbackTitle, 0.45, 0.85, 1.0)
         end
+
+        SyncRowVisuals(self, entry)
 
         if isGlyph then
             if entry.categoryTag then
@@ -499,7 +513,8 @@ local function CreateSpellRowButton(parent, idx)
         GameTooltip:AddLine("Clic izquierdo: |cffffffffSeleccionar|r  |  Shift + Clic: |cff71d5ffEnlazar|r", 0.8, 0.8, 0.8)
         GameTooltip:Show()
     end)
-    row:SetScript("OnLeave", function()
+    row:SetScript("OnLeave", function(self)
+        SyncRowVisuals(self, self.spellEntry)
         GameTooltip:Hide()
     end)
 
