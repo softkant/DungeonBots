@@ -75,6 +75,16 @@ local UTIL_ACTIONS = {
         color = { 0.2, 0.8, 1.0 }
     },
     {
+        name = "Misiones de Bot",
+        actionKind = "quests",
+        icon = "Interface\\QuestFrame\\UI-QuestLog-BookIcon",
+        texCoord = { 0.16, 0.84, 0.16, 0.84 },
+        title = "|cffffd200Misiones de Bot|r",
+        desc = "Abre un menú desplegable para elegir un bot del grupo y ver sus misiones activas.\n\n|cff71d5ffPermite consultar los detalles de cada misión o abandonarla.|r",
+        tooltipCmd = "Acción: |cffffd200Elegir bot -> /w <Bot> quests all|r",
+        color = { 1.0, 0.62, 0.15 }
+    },
+    {
         name = "Bots en el Grupo",
         actionKind = "party_tab",
         icon = "Interface\\Icons\\INV_Misc_GroupLooking",
@@ -100,16 +110,6 @@ local UTIL_ACTIONS = {
         desc = "Abre un menú desplegable para elegir un bot del grupo y gestionar su equipo, hechizos y glifos.\n\n|cff71d5ffPermite cambiar rama/equipo, consultar sus poderes y lanzar 'cast'.|r",
         tooltipCmd = "Acción: |cffffd200Elegir bot -> Info. Personaje|r",
         color = { 0.68, 0.45, 1.0 }
-    },
-    {
-        name = "Misiones de Bot",
-        actionKind = "quests",
-        icon = "Interface\\QuestFrame\\UI-QuestLog-BookIcon",
-        texCoord = { 0.16, 0.84, 0.16, 0.84 },
-        title = "|cffffd200Misiones de Bot|r",
-        desc = "Abre un menú desplegable para elegir un bot del grupo y ver sus misiones activas.\n\n|cff71d5ffPermite consultar los detalles de cada misión o abandonarla.|r",
-        tooltipCmd = "Acción: |cffffd200Elegir bot -> /w <Bot> quests all|r",
-        color = { 1.0, 0.62, 0.15 }
     },
 }
 
