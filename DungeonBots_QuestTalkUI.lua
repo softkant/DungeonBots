@@ -110,7 +110,7 @@ function DungeonBots:BuildQuestDialog()
 
     local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("LEFT", 10, 0)
-    title:SetText("|cff00ccffMisiones de|r |cffffd200Bot|r")
+    title:SetText("|cff00ccffMisiones:|r |cffffd200Bot|r")
     qf.title = title
 
     local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
@@ -192,7 +192,7 @@ function DungeonBots:UpdateQuestDialog(botName)
         return
     end
     qf.currentBot = targetBot
-    qf.title:SetText("|cff00ccffMisiones de|r |cffffd200" .. targetBot .. "|r")
+    qf.title:SetText("|cff00ccffMisiones:|r |cffffd200" .. targetBot .. "|r")
 
     local data = DungeonBots.questDialogData and DungeonBots.questDialogData[targetBot]
     local quests = (data and data.quests) or {}
