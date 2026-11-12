@@ -28,7 +28,7 @@ local function ApplyDarkBackdrop(frame, edgeSize)
 end
 DB_Internal.ApplyDarkBackdrop = ApplyDarkBackdrop
 
-local SUB_MODAL_KEYS = { "spellsFrame", "inventoryFrame", "questFrame", "settingsFrame" }
+local SUB_MODAL_KEYS = { "spellsFrame", "inventoryFrame", "questFrame", "settingsFrame", "historyFrame" }
 
 local function ApplyTabButtonsVisualState(isDimmed)
     local baseLevel = (mainFrame and mainFrame.GetFrameLevel and mainFrame:GetFrameLevel()) or 10
@@ -574,13 +574,11 @@ function DungeonBots:ToggleUI()
     end
     if DungeonBots.historyFrame and DungeonBots.historyFrame:IsShown() then
         PlaySound("igMainMenuOptionCheckBoxOff")
-        DungeonBots.reopenMainAfterHistory = false
         DungeonBots.historyFrame:Hide()
         return
     end
     if mainFrame:IsShown() then
         PlaySound("igMainMenuOptionCheckBoxOff")
-        DungeonBots.reopenMainAfterHistory = false
         mainFrame:Hide()
     else
         PlaySound("igMainMenuOptionCheckBoxOn")

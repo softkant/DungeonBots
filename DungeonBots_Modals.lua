@@ -361,20 +361,14 @@ function DungeonBots:BuildHistoryDialog()
     hf:SetSize(540, 420)
     hf:SetPoint("CENTER", UIParent, "CENTER", 0, 20)
     hf:SetFrameStrata("DIALOG")
-    hf:SetFrameLevel(20)
+    hf:SetFrameLevel(24)
+    hf:SetToplevel(true)
     hf:SetMovable(true)
     hf:EnableMouse(true)
+    hf:SetClampedToScreen(true)
     hf:RegisterForDrag("LeftButton")
     hf:SetScript("OnDragStart", hf.StartMoving)
     hf:SetScript("OnDragStop", hf.StopMovingOrSizing)
-    hf:SetScript("OnHide", function()
-        local mainFrame = DungeonBots.mainFrame
-        if DungeonBots.reopenMainAfterHistory and mainFrame and not mainFrame:IsShown() then
-            DungeonBots.reopenMainAfterHistory = false
-            DungeonBots:UpdatePartyUI()
-            mainFrame:Show()
-        end
-    end)
     hf:Hide()
     ApplyDarkBackdrop(hf, 14)
     hf:SetBackdropColor(0.04, 0.05, 0.08, 1.0)
@@ -464,6 +458,9 @@ function DungeonBots:BuildHistoryDialog()
     end)
 
     DungeonBots.historyFrame = hf
+    if DB_Internal.RegisterSubModalDimmer then
+        DB_Internal.RegisterSubModalDimmer(hf)
+    end
 end
 
 function DungeonBots:UpdateHistoryUI()
@@ -557,18 +554,15 @@ function DungeonBots:ToggleHistoryDialog()
     DungeonBots:SyncPartyToHistory()
     DungeonBots:UpdateHistoryUI()
 
-    local mainFrame = DungeonBots.mainFrame
-    if DungeonBots.historyFrame:IsShown() then
+    local hf = DungeonBots.historyFrame
+    if hf:IsShown() then
         PlaySound("igMainMenuOptionCheckBoxOff")
-        DungeonBots.historyFrame:Hide()
+        hf:Hide()
     else
         PlaySound("igMainMenuOptionCheckBoxOn")
-        if mainFrame and mainFrame:IsShown() then
-            DungeonBots.reopenMainAfterHistory = true
-            mainFrame:Hide()
-        else
-            DungeonBots.reopenMainAfterHistory = false
+        hf:Show()
+        if hf.Raise then
+            pcall(hf.Raise, hf)
         end
-        DungeonBots.historyFrame:Show()
     end
 end
