@@ -102,6 +102,17 @@ local UTIL_ACTIONS = {
         tooltipCmd = "Acción: |cffffd200Elegir bot -> Info. Personaje|r",
         color = { 0.68, 0.45, 1.0 }
     },
+    {
+        name = "Misiones de Bot",
+        actionKind = "quests",
+        fullTexCoord = true,
+        iconInset = 6,
+        icon = "Interface\\GossipFrame\\AvailableQuestIcon",
+        title = "|cffffd200Misiones de Bot|r",
+        desc = "Abre un menú desplegable para elegir un bot del grupo y ver sus misiones activas.\n\n|cff71d5ffPermite consultar los detalles de cada misión o abandonarla.|r",
+        tooltipCmd = "Acción: |cffffd200Elegir bot -> /w <Bot> quests all|r",
+        color = { 1.0, 0.62, 0.15 }
+    },
 }
 
 local function GetOrCreateHudBotDropDown()
@@ -222,6 +233,18 @@ local function HandleUtilActionClick(anchorBtn, action)
             end,
             false,
             true
+        )
+    elseif action.actionKind == "quests" then
+        OpenHudBotDropdown(
+            anchorBtn,
+            "-- Elegir Bot (Misiones) --",
+            "No hay bots detectados en el grupo para ver sus misiones.",
+            function(chosenName)
+                if DungeonBots.QueryQuests then
+                    DungeonBots:QueryQuests(chosenName)
+                end
+            end,
+            false
         )
     end
 end
