@@ -360,7 +360,10 @@ local function IsSpellsNoiseMessage(message, activeMode)
         or string.find(lowerClean, "specs found", 1, true)
         or string.find(lowerClean, "active quests", 1, true)
         or string.find(lowerClean, "completed quests", 1, true)
-        or string.find(lowerClean, "no active quests", 1, true) then
+        or string.find(lowerClean, "no active quests", 1, true)
+        or string.find(lowerClean, "summary", 1, true)
+        or string.match(lowerClean, "incompleted?:%s*%d+")
+        or string.match(lowerClean, "total%s*:%s*%d+") then
         return true
     end
     return false

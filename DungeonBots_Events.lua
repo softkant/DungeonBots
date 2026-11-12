@@ -224,16 +224,20 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         if DB_Internal.ParseQuestShareWhisper then
             handledQuestShare = DB_Internal.ParseQuestShareWhisper(cleanSender, message) and true or false
         end
-        if not handledQuestShare and DB_Internal.ParseQuestCaptureWhisper then
+        local handledQuestSummary = false
+        if not handledQuestShare and DB_Internal.ParseQuestSummaryWhisper then
+            handledQuestSummary = DB_Internal.ParseQuestSummaryWhisper(cleanSender, message) and true or false
+        end
+        if not handledQuestShare and not handledQuestSummary and DB_Internal.ParseQuestCaptureWhisper then
             DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
         end
-        if not handledQuestShare and DB_Internal.ParseTalkCaptureWhisper then
+        if not handledQuestShare and not handledQuestSummary and DB_Internal.ParseTalkCaptureWhisper then
             DB_Internal.ParseTalkCaptureWhisper(cleanSender, message)
         end
-        if DB_Internal.ParseInventoryCaptureWhisper then
+        if not handledQuestSummary and DB_Internal.ParseInventoryCaptureWhisper then
             DB_Internal.ParseInventoryCaptureWhisper(cleanSender, message)
         end
-        if DB_Internal.ParseSpellsCaptureWhisper then
+        if not handledQuestSummary and DB_Internal.ParseSpellsCaptureWhisper then
             DB_Internal.ParseSpellsCaptureWhisper(cleanSender, message)
         end
 
@@ -322,7 +326,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             end
         end
 
-        local isBotResponse = (foundAnySpec or detectedActiveSpec or isBotText or (parsedStats ~= nil)) and true or false
+        local isBotResponse = (foundAnySpec or detectedActiveSpec or isBotText or handledQuestSummary or (parsedStats ~= nil)) and true or false
         if isBotResponse then
             DungeonBots.confirmedBots[cleanSender] = true
             DungeonBots:RegisterBot(cleanSender, true)

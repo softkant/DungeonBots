@@ -31,6 +31,7 @@ end
 -- Consulta y Abandono de Misiones del Bot (quests all / drop)
 -- =========================================================================
 DungeonBots.botQuestCounts = DungeonBots.botQuestCounts or {}
+DungeonBots.pendingQuestCountCapture = DungeonBots.pendingQuestCountCapture or {}
 
 local QUEST_COUNT_AUTO_CACHE_TTL = 60.0
 local QUEST_COUNT_PENDING_COOLDOWN = 10.0
@@ -53,6 +54,9 @@ function DB_Internal.ClearBotQuestCountCooldown(botName)
     if not cleanBot then return end
     lastQuestCountQueryAt[cleanBot] = nil
     RemoveQueuedQuestCount(cleanBot)
+    if DungeonBots.pendingQuestCountCapture then
+        DungeonBots.pendingQuestCountCapture[cleanBot] = nil
+    end
 end
 
 local function UpdateBotQuestCountCache(cleanBot, count, timestamp)
@@ -131,6 +135,23 @@ function DungeonBots:QueryQuests(botName, isSilent, suppressDialog, retriedSilen
     DungeonBots:SendWhisperCommand(cleanBot, "quests all")
 end
 
+local function SendQuestCountSummaryQuery(cleanBot, isRetry)
+    if not cleanBot or cleanBot == "" then return end
+    local now = NowTime()
+    DungeonBots.pendingQuestCountCapture = DungeonBots.pendingQuestCountCapture or {}
+    DungeonBots.pendingQuestCountCapture[cleanBot] = {
+        startedAt = now,
+        expiresAt = now + 4.5,
+        gotSummaryHeader = false,
+        retriedSilent = (isRetry == true),
+    }
+    if DungeonBots.uiCaptureFrame then
+        DungeonBots.uiCaptureFrame:Show()
+    end
+    lastQuestCountQueryAt[cleanBot] = now
+    DungeonBots:SendWhisperCommand(cleanBot, "quests")
+end
+
 function DungeonBots:QueryBotQuestCount(botName, force, delaySeconds, isRetry)
     local cleanBot = NormalizePlayerName(botName)
     if not cleanBot then return end
@@ -150,7 +171,8 @@ function DungeonBots:QueryBotQuestCount(botName, force, delaySeconds, isRetry)
             end
         end
     end
-    if DungeonBots.pendingQuestCapture and DungeonBots.pendingQuestCapture[cleanBot] then
+    if (DungeonBots.pendingQuestCapture and DungeonBots.pendingQuestCapture[cleanBot])
+        or (DungeonBots.pendingQuestCountCapture and DungeonBots.pendingQuestCountCapture[cleanBot]) then
         return
     end
 
@@ -729,16 +751,31 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
         end
     end
 
+    for botName, qCap in pairs(DungeonBots.pendingQuestCountCapture or {}) do
+        if now >= (qCap.expiresAt or 0) then
+            DungeonBots.pendingQuestCountCapture[botName] = nil
+            if not qCap.retriedSilent
+                and (not DungeonBots.FindPartyUnitByName or DungeonBots:FindPartyUnitByName(botName))
+                and (not DungeonBots.ShouldTreatAsBot or DungeonBots:ShouldTreatAsBot(botName)) then
+                DungeonBots:QueryBotQuestCount(botName, false, 0.85, true)
+                hasAny = true
+            end
+        else
+            hasAny = true
+        end
+    end
+
     if #pendingQuestCountQueue > 0 then
-        local hasActiveTalkCap = next(DungeonBots.pendingTalkCapture) ~= nil
-        local hasActiveSpellsCap = DungeonBots.pendingSpellsCapture and (next(DungeonBots.pendingSpellsCapture) ~= nil)
-        if not hasActiveTalkCap and not hasActiveSpellsCap and now >= nextQuestCountDispatchAt then
+        if now >= nextQuestCountDispatchAt then
             local bestIdx = nil
             local bestSendAt = nil
             for idx = 1, #pendingQuestCountQueue do
                 local item = pendingQuestCountQueue[idx]
                 local sAt = item.sendAt or 0
-                local botBusy = item.botName and DungeonBots.pendingQuestCapture[item.botName] ~= nil
+                local botBusy = item.botName and (
+                    DungeonBots.pendingQuestCapture[item.botName] ~= nil
+                    or (DungeonBots.pendingQuestCountCapture and DungeonBots.pendingQuestCountCapture[item.botName] ~= nil)
+                )
                 if now >= sAt and not botBusy and (not bestSendAt or sAt < bestSendAt) then
                     bestIdx = idx
                     bestSendAt = sAt
@@ -749,12 +786,12 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
                 if (not DungeonBots.FindPartyUnitByName or DungeonBots:FindPartyUnitByName(item.botName))
                     and (not DungeonBots.ShouldTreatAsBot or DungeonBots:ShouldTreatAsBot(item.botName)) then
                     nextQuestCountDispatchAt = now + 0.35
-                    DungeonBots:QueryQuests(item.botName, true, true, item.retriedSilent)
+                    SendQuestCountSummaryQuery(item.botName, item.retriedSilent)
                     hasAny = true
                 end
             end
         end
-        if #pendingQuestCountQueue > 0 or (next(DungeonBots.pendingQuestCapture) ~= nil) then
+        if #pendingQuestCountQueue > 0 or next(DungeonBots.pendingQuestCountCapture or {}) ~= nil then
             hasAny = true
         end
     end
@@ -992,16 +1029,90 @@ local function AddTalkAction(data, key, actionObj)
     table.insert(data.actions, actionObj)
 end
 
+function DB_Internal.ParseQuestSummaryWhisper(cleanSender, message)
+    if not cleanSender or cleanSender == "" or not message or message == "" then
+        return false
+    end
+
+    local qCap = DungeonBots.pendingQuestCountCapture and DungeonBots.pendingQuestCountCapture[cleanSender]
+    local hasFullQuestCap = DungeonBots.pendingQuestCapture and DungeonBots.pendingQuestCapture[cleanSender] ~= nil
+    local parsedCount = nil
+    local sawSummaryHeader = false
+
+    for rawLine in string.gmatch(message, "[^\r\n]+") do
+        local cleanLine = TrimText(StripWowFormatting(rawLine))
+        if cleanLine ~= "" then
+            local lowerClean = string.lower(cleanLine)
+            local trimmedLower = TrimText(string.gsub(lowerClean, "[%.%!%?%:;]+$", ""))
+            local hasQuestLink = (string.find(rawLine, "|Hquest:", 1, true) ~= nil)
+
+            if not hasQuestLink then
+                if string.find(lowerClean, "summary", 1, true) then
+                    sawSummaryHeader = true
+                end
+
+                local totalNum = string.match(lowerClean, "total%s*:%s*(%d+)%s*/%s*%d+")
+                    or string.match(lowerClean, "total%s*:%s*(%d+)")
+                if totalNum then
+                    parsedCount = tonumber(totalNum)
+                else
+                    local incNum = string.match(lowerClean, "incompleted?%s*:%s*(%d+)")
+                    local cmpNum = string.match(lowerClean, "completed%s*:%s*(%d+)")
+                    if incNum and cmpNum then
+                        parsedCount = (tonumber(incNum) or 0) + (tonumber(cmpNum) or 0)
+                    else
+                        local slashNum = string.match(lowerClean, "^(%d+)%s*/%s*%d+$")
+                            or string.match(lowerClean, "^(%d+)%s*/%s*%d+%s+quests?")
+                        if slashNum then
+                            parsedCount = tonumber(slashNum)
+                        elseif string.find(lowerClean, "no active quests", 1, true)
+                            or string.find(lowerClean, "0 active quests", 1, true)
+                            or string.find(lowerClean, "you have no quests", 1, true)
+                            or string.find(lowerClean, "you don't have any quests", 1, true)
+                            or string.find(lowerClean, "quest log is empty", 1, true)
+                            or string.find(lowerClean, "sin misiones", 1, true)
+                            or trimmedLower == "no quests"
+                            or (qCap and (trimmedLower == "none" or trimmedLower == "empty" or trimmedLower == "ninguna")) then
+                            parsedCount = 0
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if parsedCount ~= nil then
+        if DungeonBots.pendingQuestCountCapture then
+            DungeonBots.pendingQuestCountCapture[cleanSender] = nil
+        end
+        UpdateBotQuestCountCache(cleanSender, parsedCount, NowTime())
+        return not hasFullQuestCap
+    end
+
+    if sawSummaryHeader and qCap then
+        qCap.gotSummaryHeader = true
+        qCap.expiresAt = math.max(qCap.expiresAt or 0, NowTime() + 1.5)
+        return not hasFullQuestCap
+    end
+
+    return false
+end
+
 local function IsQuestLogDumpMessage(message)
     local lowerClean = string.lower(TrimText(StripWowFormatting(message or "")))
     if lowerClean == "" then return false end
+    local hasQuestLink = (string.find(message or "", "|Hquest:", 1, true) ~= nil)
     if string.find(lowerClean, "active quests", 1, true)
         or string.find(lowerClean, "incompleted quests", 1, true)
         or string.find(lowerClean, "incomplete quests", 1, true)
         or string.find(lowerClean, "completed quests", 1, true)
         or string.find(lowerClean, "no active quests", 1, true)
         or string.find(lowerClean, "no quests", 1, true)
-        or string.find(lowerClean, "summary", 1, true) then
+        or (not hasQuestLink and (
+            string.find(lowerClean, "summary", 1, true)
+            or string.match(lowerClean, "incompleted?:%s*%d+")
+            or string.match(lowerClean, "total%s*:%s*%d+")
+        )) then
         return true
     end
     return false
