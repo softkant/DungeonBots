@@ -888,10 +888,16 @@ function DungeonBots:BuildTab2(parent)
         GameTooltip:Show()
     end)
     refreshStatsBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    refreshStatsBtn:Hide()
+    DungeonBots.refreshStatsBtn = refreshStatsBtn
 
     local emptyLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    emptyLabel:SetPoint("CENTER", parent, "CENTER", 0, 20)
-    emptyLabel:SetText("|cff888888No hay bots detectados en tu grupo actualmente.\n\nInvoca bots desde la pestaña 'Armar Grupo' para configurar\nsus talentos, roles y equipo.|r")
+    emptyLabel:SetPoint("CENTER", parent, "CENTER", 0, 12)
+    emptyLabel:SetWidth(520)
+    emptyLabel:SetJustifyH("CENTER")
+    local emptyText = (DungeonBots.L and DungeonBots.L["TAB2_EMPTY_NO_BOTS"])
+        or "|cffd8e0ecNo hay bots en tu grupo actualmente.|r\n\n|cff9ea6b5Puedes agregar uno en la primera pestaña |cffffd200\"Armar Grupo\"|r|cff9ea6b5\npara gestionar sus talentos, equipo, misiones e inventario.|r"
+    emptyLabel:SetText(emptyText)
     DungeonBots.emptyPartyLabel = emptyLabel
 
     local cardContainer = CreateFrame("Frame", nil, parent)
@@ -906,6 +912,15 @@ function DungeonBots:BuildTab2(parent)
     scanHelp:SetText("|cff888888Pulsa |cff00e5ff[BOT]|r o |cffffb020[JUGADOR]|r para cambiar el rol.|r")
     scanHelp:Hide()
     DungeonBots.tab2ScanHelp = scanHelp
+
+    local noBotFooter = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    noBotFooter:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 8, 11)
+    noBotFooter:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -8, 11)
+    noBotFooter:SetJustifyH("LEFT")
+    noBotFooter:SetText((DungeonBots.L and DungeonBots.L["TAB2_FOOTER_NO_BOTS"])
+        or "|cff9ea6b5No hay bots en tu grupo. Puedes agregar uno en la primera pestaña |cffffd200\"Armar Grupo\"|r|cff9ea6b5.|r")
+    noBotFooter:Hide()
+    DungeonBots.tab2NoBotFooter = noBotFooter
 
     -- Crear 4 tarjetas de bots para las unidades party1 a party4
     for i = 1, 4 do
@@ -1075,22 +1090,13 @@ function DungeonBots:UpdatePartyUI()
 
     DungeonBots:SyncPartyToHistory()
 
-    if numMembers == 0 then
-        if DungeonBots.emptyPartyLabel then DungeonBots.emptyPartyLabel:Show() end
-        if DungeonBots.tab2ScanHelp then DungeonBots.tab2ScanHelp:Hide() end
-        for i = 1, 4 do
-            if botCards[i] then botCards[i]:Hide() end
-        end
-        return
-    end
-
-    if DungeonBots.emptyPartyLabel then DungeonBots.emptyPartyLabel:Hide() end
-
+    local visibleCards = 0
     for i = 1, 4 do
         local unit = "party" .. i
         local card = botCards[i]
         if card then
             if UnitExists(unit) and UnitIsConnected(unit) then
+                visibleCards = visibleCards + 1
                 card:Show()
                 local name = UnitName(unit)
                 local _, classToken = UnitClass(unit)
@@ -1220,8 +1226,34 @@ function DungeonBots:UpdatePartyUI()
         end
     end
 
+    local hasBots = (botCount > 0)
+    if DungeonBots.refreshStatsBtn then
+        if hasBots then
+            DungeonBots.refreshStatsBtn:Show()
+        else
+            DungeonBots.refreshStatsBtn:Hide()
+        end
+    end
     if DungeonBots.tab2ScanHelp then
-        DungeonBots.tab2ScanHelp:Show()
+        if hasBots then
+            DungeonBots.tab2ScanHelp:Show()
+        else
+            DungeonBots.tab2ScanHelp:Hide()
+        end
+    end
+    if DungeonBots.emptyPartyLabel then
+        if visibleCards == 0 then
+            DungeonBots.emptyPartyLabel:Show()
+        else
+            DungeonBots.emptyPartyLabel:Hide()
+        end
+    end
+    if DungeonBots.tab2NoBotFooter then
+        if visibleCards > 0 and not hasBots then
+            DungeonBots.tab2NoBotFooter:Show()
+        else
+            DungeonBots.tab2NoBotFooter:Hide()
+        end
     end
 end
 

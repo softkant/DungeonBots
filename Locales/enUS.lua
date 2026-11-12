@@ -58,3 +58,6 @@ L["CAT_MISC"]              = "Miscellaneous"
 L["CAT_REAGENTS"]          = "Reagents"
 L["CAT_EQUIPMENT"]         = "Equipment"
 L["CAT_KEYS"]              = "Keys"
+
+L["TAB2_EMPTY_NO_BOTS"]    = "|cffd8e0ecNo bots in your party.|r\n\n|cff9ea6b5You can add one from the first tab |cffffd200\"Armar Grupo\"|r|cff9ea6b5\nto manage its talents, gear, quests, and inventory.|r"
+L["TAB2_FOOTER_NO_BOTS"]   = "|cff9ea6b5No bots in party. You can add one in the first tab |cffffd200\"Armar Grupo\"|r|cff9ea6b5.|r"
