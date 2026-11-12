@@ -29,6 +29,7 @@ eventFrame:RegisterEvent("CHAT_MSG_SYSTEM")
 eventFrame:RegisterEvent("CHAT_MSG_WHISPER")
 eventFrame:RegisterEvent("CHAT_MSG_WHISPER_INFORM")
 eventFrame:RegisterEvent("PARTY_MEMBERS_CHANGED")
+eventFrame:RegisterEvent("LFG_LOCK_INFO_RECEIVED")
 eventFrame:RegisterEvent("UNIT_NAME_UPDATE")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
@@ -51,6 +52,12 @@ local function HandlePartyChanged(isEnteringWorld)
     end
     if isEnteringWorld and DungeonBots.UpdateHUDTalkButtonState then
         DungeonBots:UpdateHUDTalkButtonState()
+    end
+    if DungeonBots.UpdateDungeonAccessUI and DungeonBots.dungeonCheckPanel and DungeonBots.dungeonCheckPanel:IsShown() then
+        if DungeonBots.RequestDungeonLockInfo then
+            DungeonBots:RequestDungeonLockInfo(false)
+        end
+        DungeonBots:UpdateDungeonAccessUI()
     end
 end
 
@@ -356,6 +363,11 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
 
     elseif event == "PARTY_MEMBERS_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
         HandlePartyChanged(event == "PLAYER_ENTERING_WORLD")
+
+    elseif event == "LFG_LOCK_INFO_RECEIVED" then
+        if DungeonBots.UpdateDungeonAccessUI then
+            DungeonBots:UpdateDungeonAccessUI()
+        end
 
     elseif event == "UNIT_NAME_UPDATE" then
         local unit = ...
