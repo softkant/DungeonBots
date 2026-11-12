@@ -67,9 +67,7 @@ local UTIL_ACTIONS = {
         name = "Hablar PNJ",
         actionKind = "talk",
         isTalkPicker = true,
-        fullTexCoord = true,
-        iconInset = 6,
-        icon = "Interface\\GossipFrame\\AvailableQuestIcon",
+        icon = "Interface\\Icons\\Ability_Warrior_CommandingShout",
         title = "|cff00e5ffHablar con PNJ (Talk)|r",
         desc = "Consulta los diálogos y misiones del PNJ seleccionado mediante un bot.\n\n|cff71d5ffSi hay varios bots en grupo abre un menú para elegir cuál; si solo hay uno, lo envía directo.|r",
         tooltipCmd = "Acción: |cffffd200/w <Bot> talk|r (menú si hay 2+ bots)",
@@ -105,7 +103,8 @@ local UTIL_ACTIONS = {
     {
         name = "Misiones de Bot",
         actionKind = "quests",
-        icon = "Interface\\Icons\\Achievement_Quests_Completed_06",
+        icon = "Interface\\QuestFrame\\UI-QuestLog-BookIcon",
+        texCoord = { 0.16, 0.84, 0.16, 0.84 },
         title = "|cffffd200Misiones de Bot|r",
         desc = "Abre un menú desplegable para elegir un bot del grupo y ver sus misiones activas.\n\n|cff71d5ffPermite consultar los detalles de cada misión o abandonarla.|r",
         tooltipCmd = "Acción: |cffffd200Elegir bot -> /w <Bot> quests all|r",
@@ -382,7 +381,9 @@ local function CreateFloatingToolbar(cfg)
         icon:SetPoint("TOPLEFT", pad, -pad)
         icon:SetPoint("BOTTOMRIGHT", -pad, pad)
         icon:SetTexture(action.icon)
-        if action.fullTexCoord then
+        if action.texCoord then
+            icon:SetTexCoord(action.texCoord[1], action.texCoord[2], action.texCoord[3], action.texCoord[4])
+        elseif action.fullTexCoord then
             icon:SetTexCoord(0, 1, 0, 1)
         else
             icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
