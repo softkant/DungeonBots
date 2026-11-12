@@ -587,6 +587,8 @@ function DungeonBots:ToggleUI()
     end
 end
 
+local TAB_HEIGHTS = { 414, 452, 492 }
+
 function DungeonBots:SelectTab(tabIndex)
     activeTab = tabIndex
     for i = 1, 3 do
@@ -600,7 +602,7 @@ function DungeonBots:SelectTab(tabIndex)
     ApplyTabButtonsVisualState(isDimmed)
 
     if mainFrame then
-        mainFrame:SetHeight((tabIndex == 1) and 414 or 492)
+        mainFrame:SetHeight(TAB_HEIGHTS[tabIndex] or 492)
     end
     DungeonBots:UpdateActiveSectionHeader()
     if tabIndex == 2 then
