@@ -11,6 +11,9 @@ local utilHudFrame = nil
 local formHudFrame = nil
 local hudBotDropDown = nil
 local hudTalkBtn = nil
+local hudMenuWatcher = nil
+local hudMenuAnchorBtn = nil
+local hudMenuMouseWasDown = false
 
 local TACTICAL_ACTIONS = {
     {
@@ -177,6 +180,56 @@ local function GetOrCreateHudBotDropDown()
     return hudBotDropDown
 end
 
+local function IsCursorOverFrame(frame)
+    if not frame or not frame.IsShown or not frame:IsShown() then
+        return false
+    end
+    if MouseIsOver then
+        return MouseIsOver(frame)
+    end
+    local left, right, top, bottom = frame:GetLeft(), frame:GetRight(), frame:GetTop(), frame:GetBottom()
+    if not (left and right and top and bottom) then
+        return false
+    end
+    local scale = frame:GetEffectiveScale() or 1
+    local cx, cy = GetCursorPosition()
+    cx, cy = cx / scale, cy / scale
+    return cx >= left and cx <= right and cy >= bottom and cy <= top
+end
+
+local function EnsureHudMenuWatcher()
+    if hudMenuWatcher then return hudMenuWatcher end
+    hudMenuWatcher = CreateFrame("Frame", nil, UIParent)
+    hudMenuWatcher:Hide()
+    hudMenuWatcher:SetScript("OnUpdate", function(self)
+        local list1 = _G.DropDownList1
+        if not hudBotDropDown or UIDROPDOWNMENU_OPEN_MENU ~= hudBotDropDown or not list1 or not list1:IsShown() then
+            self:Hide()
+            hudMenuAnchorBtn = nil
+            hudMenuMouseWasDown = false
+            return
+        end
+        local down = IsMouseButtonDown and (
+            IsMouseButtonDown("LeftButton")
+            or IsMouseButtonDown("RightButton")
+            or IsMouseButtonDown("MiddleButton")
+        )
+        if down then
+            if not hudMenuMouseWasDown then
+                hudMenuMouseWasDown = true
+                local list2 = _G.DropDownList2
+                local insideMenu = IsCursorOverFrame(list1) or IsCursorOverFrame(list2) or IsCursorOverFrame(hudMenuAnchorBtn)
+                if not insideMenu and CloseDropDownMenus then
+                    CloseDropDownMenus()
+                end
+            end
+        else
+            hudMenuMouseWasDown = false
+        end
+    end)
+    return hudMenuWatcher
+end
+
 local function OpenAnchoredHudMenu(anchorBtn, buildMenuFn)
     local dd = GetOrCreateHudBotDropDown()
     if UIDROPDOWNMENU_OPEN_MENU ~= dd and CloseDropDownMenus then
@@ -193,6 +246,21 @@ local function OpenAnchoredHudMenu(anchorBtn, buildMenuFn)
     end
     UIDropDownMenu_Initialize(dd, buildMenuFn, "MENU")
     ToggleDropDownMenu(1, nil, dd, anchorBtn, 0, opensUp and 4 or -4)
+
+    local list1 = _G.DropDownList1
+    if UIDROPDOWNMENU_OPEN_MENU == dd and list1 and list1:IsShown() then
+        hudMenuAnchorBtn = anchorBtn
+        hudMenuMouseWasDown = IsMouseButtonDown and (
+            IsMouseButtonDown("LeftButton")
+            or IsMouseButtonDown("RightButton")
+            or IsMouseButtonDown("MiddleButton")
+        ) and true or false
+        EnsureHudMenuWatcher():Show()
+    else
+        hudMenuAnchorBtn = nil
+        hudMenuMouseWasDown = false
+        if hudMenuWatcher then hudMenuWatcher:Hide() end
+    end
 end
 
 local function OpenHudBotDropdown(anchorBtn, headerTitle, emptyWarnMsg, onSelectBot, directIfSingle, showProximity)
@@ -432,7 +500,7 @@ local function HandleUtilActionClick(anchorBtn, action)
                     DungeonBots:QueryBotInventory(chosenName)
                 end
             end,
-            false
+            true
         )
     elseif action.actionKind == "spells" then
         OpenHudBotDropdown(
@@ -444,7 +512,7 @@ local function HandleUtilActionClick(anchorBtn, action)
                     DungeonBots:QueryBotSpells(chosenName, "gear", "", false)
                 end
             end,
-            false,
+            true,
             true
         )
     elseif action.actionKind == "quests" then
@@ -457,7 +525,7 @@ local function HandleUtilActionClick(anchorBtn, action)
                     DungeonBots:QueryQuests(chosenName)
                 end
             end,
-            false
+            true
         )
     end
 end
