@@ -1,22 +1,38 @@
 ## Interface: 30300
 ## Title: |cff00ccffDungeon|r|cffffd200Bots|r
-## Notes: Gestor táctico y visual de bots para Mazmorras en WoW 3.3.5a.
+## Notes: Visual and tactical dungeon bot manager for WoW 3.3.5a.
+## Notes-esES: Gestor táctico y visual de bots para Mazmorras en WoW 3.3.5a.
+## Notes-esMX: Gestor táctico y visual de bots para Mazmorras en WoW 3.3.5a.
 ## Author: Antigravity
 ## Version: 1.0.0
 ## SavedVariables: DungeonBotsDB
 
-DungeonBots.lua
-DungeonBots_Locale.lua
-DungeonBots_Roster.lua
-DungeonBots_Comms.lua
-DungeonBots_Talents.lua
-DungeonBots_Quests.lua
-DungeonBots_Inventory.lua
-DungeonBots_Spells.lua
-DungeonBots_Events.lua
-DungeonBots_HUD.lua
-DungeonBots_UI.lua
-DungeonBots_Modals.lua
-DungeonBots_QuestTalkUI.lua
-DungeonBots_InventoryUI.lua
-DungeonBots_SpellsUI.lua
+# Core
+Core\Core.lua
+
+# Locales
+Locales\enUS.lua
+Locales\esES.lua
+Locales\Locale.lua
+
+# Core Systems & Events
+Core\Roster.lua
+Core\Comms.lua
+
+# Feature Modules (Protocol & Parsers)
+Modules\Talents.lua
+Modules\Quests.lua
+Modules\Inventory.lua
+Modules\Spells.lua
+
+# Event Router & Slash Commands
+Core\Events.lua
+
+# UI & Visual Design
+UI\Theme.lua
+UI\HUD.lua
+UI\MainUI.lua
+UI\Modals.lua
+UI\QuestTalkUI.lua
+UI\InventoryUI.lua
+UI\SpellsUI.lua

@@ -389,9 +389,9 @@ function DB_Internal.ParseInventoryCaptureWhisper(cleanSender, message)
                 matchedRelevantLine = true
                 if string.lower(headerText) == "inventory" then
                     data.sawHeader = true
-                    data.currentCategory = "General"
+                    data.currentCategory = (DungeonBots.L and DungeonBots.L["CAT_GENERAL"]) or "General"
                 else
-                    data.currentCategory = headerText
+                    data.currentCategory = (DungeonBots.LocalizeServerSection and DungeonBots:LocalizeServerSection(headerText)) or headerText
                 end
             elseif string.find(line, "|Hitem:", 1, true) then
                 matchedRelevantLine = true
@@ -410,9 +410,9 @@ function DB_Internal.ParseInventoryCaptureWhisper(cleanSender, message)
                 or string.find(lowerClean, "^total:") then
                 matchedRelevantLine = true
                 if string.find(lowerClean, "^money:") or string.find(lowerClean, "gold", 1, true) then
-                    data.moneyText = cleanLine
+                    data.moneyText = (DungeonBots.LocalizeServerSection and DungeonBots:LocalizeServerSection(cleanLine)) or cleanLine
                 elseif string.find(lowerClean, "slots", 1, true) then
-                    data.slotsText = cleanLine
+                    data.slotsText = (DungeonBots.LocalizeServerSection and DungeonBots:LocalizeServerSection(cleanLine)) or cleanLine
                 end
             end
         end

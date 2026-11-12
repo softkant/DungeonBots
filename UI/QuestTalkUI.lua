@@ -454,10 +454,14 @@ function DungeonBots:UpdateQuestDialog(botName)
         qf.emptyLabel:Show()
     elseif #quests == 0 then
         qf.statusLabel:SetText("Misiones activas: |cffffd2000|r")
-        if data and data.emptyHint and data.emptyHint ~= "" then
-            qf.emptyLabel:SetText("Este bot no tiene misiones activas.\n\n|cff888888(" .. data.emptyHint .. ")|r")
+        local baseEmptyMsg = (DungeonBots.L and DungeonBots.L["NO_ACTIVE_QUESTS"]) or "Este bot no tiene misiones activas."
+        local hintText = (data and data.emptyHint and data.emptyHint ~= "")
+            and ((DungeonBots.LocalizeServerHint and DungeonBots:LocalizeServerHint(data.emptyHint, "quests")) or data.emptyHint)
+            or nil
+        if hintText and hintText ~= "" and hintText ~= baseEmptyMsg then
+            qf.emptyLabel:SetText(baseEmptyMsg .. "\n\n|cff888888(" .. hintText .. ")|r")
         else
-            qf.emptyLabel:SetText("Este bot no tiene misiones activas.")
+            qf.emptyLabel:SetText(baseEmptyMsg)
         end
         qf.emptyLabel:Show()
     else

@@ -56,106 +56,12 @@ function DungeonBots:GetLocalizedClassName(classToken, compactName)
     return nil
 end
 
-local ES_SPEC_TOKENS = {
-    -- Nombres compuestos primero
-    { pat = "double aura blood", es = "Sangre Doble Aura" },
-    { pat = "double aura",       es = "Doble Aura" },
-    { pat = "beast mastery",     es = "Bestias" },
-    { pat = "frost fire",        es = "Pirofrío" },
-    { pat = "death knight",      es = "C. de la Muerte" },
-    { pat = "double",            es = "Doble" },
-    { pat = "aura",              es = "Aura" },
-
-    -- Ramas completas y abreviaturas de mod-playerbots
-    { pat = "beastmastery",   es = "Bestias" },
-    { pat = "beast",          es = "Bestias" },
-    { pat = "bm",             es = "Bestias" },
-    { pat = "marksmanship",   es = "Puntería" },
-    { pat = "mm",             es = "Puntería" },
-    { pat = "survival",       es = "Supervivencia" },
-    { pat = "surv",           es = "Supervivencia" },
-    { pat = "sv",             es = "Supervivencia" },
-
-    { pat = "protection",     es = "Protección" },
-    { pat = "prot",           es = "Protección" },
-    { pat = "holy",           es = "Sagrado" },
-    { pat = "retribution",    es = "Reprensión" },
-    { pat = "ret",            es = "Reprensión" },
-
-    { pat = "arms",           es = "Armas" },
-    { pat = "fury",           es = "Furia" },
-
-    { pat = "blood",          es = "Sangre" },
-    { pat = "frostfire",      es = "Pirofrío" },
-    { pat = "ffb",            es = "Pirofrío" },
-    { pat = "ff",             es = "Pirofrío" },
-    { pat = "frost",          es = "Escarcha" },
-    { pat = "unholy",         es = "Profano" },
-    { pat = "unh",            es = "Profano" },
-
-    { pat = "discipline",     es = "Disciplina" },
-    { pat = "disc",           es = "Disciplina" },
-    { pat = "shadow",         es = "Sombras" },
-    { pat = "shad",           es = "Sombras" },
-
-    { pat = "feral",          es = "Feral" },
-    { pat = "balance",        es = "Equilibrio" },
-    { pat = "bala",           es = "Equilibrio" },
-    { pat = "bal",            es = "Equilibrio" },
-    { pat = "restoration",    es = "Restauración" },
-    { pat = "resto",          es = "Restauración" },
-
-    { pat = "elemental",      es = "Elemental" },
-    { pat = "elem",           es = "Elemental" },
-    { pat = "elec",           es = "Elemental" },
-    { pat = "ele",            es = "Elemental" },
-    { pat = "enhancement",    es = "Mejora" },
-    { pat = "enh",            es = "Mejora" },
-
-    { pat = "arcane",         es = "Arcano" },
-    { pat = "arc",            es = "Arcano" },
-    { pat = "fire",           es = "Fuego" },
-
-    { pat = "affliction",     es = "Aflicción" },
-    { pat = "afflic",         es = "Aflicción" },
-    { pat = "affli",          es = "Aflicción" },
-    { pat = "aff",            es = "Aflicción" },
-    { pat = "demonology",     es = "Demonología" },
-    { pat = "demo",           es = "Demonología" },
-    { pat = "destruction",    es = "Destrucción" },
-    { pat = "destro",         es = "Destrucción" },
-
-    { pat = "combat",         es = "Combate" },
-    { pat = "assassination",  es = "Asesinato" },
-    { pat = "assass",         es = "Asesinato" },
-    { pat = "assas",          es = "Asesinato" },
-    { pat = "as",             es = "Asesinato" },
-    { pat = "subtlety",       es = "Sutileza" },
-    { pat = "subt",           es = "Sutileza" },
-    { pat = "sub",            es = "Sutileza" },
-
-    -- Clases en inglés devueltas por 'talents' (ej: "protection paladin", "fury warrior")
-    { pat = "warrior",        es = "Guerrero" },
-    { pat = "paladin",        es = "Paladín" },
-    { pat = "hunter",         es = "Cazador" },
-    { pat = "rogue",          es = "Pícaro" },
-    { pat = "priest",         es = "Sacerdote" },
-    { pat = "deathknight",    es = "C. de la Muerte" },
-    { pat = "dk",             es = "C. de la Muerte" },
-    { pat = "shaman",         es = "Chamán" },
-    { pat = "mage",           es = "Mago" },
-    { pat = "warlock",        es = "Brujo" },
-    { pat = "druid",          es = "Druida" },
-
-    { pat = "pve",            es = "PvE" },
-    { pat = "pvp",            es = "PvP" },
-}
-
 function DungeonBots:LocalizeSpecText(specText)
     if not specText or specText == "" then return "" end
     local plain = TrimText(StripWowFormatting(specText))
     if plain == "" then return "" end
-    if not DungeonBots:IsSpanishLocale() then
+    local tokenList = DB_Internal.ES_SPEC_TOKENS
+    if not DungeonBots:IsSpanishLocale() or type(tokenList) ~= "table" then
         return plain
     end
 
@@ -164,7 +70,7 @@ function DungeonBots:LocalizeSpecText(specText)
     lower = string.gsub(lower, "%s+", " ")
 
     local normalized = " " .. lower .. " "
-    for _, entry in ipairs(ES_SPEC_TOKENS) do
+    for _, entry in ipairs(tokenList) do
         local searchKey = " " .. entry.pat .. " "
         local startPos, endPos = string.find(normalized, searchKey, 1, true)
         while startPos do
@@ -178,6 +84,90 @@ function DungeonBots:LocalizeSpecText(specText)
         return plain
     end
     return result
+end
+
+function DungeonBots:LocalizeServerHint(rawText, kind)
+    local clean = TrimText(StripWowFormatting(rawText or ""))
+    if clean == "" then return clean end
+
+    local L = DungeonBots.L or {}
+    local lower = string.lower(clean)
+
+    if kind == "glyphs" or string.find(lower, "glyph", 1, true) then
+        if string.find(lower, "no glyph", 1, true)
+            or string.find(lower, "0 glyph", 1, true)
+            or string.find(lower, "glyphs: none", 1, true)
+            or lower == "none"
+            or lower == "nothing" then
+            return L["NO_GLYPHS_EQUIPPED"] or clean
+        end
+    end
+
+    if kind == "spells" or string.find(lower, "spell", 1, true) then
+        if string.find(lower, "no spell", 1, true)
+            or string.find(lower, "0 spell", 1, true)
+            or string.find(lower, "nothing found", 1, true)
+            or lower == "none" then
+            return L["NO_SPELLS_FOUND"] or clean
+        end
+    end
+
+    if kind == "quests" or string.find(lower, "quest", 1, true) then
+        if string.find(lower, "quest log is empty", 1, true) then
+            return L["QUEST_LOG_EMPTY"] or clean
+        elseif string.find(lower, "no completed quests", 1, true) then
+            return L["NO_COMPLETED_QUESTS"] or clean
+        elseif string.find(lower, "no active quests", 1, true)
+            or string.find(lower, "0 active quests", 1, true)
+            or string.find(lower, "you have no quests", 1, true)
+            or string.find(lower, "you don't have any quests", 1, true)
+            or string.find(lower, "has no quests", 1, true)
+            or lower == "no quests"
+            or lower == "none" then
+            return L["NO_ACTIVE_QUESTS"] or clean
+        end
+    end
+
+    if kind == "inventory" then
+        if string.find(lower, "no items", 1, true)
+            or lower == "empty"
+            or lower == "none" then
+            return L["INVENTORY_EMPTY"] or clean
+        end
+    end
+
+    return clean
+end
+
+function DungeonBots:LocalizeServerSection(rawText)
+    local clean = TrimText(StripWowFormatting(rawText or ""))
+    if clean == "" then return clean end
+    if not DungeonBots:IsSpanishLocale() then return clean end
+
+    local L = DungeonBots.L or {}
+    local lower = string.lower(clean)
+    local secMap = DB_Internal.ES_SERVER_SECTIONS
+    if secMap and secMap[lower] then
+        return secMap[lower]
+    end
+
+    if string.find(lower, "^money:%s*") then
+        return string.gsub(clean, "^[Mm]oney:", L["MONEY_PREFIX"] or "Dinero:")
+    elseif string.find(lower, "^free%s+slots:%s*") then
+        return string.gsub(clean, "^[Ff]ree%s+[Ss]lots:", L["FREE_SLOTS_PREFIX"] or "Espacios libres:")
+    elseif string.find(lower, "^slots:%s*") then
+        return string.gsub(clean, "^[Ss]lots:", L["SLOTS_PREFIX"] or "Espacios:")
+    elseif string.find(lower, "ready to turn in", 1, true) then
+        return string.gsub(clean, "[Rr]eady to turn in", L["STATUS_READY"] or "Lista para entregar")
+    elseif string.find(lower, "incomplete", 1, true) then
+        return string.gsub(clean, "[Ii]ncomplete", L["STATUS_INCOMPLETE"] or "Incompleta")
+    elseif string.find(lower, "complete", 1, true) then
+        return string.gsub(clean, "[Cc]omplete", L["STATUS_COMPLETE"] or "Completa")
+    elseif string.find(lower, "failed", 1, true) then
+        return string.gsub(clean, "[Ff]ailed", L["STATUS_FAILED"] or "Fallida")
+    end
+
+    return clean
 end
 
 -- =========================================================================

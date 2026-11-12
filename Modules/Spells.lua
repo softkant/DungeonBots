@@ -433,14 +433,15 @@ end
 local function ParseGlyphEntriesFromLine(line, cleanLine, tab)
     if not line or line == "" then return false end
 
+    local L = DungeonBots.L or {}
     local lowerClean = string.lower(cleanLine or "")
     local prefixRaw = string.match(cleanLine or "", "^%s*([^:%[]+)%s*:")
     local lowerPrefix = string.lower(TrimText(prefixRaw or ""))
     local categoryTag = nil
     if string.find(lowerPrefix, "major", 1, true) or string.find(lowerPrefix, "sublim", 1, true) then
-        categoryTag = "Sublime"
+        categoryTag = L["GLYPH_MAJOR"] or "Sublime"
     elseif string.find(lowerPrefix, "minor", 1, true) or string.find(lowerPrefix, "menor", 1, true) then
-        categoryTag = "Menor"
+        categoryTag = L["GLYPH_MINOR"] or "Menor"
     end
 
     local lineLinks = ExtractOrderedHyperlinks(line)
@@ -490,7 +491,7 @@ local function ParseGlyphEntriesFromLine(line, cleanLine, tab)
         or string.find(lowerClean, "glyphs: none", 1, true)
         or lowerClean == "none"
         or tab.sawHeader then
-        tab.emptyHint = cleanLine
+        tab.emptyHint = (DungeonBots.LocalizeServerHint and DungeonBots:LocalizeServerHint(cleanLine, "glyphs")) or cleanLine
         return true
     end
 
@@ -628,7 +629,7 @@ function DB_Internal.ParseSpellsCaptureWhisper(cleanSender, message)
                             touchedModes[lineMode] = true
                             matchedAny = true
                             if string.find(lowerClean, "no spell", 1, true) or string.find(lowerClean, "nothing found", 1, true) then
-                                tab.emptyHint = cleanLine
+                                tab.emptyHint = (DungeonBots.LocalizeServerHint and DungeonBots:LocalizeServerHint(cleanLine, "spells")) or cleanLine
                             end
                         end
                     elseif lineMode == "glyphs" then

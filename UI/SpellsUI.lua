@@ -1062,7 +1062,8 @@ function DungeonBots:UpdateSpellsDialog(botName)
             local what = (mode == "glyphs" and "glifos") or "hechizos"
             sp.emptyLabel:SetText("Consultando " .. what .. " de |cffffd200" .. targetBot .. "|r...")
         elseif tab and tab.emptyHint then
-            sp.emptyLabel:SetText(tab.emptyHint)
+            local hintText = (DungeonBots.LocalizeServerHint and DungeonBots:LocalizeServerHint(tab.emptyHint, mode)) or tab.emptyHint
+            sp.emptyLabel:SetText(hintText)
         elseif #allItems == 0 then
             if mode == "glyphs" then
                 sp.emptyLabel:SetText("No se recibieron glifos para |cffffd200" .. targetBot .. "|r.")

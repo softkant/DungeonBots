@@ -872,7 +872,7 @@ function DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
                 or trimmedLower == "ninguna"
                 or (trimmedLower == "none" and #(data.quests) == 0)
             ) then
-                data.emptyHint = cleanLine
+                data.emptyHint = (DungeonBots.LocalizeServerHint and DungeonBots:LocalizeServerHint(cleanLine, "quests")) or cleanLine
                 data.sawEmptyIndicator = true
                 cap.finalizeAt = math.min(cap.finalizeAt, now + 0.25)
             elseif not hasQuestLink and (
@@ -964,8 +964,11 @@ function DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
                             local afterTxt = TrimText(StripWowFormatting(string.sub(subLine, eOff + 1)))
                             extraText = TrimText(beforeTxt .. " " .. afterTxt)
                         end
+                        if extraText ~= "" and DungeonBots.LocalizeServerSection then
+                            extraText = DungeonBots:LocalizeServerSection(extraText)
+                        end
                         if extraText == "" and data.captureSection == "completed" then
-                            extraText = "Completa (lista para entregar)"
+                            extraText = (DungeonBots.L and DungeonBots.L["QUEST_COMPLETE_READY"]) or "Completa (lista para entregar)"
                         end
                         local qLvlResolved = (qLevel and qLevel ~= "") and qLevel or "80"
                         local localizedTitle = (DungeonBots.GetLocalizedQuestTitle and qId)
