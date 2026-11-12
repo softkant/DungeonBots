@@ -1155,7 +1155,7 @@ function DungeonBots:UpdatePartyUI()
     local botCount = 0
     for i = 1, 4 do
         local unit = "party" .. i
-        if UnitExists(unit) then
+        if UnitExists(unit) and UnitIsConnected(unit) then
             local memberName = UnitName(unit)
             if memberName and memberName ~= "" and DungeonBots:ShouldTreatAsBot(memberName) then
                 botCount = botCount + 1
@@ -1200,7 +1200,7 @@ function DungeonBots:UpdatePartyUI()
         local unit = "party" .. i
         local card = botCards[i]
         if card then
-            if UnitExists(unit) then
+            if UnitExists(unit) and UnitIsConnected(unit) then
                 card:Show()
                 local name = UnitName(unit)
                 local _, classToken = UnitClass(unit)
@@ -1336,103 +1336,41 @@ function DungeonBots:UpdatePartyUI()
 end
 
 -- =========================================================================
--- PESTAÑA 3: FORJA / FOSO / CÁMARAS (Comprobador de Acceso a Mazmorras)
+-- PESTAÑA 3: FOSO Y CÁMARAS (Comprobador de Misiones Previas)
 -- =========================================================================
 local FROZEN_HALLS_DATA = {
     {
-        key = "forja",
-        name = "La Forja de Almas",
-        shortName = "1. Forja de Almas",
-        icon = "Interface\\Icons\\Spell_Fire_SoulBurn",
-        keywords = { "almas", "souls", "forja", "forge" },
-        fallbackNormalID = 248,
-        fallbackHeroicID = 249,
-    },
-    {
         key = "foso",
         name = "Foso de Saron",
-        shortName = "2. Foso de Saron",
+        shortName = "1. Foso de Saron",
         icon = "Interface\\Icons\\Spell_Shadow_ShadowPact",
         keywords = { "saron", "foso", "pit" },
-        fallbackNormalID = 250,
-        fallbackHeroicID = 251,
+        prereq = "La Forja de Almas",
+        fallbackID = 250,
     },
     {
         key = "camaras",
         name = "Cámaras de Reflexión",
-        shortName = "3. Cámaras Reflexión",
+        shortName = "2. Cámaras de Reflexión",
         icon = "Interface\\Icons\\Spell_Frost_FrostWard",
         keywords = { "refle" },
-        fallbackNormalID = 252,
-        fallbackHeroicID = 253,
+        prereq = "Foso de Saron",
+        fallbackID = 252,
     },
 }
 
-local FALLBACK_LOCK_CODES = {
-    [1] = "EXPANSION",
-    [2] = "LEVEL",
-    [3] = "TOO_HIGH_LEVEL",
-    [4] = "GEAR_TOO_LOW",
-    [5] = "GEAR_TOO_HIGH",
-    [6] = "RAID_LOCKED",
-    [7] = "DESERTER",
-    [8] = "COOLDOWN",
-    [1022] = "QUEST",
-    [1025] = "MISSING_ITEM",
-    [1026] = "ATTUNEMENT",
-}
-
-local function FormatLockReason(playerName, lockedReason, subReason1, subReason2, isSelf)
-    local who = isSelf and "SELF_" or "OTHER_"
-    local code = (LFG_INSTANCE_INVALID_CODES and LFG_INSTANCE_INVALID_CODES[lockedReason])
-        or FALLBACK_LOCK_CODES[lockedReason]
-        or "OTHER"
-    local msgKey = "INSTANCE_UNAVAILABLE_" .. who .. code
-    if _G[msgKey] then
-        local ok, res = pcall(format, _G[msgKey], playerName or "Jugador", subReason1 or "", subReason2 or "")
-        if ok and res and res ~= "" then
-            return res, code
+function DungeonBots:GetConnectedPartyBotCount()
+    local count = 0
+    for i = 1, 4 do
+        local unit = "party" .. i
+        if UnitExists(unit) and UnitIsConnected(unit) then
+            local name = UnitName(unit)
+            if name and name ~= "" and DungeonBots:ShouldTreatAsBot(name) then
+                count = count + 1
+            end
         end
     end
-
-    if code == "QUEST" or lockedReason == 1022 then
-        return (playerName or "El personaje") .. " no ha completado las misiones necesarias.", code
-    elseif code == "GEAR_TOO_LOW" or lockedReason == 4 then
-        return "El nivel de equipo medio de " .. (playerName or "el personaje") .. " no es suficiente.", code
-    elseif code == "RAID_LOCKED" or lockedReason == 6 then
-        return (playerName or "El personaje") .. " ya tiene un registro para esta instancia.", code
-    elseif code == "LEVEL" or lockedReason == 2 then
-        return (playerName or "El personaje") .. " no cumple los requisitos de nivel (requiere 80).", code
-    elseif code == "MISSING_ITEM" or lockedReason == 1025 then
-        return (playerName or "El personaje") .. " no posee el objeto requerido para entrar.", code
-    elseif code == "ATTUNEMENT" or lockedReason == 1026 then
-        return (playerName or "El personaje") .. " no cumple los requisitos de acceso.", code
-    end
-
-    return (playerName or "El personaje") .. ": Requisito no cumplido (código " .. tostring(lockedReason) .. ").", code
-end
-
-local function GetLockReasonTag(lockedReason)
-    local code = (LFG_INSTANCE_INVALID_CODES and LFG_INSTANCE_INVALID_CODES[lockedReason])
-        or FALLBACK_LOCK_CODES[lockedReason]
-    if code == "QUEST" or lockedReason == 1022 then
-        return "[Falta misión previa]"
-    elseif code == "GEAR_TOO_LOW" or lockedReason == 4 then
-        return "[Equipo / GS bajo]"
-    elseif code == "GEAR_TOO_HIGH" or lockedReason == 5 then
-        return "[Equipo demasiado alto]"
-    elseif code == "RAID_LOCKED" or lockedReason == 6 then
-        return "[Registro/CD activo]"
-    elseif code == "LEVEL" or lockedReason == 2 then
-        return "[Nivel bajo]"
-    elseif code == "TOO_HIGH_LEVEL" or lockedReason == 3 then
-        return "[Nivel alto]"
-    elseif code == "MISSING_ITEM" or lockedReason == 1025 then
-        return "[Falta objeto]"
-    elseif code == "ATTUNEMENT" or lockedReason == 1026 then
-        return "[Falta acceso]"
-    end
-    return "[Bloqueado]"
+    return count
 end
 
 local frozenHallsResolved = false
@@ -1447,22 +1385,17 @@ function DungeonBots:ResolveFrozenHallsIDs()
                 or (difficulty == 1)
                 or (difficulty == 2)
                 or string.find(string.lower(name), "hero") ~= nil
-            local lowerName = string.lower(name)
-            for _, def in ipairs(FROZEN_HALLS_DATA) do
-                for _, kw in ipairs(def.keywords) do
-                    if string.find(lowerName, kw) then
-                        if isHeroic then
-                            if not def.heroicID then
-                                def.heroicID = id
-                                def.heroicName = name
+            if not isHeroic then
+                local lowerName = string.lower(name)
+                for _, def in ipairs(FROZEN_HALLS_DATA) do
+                    for _, kw in ipairs(def.keywords) do
+                        if string.find(lowerName, kw) then
+                            if not def.dungeonID then
+                                def.dungeonID = id
+                                def.realName = name
                             end
-                        else
-                            if not def.normalID then
-                                def.normalID = id
-                                def.normalName = name
-                            end
+                            break
                         end
-                        break
                     end
                 end
             end
@@ -1470,20 +1403,19 @@ function DungeonBots:ResolveFrozenHallsIDs()
     end
 
     for _, def in ipairs(FROZEN_HALLS_DATA) do
-        if not def.normalID then def.normalID = def.fallbackNormalID end
-        if not def.heroicID then def.heroicID = def.fallbackHeroicID end
+        if not def.dungeonID then def.dungeonID = def.fallbackID end
     end
 
     frozenHallsResolved = true
 end
 
-function DungeonBots:CheckDungeonLockStatus(dungeonID)
+function DungeonBots:CheckDungeonQuestStatus(dungeonID, def)
     if not dungeonID then
-        return nil, { { text = "Mazmorra no identificada.", shortTag = "" } }, 0
+        return nil, { { text = "Mazmorra no identificada." } }
     end
 
     if not GetLFDLockInfo then
-        return nil, { { text = "API de buscador de mazmorras no disponible.", shortTag = "" } }, 0
+        return nil, { { text = "API de buscador de mazmorras no disponible." } }
     end
 
     local numPlayers = (GetLFDLockPlayerCount and GetLFDLockPlayerCount()) or 0
@@ -1495,7 +1427,7 @@ function DungeonBots:CheckDungeonLockStatus(dungeonID)
     end
 
     if numPlayers == 0 then
-        return nil, { { text = "Consultando datos al servidor...", shortTag = "" } }, 0
+        return nil, { { text = "Consultando datos al servidor..." } }
     end
 
     local canEnter = true
@@ -1507,21 +1439,32 @@ function DungeonBots:CheckDungeonLockStatus(dungeonID)
             playerName = (i == 1) and (UnitName("player") or "Tú") or ("Miembro " .. i)
         end
 
-        if lockedReason and lockedReason ~= 0 then
-            canEnter = false
-            local reasonText = FormatLockReason(playerName, lockedReason, subReason1, subReason2, (i == 1))
-            local shortTag = GetLockReasonTag(lockedReason)
-            table.insert(reasons, {
-                playerName = playerName,
-                reasonCode = lockedReason,
-                shortTag = shortTag,
-                text = reasonText,
-                isSelf = (i == 1),
-            })
+        local isSelf = (i == 1)
+        local unit = isSelf and "player" or DungeonBots:FindPartyUnitByName(playerName)
+
+        -- Solo evaluar miembros conectados
+        if isSelf or (unit and UnitIsConnected(unit)) then
+            if lockedReason and lockedReason ~= 0 then
+                canEnter = false
+                local specificMissing
+                if def.key == "foso" then
+                    specificMissing = (isSelf and "No has" or (playerName .. " no ha")) .. " completado las misiones previas de La Forja de Almas."
+                elseif def.key == "camaras" then
+                    specificMissing = (isSelf and "No has" or (playerName .. " no ha")) .. " completado las misiones previas de Foso de Saron."
+                else
+                    specificMissing = (isSelf and "No has" or (playerName .. " no ha")) .. " completado las misiones necesarias."
+                end
+                table.insert(reasons, {
+                    playerName = playerName,
+                    reasonCode = lockedReason,
+                    text = specificMissing,
+                    isSelf = isSelf,
+                })
+            end
         end
     end
 
-    return canEnter, reasons, numPlayers
+    return canEnter, reasons
 end
 
 local lastLockReqTime = 0
@@ -1538,49 +1481,58 @@ end
 
 function DungeonBots:UpdateDungeonAccessUI()
     local panel = DungeonBots.dungeonCheckPanel
-    if not panel or not panel:IsShown() then return end
+    local scrollWrap = DungeonBots.guideScrollWrap
+    local parent = DungeonBots.guideParentTab
+    if not panel or not scrollWrap or not parent then return end
+
+    local connectedBots = DungeonBots:GetConnectedPartyBotCount()
+    if connectedBots == 0 then
+        -- Si no hay grupo o no hay nadie conectado, no mostrar nada de requisitos
+        panel:Hide()
+        scrollWrap:ClearAllPoints()
+        scrollWrap:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -4)
+        scrollWrap:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -6, 6)
+        if DungeonBots.RefreshGuideLayout then
+            DungeonBots:RefreshGuideLayout()
+        end
+        return
+    end
+
+    -- Si hay grupo con bots conectados, mostrar el comprobador de misiones
+    panel:Show()
+    scrollWrap:ClearAllPoints()
+    scrollWrap:SetPoint("TOPLEFT", panel, "BOTTOMLEFT", 0, -6)
+    scrollWrap:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -6, 6)
+    if DungeonBots.RefreshGuideLayout then
+        DungeonBots:RefreshGuideLayout()
+    end
 
     DungeonBots:ResolveFrozenHallsIDs()
 
-    local isHeroic = (DungeonBots.selectedDungeonCheckDifficulty == "heroic")
-    local activeKey = DungeonBots.selectedDungeonCheckKey or "foso"
-
-    if panel.btnNormal and panel.btnHeroic then
-        if isHeroic then
-            panel.btnNormal:SetText("|cff888888Normal|r")
-            panel.btnNormal:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.85)
-            panel.btnHeroic:SetText("|cffffd200Heroica|r")
-            panel.btnHeroic:SetBackdropBorderColor(1.0, 0.82, 0.0, 1.0)
-        else
-            panel.btnNormal:SetText("|cff00ccffNormal|r")
-            panel.btnNormal:SetBackdropBorderColor(0.0, 0.8, 1.0, 1.0)
-            panel.btnHeroic:SetText("|cff888888Heroica|r")
-            panel.btnHeroic:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.85)
-        end
-    end
+    local activeKey = DungeonBots.selectedDungeonCheckKey
+    if activeKey ~= "camaras" then activeKey = "foso" end
+    DungeonBots.selectedDungeonCheckKey = activeKey
 
     local selectedDef = nil
     local selectedCanEnter = nil
     local selectedReasons = nil
-    local selectedNumPlayers = 0
 
     for i, def in ipairs(FROZEN_HALLS_DATA) do
         local btn = DungeonBots.dungeonButtons and DungeonBots.dungeonButtons[def.key]
-        local dungeonID = isHeroic and def.heroicID or def.normalID
-        local canEnter, reasons, numPlayers = DungeonBots:CheckDungeonLockStatus(dungeonID)
+        local dungeonID = def.dungeonID or def.fallbackID
+        local canEnter, reasons = DungeonBots:CheckDungeonQuestStatus(dungeonID, def)
 
         if def.key == activeKey then
             selectedDef = def
             selectedCanEnter = canEnter
             selectedReasons = reasons
-            selectedNumPlayers = numPlayers
         end
 
         if btn then
             if canEnter == true then
-                btn.statusText:SetText("|cff00ff00✔ Habilitada|r")
+                btn.statusText:SetText("|cff00ff00✔ Puede ir|r")
             elseif canEnter == false then
-                btn.statusText:SetText("|cffff4444✖ Bloqueada|r")
+                btn.statusText:SetText("|cffff4444✖ Falta misión|r")
             else
                 btn.statusText:SetText("|cffaaaaaa...|r")
             end
@@ -1593,37 +1545,32 @@ function DungeonBots:UpdateDungeonAccessUI()
 
             btn.canEnter = canEnter
             btn.reasons = reasons
-            btn.isHeroic = isHeroic
             btn.dungeonName = def.name
         end
     end
 
+    -- Detalle de la mazmorra seleccionada
     if panel.detailBox and selectedDef then
-        local diffLabel = isHeroic and "Heroica" or "Normal"
-        local diffColor = isHeroic and "|cffff5555" or "|cff00ccff"
-
         if selectedCanEnter == true then
             panel.statusIcon:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
-            panel.detailTitle:SetText("|cffffd200" .. selectedDef.name .. "|r " .. diffColor .. "(" .. diffLabel .. ")|r: |cff00ff00SE PUEDE ENTRAR|r")
-            local soloNote = (selectedNumPlayers <= 1) and "\n|cff88aacc(Comprobado solo para tu personaje. Añade bots al grupo para comprobarlos también).|r" or ""
-            panel.detailReasons:SetText("|cff55ff55✔ Todo el grupo cumple los requisitos (misiones previas, nivel y equipo).|r" .. soloNote)
+            panel.detailTitle:SetText("|cffffd200" .. selectedDef.name .. ":|r |cff00ff00PUEDEN IR|r")
+            panel.detailReasons:SetText("|cff55ff55✔ Todo el grupo tiene las misiones completadas para entrar a esta mazmorra.|r\n|cff8899aaRequiere cadena previa en: " .. (selectedDef.prereq or "Mazmorra anterior") .. ".|r")
         elseif selectedCanEnter == false then
             panel.statusIcon:SetTexture("Interface\\RaidFrame\\ReadyCheck-NotReady")
-            panel.detailTitle:SetText("|cffffd200" .. selectedDef.name .. "|r " .. diffColor .. "(" .. diffLabel .. ")|r: |cffff4444BLOQUEADA PARA EL GRUPO|r")
+            panel.detailTitle:SetText("|cffffd200" .. selectedDef.name .. ":|r |cffff4444FALTA MISIÓN PREVIA|r")
             local lines = {}
             if selectedReasons and #selectedReasons > 0 then
                 for _, r in ipairs(selectedReasons) do
                     local pColor = r.isSelf and "|cff00ccff" or "|cffffd200"
-                    local tagColor = "|cffffaa00"
-                    table.insert(lines, "• " .. pColor .. r.playerName .. ":|r |cffff7777" .. r.text .. "|r " .. tagColor .. (r.shortTag or "") .. "|r")
+                    table.insert(lines, "• " .. pColor .. r.playerName .. ":|r |cffff7777" .. r.text .. "|r")
                 end
             else
-                table.insert(lines, "• |cffff7777Uno o más miembros no cumplen los requisitos de acceso.|r")
+                table.insert(lines, "• |cffff7777Uno o más miembros no han completado la misión previa requerida.|r")
             end
             panel.detailReasons:SetText(table.concat(lines, "\n"))
         else
             panel.statusIcon:SetTexture("Interface\\RaidFrame\\ReadyCheck-Waiting")
-            panel.detailTitle:SetText("|cffffd200" .. selectedDef.name .. "|r " .. diffColor .. "(" .. diffLabel .. ")|r: |cffaaaaaaCONSULTANDO ESTADO...|r")
+            panel.detailTitle:SetText("|cffffd200" .. selectedDef.name .. ":|r |cffaaaaaaCONSULTANDO ESTADO...|r")
             panel.detailReasons:SetText("|cffaaaaaaConsultando estado al servidor... Si tarda, haz clic en Actualizar o abre el Buscador de Mazmorras (Ojo).|r")
         end
 
@@ -1716,18 +1663,19 @@ end
 
 function DungeonBots:BuildTab3(parent)
     DungeonBots.dalaranTimerBar = nil
+    DungeonBots.guideParentTab = parent
 
-    -- Panel superior: Comprobación de acceso a Forja, Foso y Cámaras
+    -- Panel superior: Comprobación de misiones para Foso y Cámaras
     local checkPanel = CreateFrame("Frame", "DungeonBots_DungeonCheckPanel", parent)
     checkPanel:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -4)
     checkPanel:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -4)
-    checkPanel:SetHeight(154)
+    checkPanel:SetHeight(148)
     ApplyDarkBackdrop(checkPanel, 8)
     checkPanel:SetBackdropColor(0.04, 0.05, 0.08, 0.94)
     checkPanel:SetBackdropBorderColor(0.28, 0.38, 0.52, 0.95)
     DungeonBots.dungeonCheckPanel = checkPanel
 
-    -- Encabezado: Icono Ojo + Título + Botones dificultad / actualizar
+    -- Encabezado: Icono Ojo + Título + Botón actualizar
     local eyeIcon = checkPanel:CreateTexture(nil, "ARTWORK")
     eyeIcon:SetSize(18, 18)
     eyeIcon:SetPoint("TOPLEFT", checkPanel, "TOPLEFT", 8, -6)
@@ -1736,10 +1684,10 @@ function DungeonBots:BuildTab3(parent)
 
     local panelTitle = checkPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     panelTitle:SetPoint("LEFT", eyeIcon, "RIGHT", 6, 0)
-    panelTitle:SetText("|cff00ccffRequisitos de Mazmorra|r |cffffd200(El Ojo / LFD)|r")
+    panelTitle:SetText("|cff00ccffAcceso por Misiones|r |cffffd200(El Ojo / LFD)|r")
 
     local btnRefresh = CreateFrame("Button", "DungeonBots_DungeonRefreshBtn", checkPanel, "UIPanelButtonTemplate")
-    btnRefresh:SetSize(72, 20)
+    btnRefresh:SetSize(74, 20)
     btnRefresh:SetPoint("TOPRIGHT", checkPanel, "TOPRIGHT", -8, -5)
     btnRefresh:SetText("Actualizar")
     btnRefresh:SetScript("OnClick", function()
@@ -1748,54 +1696,18 @@ function DungeonBots:BuildTab3(parent)
         DungeonBots:UpdateDungeonAccessUI()
     end)
 
-    local btnHeroic = CreateFrame("Button", "DungeonBots_DungeonHeroicBtn", checkPanel)
-    btnHeroic:SetSize(62, 20)
-    btnHeroic:SetPoint("RIGHT", btnRefresh, "LEFT", -6, 0)
-    ApplyInsetPanelBackdrop(btnHeroic, 8)
-    btnHeroic:SetBackdropColor(0.06, 0.07, 0.10, 0.95)
-    btnHeroic:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.85)
-    local btnHeroicText = btnHeroic:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    btnHeroicText:SetPoint("CENTER", 0, 0)
-    btnHeroicText:SetText("|cff888888Heroica|r")
-    btnHeroic.text = btnHeroicText
-    function btnHeroic:SetText(t) self.text:SetText(t) end
-    btnHeroic:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        DungeonBots.selectedDungeonCheckDifficulty = "heroic"
-        DungeonBots:UpdateDungeonAccessUI()
-    end)
-    checkPanel.btnHeroic = btnHeroic
-
-    local btnNormal = CreateFrame("Button", "DungeonBots_DungeonNormalBtn", checkPanel)
-    btnNormal:SetSize(58, 20)
-    btnNormal:SetPoint("RIGHT", btnHeroic, "LEFT", -4, 0)
-    ApplyInsetPanelBackdrop(btnNormal, 8)
-    btnNormal:SetBackdropColor(0.06, 0.07, 0.10, 0.95)
-    btnNormal:SetBackdropBorderColor(0.0, 0.8, 1.0, 1.0)
-    local btnNormalText = btnNormal:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    btnNormalText:SetPoint("CENTER", 0, 0)
-    btnNormalText:SetText("|cff00ccffNormal|r")
-    btnNormal.text = btnNormalText
-    function btnNormal:SetText(t) self.text:SetText(t) end
-    btnNormal:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        DungeonBots.selectedDungeonCheckDifficulty = "normal"
-        DungeonBots:UpdateDungeonAccessUI()
-    end)
-    checkPanel.btnNormal = btnNormal
-
     local sepLine = checkPanel:CreateTexture(nil, "ARTWORK")
     sepLine:SetHeight(1)
     sepLine:SetPoint("TOPLEFT", checkPanel, "TOPLEFT", 8, -28)
     sepLine:SetPoint("TOPRIGHT", checkPanel, "TOPRIGHT", -8, -28)
     sepLine:SetTexture(0.28, 0.38, 0.52, 0.6)
 
-    -- Fila de botones de selección de las 3 mazmorras
+    -- Fila de 2 botones grandes: Foso de Saron y Cámaras de Reflexión
     DungeonBots.dungeonButtons = {}
     local prevDungeonBtn = nil
     for i, def in ipairs(FROZEN_HALLS_DATA) do
         local btn = CreateFrame("Button", "DungeonBots_DungeonBtn_" .. def.key, checkPanel)
-        btn:SetSize(176, 32)
+        btn:SetSize(268, 32)
         if prevDungeonBtn then
             btn:SetPoint("LEFT", prevDungeonBtn, "RIGHT", 6, 0)
         else
@@ -1807,20 +1719,20 @@ function DungeonBots:BuildTab3(parent)
 
         local icon = btn:CreateTexture(nil, "ARTWORK")
         icon:SetSize(20, 20)
-        icon:SetPoint("LEFT", btn, "LEFT", 6, 0)
+        icon:SetPoint("LEFT", btn, "LEFT", 8, 0)
         icon:SetTexture(def.icon)
         icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         btn.icon = icon
 
         local nameText = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        nameText:SetPoint("TOPLEFT", icon, "TOPRIGHT", 6, 1)
+        nameText:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, 1)
         nameText:SetPoint("RIGHT", btn, "RIGHT", -4, 0)
         nameText:SetJustifyH("LEFT")
         nameText:SetText(def.shortName)
         btn.nameText = nameText
 
         local statusText = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        statusText:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 6, -1)
+        statusText:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 8, -1)
         statusText:SetPoint("RIGHT", btn, "RIGHT", -4, 0)
         statusText:SetJustifyH("LEFT")
         statusText:SetText("|cffaaaaaa...|r")
@@ -1834,17 +1746,16 @@ function DungeonBots:BuildTab3(parent)
 
         btn:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            local diffLabel = self.isHeroic and "Heroica" or "Normal"
-            GameTooltip:AddLine((self.dungeonName or def.name) .. " (" .. diffLabel .. ")", 1, 0.82, 0)
+            GameTooltip:AddLine(self.dungeonName or def.name, 1, 0.82, 0)
             if self.canEnter == true then
-                GameTooltip:AddLine("Estado: |cff00ff00Habilitada para todo el grupo|r", 1, 1, 1)
-                GameTooltip:AddLine("Todos los miembros cumplen los requisitos de misiones, nivel y equipo.", 0.7, 0.8, 1, true)
+                GameTooltip:AddLine("Estado: |cff00ff00Pueden ir|r", 1, 1, 1)
+                GameTooltip:AddLine("Todos los miembros conectados tienen las misiones previas completadas.", 0.7, 0.8, 1, true)
             elseif self.canEnter == false then
-                GameTooltip:AddLine("Estado: |cffff4444Bloqueada para el grupo|r", 1, 1, 1)
+                GameTooltip:AddLine("Estado: |cffff4444Falta misión previa|r", 1, 1, 1)
                 if self.reasons and #self.reasons > 0 then
-                    GameTooltip:AddLine("Miembros que impiden entrar:", 1, 0.82, 0)
+                    GameTooltip:AddLine("Miembros sin la misión previa:", 1, 0.82, 0)
                     for _, r in ipairs(self.reasons) do
-                        GameTooltip:AddLine("• " .. r.text .. " |cffffaa00" .. (r.shortTag or "") .. "|r", 1, 0.4, 0.4, true)
+                        GameTooltip:AddLine("• " .. r.text, 1, 0.4, 0.4, true)
                     end
                 end
             else
@@ -1878,7 +1789,7 @@ function DungeonBots:BuildTab3(parent)
     detailTitle:SetPoint("LEFT", statusIcon, "RIGHT", 6, 0)
     detailTitle:SetPoint("RIGHT", detailBox, "RIGHT", -8, 0)
     detailTitle:SetJustifyH("LEFT")
-    detailTitle:SetText("|cffffd200Foso de Saron (Normal):|r |cffaaaaaaCONSULTANDO ESTADO...|r")
+    detailTitle:SetText("|cffffd200Foso de Saron:|r |cffaaaaaaCONSULTANDO ESTADO...|r")
     checkPanel.detailTitle = detailTitle
 
     local detailScroll = CreateFrame("ScrollFrame", "DungeonBots_DungeonDetailScroll", detailBox)
@@ -1906,13 +1817,14 @@ function DungeonBots:BuildTab3(parent)
     detailReasons:SetText("|cffaaaaaaConsultando estado al servidor... Si tarda, haz clic en Actualizar o abre el Buscador de Mazmorras (Ojo).|r")
     checkPanel.detailReasons = detailReasons
 
-    -- ScrollFrame de las 4 tarjetas de consejos (debajo del panel de comprobación)
+    -- ScrollFrame de las 4 tarjetas de consejos
     local scrollWrap = CreateFrame("Frame", nil, parent)
-    scrollWrap:SetPoint("TOPLEFT", checkPanel, "BOTTOMLEFT", 0, -6)
+    scrollWrap:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -4)
     scrollWrap:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -6, 6)
     ApplyDarkBackdrop(scrollWrap, 8)
     scrollWrap:SetBackdropColor(0.04, 0.05, 0.08, 0.92)
     scrollWrap:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.90)
+    DungeonBots.guideScrollWrap = scrollWrap
 
     local scrollFrame = CreateFrame("ScrollFrame", "DungeonBots_GuideScrollFrame", scrollWrap, "UIPanelScrollFrameTemplate")
     scrollFrame:SetPoint("TOPLEFT", scrollWrap, "TOPLEFT", 6, -6)
@@ -1983,8 +1895,10 @@ function DungeonBots:BuildTab3(parent)
 
     DungeonBots:RefreshGuideLayout()
     parent:HookScript("OnShow", function()
-        DungeonBots:RequestDungeonLockInfo(false)
         DungeonBots:UpdateDungeonAccessUI()
+        if DungeonBots:GetConnectedPartyBotCount() > 0 then
+            DungeonBots:RequestDungeonLockInfo(false)
+        end
         DungeonBots:RefreshGuideLayout()
     end)
 end

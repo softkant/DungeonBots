@@ -36,6 +36,11 @@ eventFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 eventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
 
 local function HandlePartyChanged(isEnteringWorld)
+    if isEnteringWorld then
+        if DB_Internal.ClearWhisperQueue then DB_Internal.ClearWhisperQueue() end
+        if DB_Internal.ClearPendingJoinQueries then DB_Internal.ClearPendingJoinQueries() end
+        if DB_Internal.ClearAllPendingQuestCounts then DB_Internal.ClearAllPendingQuestCounts() end
+    end
     DungeonBots:ResolvePendingPartyBots()
     DungeonBots:SyncPartyToHistory()
     if DungeonBots.CheckPartyForNewBots then
@@ -143,6 +148,16 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         DungeonBots:SetupChatFilters()
         DungeonBots:SetupWIMCompatibility()
         DungeonBots:HookSendChatForTalk()
+
+        if DB_Internal.ClearWhisperQueue then
+            DB_Internal.ClearWhisperQueue()
+        end
+        if DB_Internal.ClearPendingJoinQueries then
+            DB_Internal.ClearPendingJoinQueries()
+        end
+        if DB_Internal.ClearAllPendingQuestCounts then
+            DB_Internal.ClearAllPendingQuestCounts()
+        end
 
         DungeonBots:Print("v" .. DungeonBots.VERSION .. " cargado. Escribe |cffffd200/db|r o |cffffd200/bots|r, o pulsa en |cff71d5ffEl Ojo|r del Buscador de Mazmorras.")
         if DungeonBots.InitUI then

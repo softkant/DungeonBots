@@ -59,6 +59,13 @@ function DB_Internal.ClearBotQuestCountCooldown(botName)
     end
 end
 
+function DB_Internal.ClearAllPendingQuestCounts()
+    pendingQuestCountQueue = {}
+    if DungeonBots.pendingQuestCountCapture then
+        DungeonBots.pendingQuestCountCapture = {}
+    end
+end
+
 local function UpdateBotQuestCountCache(cleanBot, count, timestamp)
     if not cleanBot or count == nil then return end
     DungeonBots.botQuestCounts = DungeonBots.botQuestCounts or {}
@@ -207,7 +214,7 @@ function DungeonBots:QueryPartyBotQuestCounts(forceAll)
     local delay = 0.25
     for i = 1, 4 do
         local unit = "party" .. i
-        if UnitExists(unit) then
+        if UnitExists(unit) and UnitIsConnected(unit) then
             local name = UnitName(unit)
             if name and name ~= "" and DungeonBots:ShouldTreatAsBot(name) then
                 DungeonBots:QueryBotQuestCount(name, forceAll, delay)

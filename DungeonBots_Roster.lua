@@ -154,7 +154,7 @@ function DungeonBots:ResolvePendingPartyBots()
     if not DungeonBots:HasPendingClassSummon() then return end
     for i = 1, 4 do
         local unit = "party" .. i
-        if UnitExists(unit) then
+        if UnitExists(unit) and UnitIsConnected(unit) then
             local name = UnitName(unit)
             if name and name ~= "" and name ~= UNKNOWNOBJECT and name ~= "Unknown" then
                 if DungeonBots:IsBot(name) == nil and not DungeonBots:ShouldTreatAsBot(name) then
@@ -170,12 +170,14 @@ function DungeonBots:ResolvePendingPartyBots()
     end
 end
 
-function DungeonBots:FindPartyUnitByName(name)
+function DungeonBots:FindPartyUnitByName(name, includeDisconnected)
     if not name or name == "" then return nil end
     for i = 1, 4 do
         local unit = "party" .. i
         if UnitExists(unit) and UnitName(unit) == name then
-            return unit
+            if includeDisconnected or UnitIsConnected(unit) then
+                return unit
+            end
         end
     end
     return nil
@@ -375,7 +377,7 @@ function DungeonBots:ScanPartyBots()
     local now = NowTime()
     for i = 1, 4 do
         local unit = "party" .. i
-        if UnitExists(unit) then
+        if UnitExists(unit) and UnitIsConnected(unit) then
             local name = UnitName(unit)
             if name and name ~= "" and DungeonBots:IsBot(name) ~= false and not DungeonBots.confirmedBots[name] then
                 DungeonBots.pendingScan[name] = now + 15
@@ -437,7 +439,7 @@ end
 function DungeonBots:AddAllBots()
     for i = 1, 4 do
         local unit = "party" .. i
-        if UnitExists(unit) then
+        if UnitExists(unit) and UnitIsConnected(unit) then
             local name = UnitName(unit)
             if name and name ~= "" and DungeonBots:ShouldTreatAsBot(name) then
                 DungeonBots:MarkRecentBot(name, 60)
@@ -716,7 +718,7 @@ function DungeonBots:SyncPartyToHistory()
 
     for i = 1, 4 do
         local unit = "party" .. i
-        if UnitExists(unit) then
+        if UnitExists(unit) and UnitIsConnected(unit) then
             local name = UnitName(unit)
             if name and name ~= "" and DungeonBots:ShouldTreatAsBot(name) then
                 local _, classToken = UnitClass(unit)

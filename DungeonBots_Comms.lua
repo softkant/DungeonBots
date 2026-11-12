@@ -92,14 +92,9 @@ end
 function DungeonBots:SendWhisperCommand(botName, cmd)
     if not botName or botName == "" or not cmd or cmd == "" then return end
     local cleanBot = NormalizePlayerName(botName)
-    if cleanBot and not DungeonBots:FindPartyUnitByName(cleanBot) then
-        local busyInfo = DungeonBots.GetExternalBotBusyInfo and DungeonBots:GetExternalBotBusyInfo(cleanBot)
-        if busyInfo then
-            if DungeonBots.NotifyExternalBotBusy then
-                DungeonBots:NotifyExternalBotBusy(cleanBot, busyInfo.owner, "command", true)
-            end
-            return
-        end
+    local unit = DungeonBots:FindPartyUnitByName(cleanBot)
+    if not unit or not UnitIsConnected(unit) then
+        return
     end
     DungeonBots:MarkAddonOutgoingWhisper(botName, cmd, 4.0)
     isSendingAddonWhisper = true
@@ -123,7 +118,8 @@ whisperQueueFrame:SetScript("OnUpdate", function(self, elapsed)
     end
     if now >= nextWhisperAt then
         local item = table.remove(whisperQueue, 1)
-        if item and item.botName and item.cmd and DungeonBots:FindPartyUnitByName(item.botName) then
+        local unit = item and item.botName and DungeonBots:FindPartyUnitByName(item.botName)
+        if unit and UnitIsConnected(unit) and item.cmd then
             DungeonBots:SendWhisperCommand(item.botName, item.cmd)
             nextWhisperAt = now + 0.30
             local queryStates = DB_Internal.queryStates
@@ -141,8 +137,17 @@ whisperQueueFrame:SetScript("OnUpdate", function(self, elapsed)
     end
 end)
 
+function DB_Internal.ClearWhisperQueue()
+    whisperQueue = {}
+end
+
 function DungeonBots:QueueWhisperCommand(botName, cmd, atFront)
     if not botName or botName == "" or not cmd or cmd == "" then return end
+    local cleanBot = NormalizePlayerName(botName)
+    local unit = DungeonBots:FindPartyUnitByName(cleanBot)
+    if not unit or not UnitIsConnected(unit) then
+        return
+    end
     for _, existing in ipairs(whisperQueue) do
         if existing.botName == botName and existing.cmd == cmd then
             return

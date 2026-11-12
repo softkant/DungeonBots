@@ -450,6 +450,12 @@ function DB_Internal.ShowJoinQueryFrame()
     joinQueryFrame:Show()
 end
 
+function DB_Internal.ClearPendingJoinQueries()
+    pendingJoinQueries = {}
+    queryStates = {}
+    joinQueryFrame:Hide()
+end
+
 local function RestorePreviousSpecOnTimeout(botName, prevSpec)
     if prevSpec and prevSpec ~= "" and DungeonBotsDB then
         DungeonBotsDB.botActiveSpec = DungeonBotsDB.botActiveSpec or {}
@@ -625,7 +631,7 @@ end
 function DungeonBots:QueryPartyBotStats(forceAll)
     for i = 1, 4 do
         local unit = "party" .. i
-        if UnitExists(unit) then
+        if UnitExists(unit) and UnitIsConnected(unit) then
             local name = UnitName(unit)
             if name and name ~= "" and DungeonBots:ShouldTreatAsBot(name) then
                 DungeonBots:QueryBotStats(name, forceAll)
@@ -646,7 +652,7 @@ function DungeonBots:CheckPartyForNewBots()
     local mainVisible = IsMainFrameCurrentlyVisible()
     for i = 1, 4 do
         local unit = "party" .. i
-        if UnitExists(unit) then
+        if UnitExists(unit) and UnitIsConnected(unit) then
             local name = UnitName(unit)
             if name and name ~= "" and name ~= UNKNOWNOBJECT and name ~= "Unknown" then
                 currentMembers[name] = true
