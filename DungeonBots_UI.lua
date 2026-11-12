@@ -1721,49 +1721,22 @@ function DungeonBots:BuildTab3(parent)
     local checkPanel = CreateFrame("Frame", "DungeonBots_DungeonCheckPanel", parent)
     checkPanel:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -4)
     checkPanel:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -4)
-    checkPanel:SetHeight(70)
+    checkPanel:SetHeight(44)
     ApplyDarkBackdrop(checkPanel, 8)
     checkPanel:SetBackdropColor(0.04, 0.05, 0.08, 0.94)
     checkPanel:SetBackdropBorderColor(0.28, 0.38, 0.52, 0.95)
     DungeonBots.dungeonCheckPanel = checkPanel
 
-    -- Encabezado: Icono Ojo + Título + Botón actualizar
-    local eyeIcon = checkPanel:CreateTexture(nil, "ARTWORK")
-    eyeIcon:SetSize(18, 18)
-    eyeIcon:SetPoint("TOPLEFT", checkPanel, "TOPLEFT", 8, -6)
-    eyeIcon:SetTexture("Interface\\Icons\\INV_Misc_Eye_02")
-    eyeIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-
-    local panelTitle = checkPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    panelTitle:SetPoint("LEFT", eyeIcon, "RIGHT", 6, 0)
-    panelTitle:SetText("|cff00ccffAcceso por Misiones|r |cffffd200(El Ojo / LFD)|r")
-
-    local btnRefresh = CreateFrame("Button", "DungeonBots_DungeonRefreshBtn", checkPanel, "UIPanelButtonTemplate")
-    btnRefresh:SetSize(74, 20)
-    btnRefresh:SetPoint("TOPRIGHT", checkPanel, "TOPRIGHT", -8, -5)
-    btnRefresh:SetText("Actualizar")
-    btnRefresh:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        DungeonBots:RequestDungeonLockInfo(true)
-        DungeonBots:UpdateDungeonAccessUI()
-    end)
-
-    local sepLine = checkPanel:CreateTexture(nil, "ARTWORK")
-    sepLine:SetHeight(1)
-    sepLine:SetPoint("TOPLEFT", checkPanel, "TOPLEFT", 8, -28)
-    sepLine:SetPoint("TOPRIGHT", checkPanel, "TOPRIGHT", -8, -28)
-    sepLine:SetTexture(0.28, 0.38, 0.52, 0.6)
-
-    -- Fila de 2 botones grandes: Foso de Saron y Cámaras de Reflexión
+    -- Fila de 2 botones: Foso de Saron y Cámaras de Reflexión
     DungeonBots.dungeonButtons = {}
     local prevDungeonBtn = nil
     for i, def in ipairs(FROZEN_HALLS_DATA) do
         local btn = CreateFrame("Button", "DungeonBots_DungeonBtn_" .. def.key, checkPanel)
-        btn:SetSize(268, 32)
+        btn:SetSize(268, 34)
         if prevDungeonBtn then
             btn:SetPoint("LEFT", prevDungeonBtn, "RIGHT", 6, 0)
         else
-            btn:SetPoint("TOPLEFT", checkPanel, "TOPLEFT", 8, -32)
+            btn:SetPoint("TOPLEFT", checkPanel, "TOPLEFT", 8, -5)
         end
         ApplyInsetPanelBackdrop(btn, 8)
         btn:SetBackdropColor(0.04, 0.05, 0.08, 0.95)
