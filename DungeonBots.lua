@@ -395,8 +395,17 @@ function DB_Internal.FormatBotStatsDisplay(st, fallbackValueText)
         return "Armadura: " .. fallback, "Bolsas: " .. fallback, nil
     end
 
-    -- En mod-playerbots 'stats' reporta directamente el % de durabilidad restante de la armadura
+    -- En mod-playerbots 'stats' reporta 0% (0) Dur cuando toda la armadura esta al 100%;
+    -- cuando ya tiene desgaste reporta directamente el % restante (ej. 91%).
     local armorPct = math.max(0, math.min(100, math.floor((tonumber(st.durPct) or 0) + 0.5)))
+    if armorPct == 0 then
+        local extraNum = tonumber(st.durExtra)
+        local lowerColor = string.lower(st.durColorHex or "")
+        local isRedColor = (lowerColor == "|cffff0000" or lowerColor == "|cffff3b30")
+        if not isRedColor or extraNum == 0 then
+            armorPct = 100
+        end
+    end
     local durColor = st.durColorHex
     if not durColor or durColor == "" then
         if armorPct >= 80 then
