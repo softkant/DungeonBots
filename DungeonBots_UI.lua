@@ -883,8 +883,8 @@ local CARD_ACTION_BUTTONS = {
     {
         key = "questsBtn",
         label = "Misiones",
-        icon = "Interface\\QuestFrame\\UI-QuestLog-BookIcon",
-        texCoord = { 0.16, 0.84, 0.16, 0.84 },
+        icon = "Interface\\Buttons\\UI-MicroButton-Quest-Up",
+        texCoord = { 0.09, 0.79, 0.38, 0.88 },
         tipTitle = "Misiones del Bot",
         tipDesc = "Consulta las misiones y abre la ventana de Misiones para ver detalles o abandonarlas.",
         onClick = function(name)
