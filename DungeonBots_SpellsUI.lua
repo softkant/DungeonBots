@@ -31,7 +31,7 @@ local MODE_TABS = {
 
 local function BuildGearPanel(sp)
     local gearPanel = CreateFrame("Frame", "DungeonBots_GearPanel", sp)
-    gearPanel:SetPoint("TOPLEFT", sp, "TOPLEFT", 10, -68)
+    gearPanel:SetPoint("TOPLEFT", sp, "TOPLEFT", 10, -76)
     gearPanel:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", -10, 42)
     gearPanel:Hide()
     sp.gearPanel = gearPanel
@@ -111,7 +111,7 @@ local function BuildGearPanel(sp)
     local emptySpecsLabel = specCard:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     emptySpecsLabel:SetPoint("CENTER", specCard, "CENTER", 0, -18)
     emptySpecsLabel:SetWidth(460)
-    emptySpecsLabel:SetText("|cff888888Sin ramas cargadas todavía. Pulsa 'Actualizar' arriba para consultar talentos.|r")
+    emptySpecsLabel:SetText("|cff888888Sin ramas cargadas todavía.|r")
     emptySpecsLabel:Hide()
     gearPanel.emptySpecsLabel = emptySpecsLabel
 
@@ -139,12 +139,6 @@ local function BuildGearPanel(sp)
     local gearTitle = autogearCard:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     gearTitle:SetPoint("LEFT", gearHeaderIcon, "RIGHT", 7, 0)
     gearTitle:SetText("|cffffd200Gestión de Equipo|r")
-
-    local gearStatsSummary = autogearCard:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    gearStatsSummary:SetPoint("TOPRIGHT", autogearCard, "TOPRIGHT", -12, -12)
-    gearStatsSummary:SetJustifyH("RIGHT")
-    gearStatsSummary:SetText("")
-    gearPanel.gearStatsSummary = gearStatsSummary
 
     local gearSubLabel = autogearCard:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     gearSubLabel:SetPoint("TOPLEFT", autogearCard, "TOPLEFT", 12, -33)
@@ -214,8 +208,8 @@ end
 
 local function ConfigureIconTabButton(btn, iconPath, texCoord)
     local tex = btn:CreateTexture(nil, "OVERLAY")
-    tex:SetSize(14, 14)
-    tex:SetPoint("LEFT", btn, "LEFT", 9, 0)
+    tex:SetSize(16, 16)
+    tex:SetPoint("LEFT", btn, "LEFT", 10, 0)
     local tc = texCoord or { 0.08, 0.92, 0.08, 0.92 }
     tex:SetTexCoord(tc[1], tc[2], tc[3], tc[4])
     if iconPath then
@@ -526,33 +520,16 @@ function DungeonBots:BuildSpellsDialog()
         sp:Hide()
     end)
 
-    local refreshBtn = CreateFrame("Button", nil, header, "UIPanelButtonTemplate")
-    refreshBtn:SetSize(86, 20)
-    refreshBtn:SetPoint("RIGHT", closeBtn, "LEFT", -2, 0)
-    refreshBtn:SetText("Actualizar")
-    refreshBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        if sp.currentBot then
-            if sp.activeMode == "gear" then
-                if DungeonBots.EnsureGearTabData then
-                    DungeonBots:EnsureGearTabData(sp.currentBot, true)
-                end
-            elseif DungeonBots.QueryBotSpells then
-                DungeonBots:QueryBotSpells(sp.currentBot, sp.activeMode, "", false)
-            end
-        end
-    end)
-    sp.refreshBtn = refreshBtn
-
     -- Subpestanas de modo: Equipo / Hechizos / Glifos
     sp.modeButtons = {}
     local numTabs = #MODE_TABS
     local modeBtnW = 148
+    local modeBtnH = 30
     local modeBtnGap = 14
     local modeStartX = math.floor((560 - (numTabs * modeBtnW + (numTabs - 1) * modeBtnGap)) / 2)
     for idx, tabDef in ipairs(MODE_TABS) do
         local mBtn = CreateFrame("Button", "DungeonBots_SpellsModeTab_" .. tabDef.id, sp, "UIPanelButtonTemplate")
-        mBtn:SetSize(modeBtnW, 22)
+        mBtn:SetSize(modeBtnW, modeBtnH)
         mBtn:SetPoint("TOPLEFT", sp, "TOPLEFT", modeStartX + ((idx - 1) * (modeBtnW + modeBtnGap)), -40)
         mBtn:SetText(tabDef.label)
         ConfigureIconTabButton(mBtn, tabDef.icon, tabDef.texCoord)
@@ -580,8 +557,8 @@ function DungeonBots:BuildSpellsDialog()
 
     -- Barra de busqueda local (visible en modo Hechizos)
     local filterBar = CreateFrame("Frame", nil, sp)
-    filterBar:SetPoint("TOPLEFT", sp, "TOPLEFT", 10, -66)
-    filterBar:SetPoint("TOPRIGHT", sp, "TOPRIGHT", -10, -66)
+    filterBar:SetPoint("TOPLEFT", sp, "TOPLEFT", 10, -74)
+    filterBar:SetPoint("TOPRIGHT", sp, "TOPRIGHT", -10, -74)
     filterBar:SetHeight(24)
     sp.filterBar = filterBar
 
@@ -603,7 +580,7 @@ function DungeonBots:BuildSpellsDialog()
 
     -- Panel de lista con scroll
     local listBg = CreateFrame("Frame", nil, sp)
-    listBg:SetPoint("TOPLEFT", sp, "TOPLEFT", 10, -96)
+    listBg:SetPoint("TOPLEFT", sp, "TOPLEFT", 10, -104)
     listBg:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", -10, 42)
     ApplyDarkBackdrop(listBg, 10)
     listBg:SetBackdropColor(0.02, 0.03, 0.05, 1.0)
@@ -653,8 +630,18 @@ function DungeonBots:BuildSpellsDialog()
     botCycleLabel:SetText("|cff888888(0/0)|r")
     sp.botCycleLabel = botCycleLabel
 
+    local closeFooterBtn = CreateFrame("Button", "DungeonBots_SpellsCloseFooterBtn", sp, "UIPanelButtonTemplate")
+    closeFooterBtn:SetSize(90, 24)
+    closeFooterBtn:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", -12, 10)
+    closeFooterBtn:SetText("Cerrar")
+    closeFooterBtn:SetScript("OnClick", function()
+        PlaySound("igMainMenuOptionCheckBoxOff")
+        sp:Hide()
+    end)
+    sp.closeFooterBtn = closeFooterBtn
+
     local castBtn = CreateRedIconButton(sp, 98, 24, "Lanzar", "Interface\\Icons\\Spell_Holy_MagicalSentry")
-    castBtn:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", -12, 10)
+    castBtn:SetPoint("RIGHT", closeFooterBtn, "LEFT", -8, 0)
     castBtn:Disable()
     castBtn:SetAlpha(0.45)
     castBtn:SetScript("OnClick", function()
@@ -778,10 +765,6 @@ local function RenderGearPanel(sp, targetBot, classToken)
             sBtn:Hide()
         end
     end
-
-    local st = DungeonBots.botStats and DungeonBots.botStats[targetBot]
-    local armorStr, bagStr = DB_Internal.FormatBotStatsDisplay(st, "|cff888888N/D|r")
-    gp.gearStatsSummary:SetText(armorStr .. "  |  " .. bagStr)
 
     gp.matchBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
@@ -922,7 +905,7 @@ function DungeonBots:UpdateSpellsDialog(botName)
     end
 
     if sp.listBg then
-        local listTopY = (mode == "glyphs") and -68 or -96
+        local listTopY = (mode == "glyphs") and -76 or -104
         sp.listBg:ClearAllPoints()
         sp.listBg:SetPoint("TOPLEFT", sp, "TOPLEFT", 10, listTopY)
         sp.listBg:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", -10, 42)

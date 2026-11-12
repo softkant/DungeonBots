@@ -249,9 +249,6 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             parsedStats.updatedAt = NowTime()
             DungeonBots.botStats = DungeonBots.botStats or {}
             DungeonBots.botStats[cleanSender] = parsedStats
-            if DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == cleanSender then
-                DungeonBots:UpdateSpellsDialog(cleanSender)
-            end
             if DungeonBots.UpdateInventoryDialog and DungeonBots.inventoryFrame and DungeonBots.inventoryFrame:IsShown() and DungeonBots.inventoryFrame.currentBot == cleanSender then
                 DungeonBots:UpdateInventoryDialog(cleanSender)
             end

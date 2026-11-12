@@ -711,9 +711,7 @@ function DungeonBots:EnsureGearTabData(botName, force)
     if not botName or botName == "" then return end
     if force then
         DungeonBots:QueryBotSpecs(botName, false)
-        DungeonBots:QueryBotStats(botName, true)
     else
-        DungeonBots:QueryBotStats(botName, false)
         DungeonBots:QueryBotSpecs(botName, true)
     end
 end
