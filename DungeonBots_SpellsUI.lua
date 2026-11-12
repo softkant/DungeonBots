@@ -506,9 +506,6 @@ local function CreateSpellRowButton(parent, idx)
         if entry.difficulty then
             GameTooltip:AddLine("Dificultad: " .. entry.difficulty.label, entry.difficulty.r, entry.difficulty.g, entry.difficulty.b)
         end
-        if entry.craftableCount then
-            GameTooltip:AddLine("Crafteables disponibles: x" .. entry.craftableCount, 0.25, 0.88, 0.45)
-        end
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine("Clic izquierdo: |cffffffffSeleccionar|r  |  Shift + Clic: |cff71d5ffEnlazar|r", 0.8, 0.8, 0.8)
         GameTooltip:Show()
@@ -1097,9 +1094,6 @@ function DungeonBots:UpdateSpellsDialog(botName)
             row.subLabel:SetText("|cff8899aaGlifo equipado  |  Pasa el ratón para ver detalles|r")
         else
             local badgeParts = {}
-            if entry.craftableCount then
-                table.insert(badgeParts, "|cff34c759x" .. entry.craftableCount .. "|r")
-            end
             if entry.difficulty then
                 table.insert(badgeParts, entry.difficulty.colorHex .. entry.difficulty.label .. "|r")
             end

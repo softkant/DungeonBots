@@ -283,7 +283,7 @@ local function ParseSpellEntryFromLine(line)
         linkType = "text"
     end
 
-    local diffInfo, craftableCount = ExtractDifficultySuffix(line)
+    local diffInfo = ExtractDifficultySuffix(line)
     local reagents = {}
 
     if #links > 1 then
@@ -291,7 +291,7 @@ local function ParseSpellEntryFromLine(line)
             local l = links[i]
             local nextStart = (i < #links) and (links[i + 1].sPos - 1) or #line
             local segAfter = StripWowFormatting(string.sub(line, l.ePos + 1, nextStart))
-            local qty = string.match(segAfter, "^%s*[xX]?(%d+)") or string.match(segAfter, "^%s*%([xX]?(%d+)%)")
+            local qty = string.match(segAfter, "^%s*[xX]?(%d+)")
             local buyable = string.find(string.lower(segAfter), "buy", 1, true) and true or false
             local regItemId = (l.linkType == "item") and tonumber(string.match(l.payload, "^(%d+)")) or nil
 
@@ -324,7 +324,6 @@ local function ParseSpellEntryFromLine(line)
         plainLink = plainLink,
         displayLink = rawLink,
         difficulty = diffInfo,
-        craftableCount = craftableCount,
         reagents = reagents,
     }
 
