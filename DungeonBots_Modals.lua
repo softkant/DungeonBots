@@ -141,9 +141,9 @@ function DungeonBots:BuildSettingsDialog()
     -- Opción 1a: Mostrar/Ocultar Barra de Utilidades
     local utilHudVisibleCheck = CreateSettingsCheckbox(
         sf, "DungeonBots_UtilHudVisibleCheck",
-        "Mostrar Barra de Utilidades flotante (PNJ / Grupo / Bolsas / Poderes)",
+        "Mostrar Barra de Utilidades flotante (PNJ / Grupo / Bolsas / Personaje)",
         "Barra de Utilidades Flotante",
-        "Muestra la segunda barra flotante con accesos rápidos para Hablar con PNJ, abrir Bots en el grupo, inspeccionar bolsas y ver poderes de bots.\n\nDesmarca esta opción para ocultar esta barra por completo."
+        "Muestra la segunda barra flotante con accesos rápidos para Hablar con PNJ, abrir Bots en el grupo, inspeccionar bolsas y ver Información del Personaje.\n\nDesmarca esta opción para ocultar esta barra por completo."
     )
     utilHudVisibleCheck:SetPoint("TOPLEFT", hudVisibleCheck, "BOTTOMLEFT", 0, -2)
     sf.utilHudVisibleCheck = utilHudVisibleCheck

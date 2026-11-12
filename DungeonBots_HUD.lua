@@ -94,12 +94,12 @@ local UTIL_ACTIONS = {
         color = { 0.35, 0.88, 0.45 }
     },
     {
-        name = "Poderes de Bot",
+        name = "Información del Personaje",
         actionKind = "spells",
         icon = "Interface\\Icons\\Spell_Holy_MagicalSentry",
-        title = "|cffb266ffPoderes y Hechizos de Bot|r",
-        desc = "Abre un menú desplegable para elegir un bot del grupo y ver sus hechizos, recetas, glifos y talentos.\n\n|cff71d5ffPermite buscar hechizos, revisar glifos/talentos y ordenar lanzamientos ('cast').|r",
-        tooltipCmd = "Acción: |cffffd200Elegir bot -> /w <Bot> spells|r",
+        title = "|cffb266ffInformación del Personaje|r",
+        desc = "Abre un menú desplegable para elegir un bot del grupo y ver sus hechizos, glifos y talentos.\n\n|cff71d5ffPermite buscar hechizos, revisar glifos/talentos y ordenar lanzamientos ('cast').|r",
+        tooltipCmd = "Acción: |cffffd200Elegir bot -> Info. Personaje|r",
         color = { 0.68, 0.45, 1.0 }
     },
 }
@@ -205,8 +205,8 @@ local function HandleUtilActionClick(anchorBtn, action)
     elseif action.actionKind == "spells" then
         OpenHudBotDropdown(
             anchorBtn,
-            "-- Elegir Bot (Poderes) --",
-            "No hay bots detectados en el grupo para ver sus poderes.",
+            "-- Información del Personaje --",
+            "No hay bots detectados en el grupo para ver su información.",
             function(chosenName)
                 if DungeonBots.QueryBotSpells then
                     DungeonBots:QueryBotSpells(chosenName, "spells", "", false)
@@ -226,32 +226,20 @@ function DungeonBots:UpdateHUDTalkButtonState()
     if not hudTalkBtn then return end
     local canTalk = (DungeonBots.HasValidNpcTarget and DungeonBots:HasValidNpcTarget()) and true or false
     local c = (hudTalkBtn.actionDef and hudTalkBtn.actionDef.color) or { 0.2, 0.8, 1.0 }
-    -- Mantener el boton habilitado para que OnEnter/OnLeave muestren el tooltip en 3.3.5a
+    -- Mantener siempre su aspecto de color normal y habilitado para hover/clic
     hudTalkBtn:Enable()
     hudTalkBtn.isTalkReady = canTalk
-    if canTalk then
-        hudTalkBtn:SetAlpha(1.0)
-        if hudTalkBtn.icon then
-            hudTalkBtn.icon:SetDesaturated(false)
-            hudTalkBtn.icon:SetVertexColor(1, 1, 1, 1)
-        end
-        hudTalkBtn:SetBackdropBorderColor(c[1], c[2], c[3], 0.85)
-        if hudTalkBtn.highlightTex then
-            hudTalkBtn.highlightTex:Show()
-        end
-    else
-        hudTalkBtn:SetAlpha(0.45)
-        if hudTalkBtn.icon then
-            hudTalkBtn.icon:SetDesaturated(true)
-            hudTalkBtn.icon:SetVertexColor(0.55, 0.55, 0.55, 0.85)
-        end
-        hudTalkBtn:SetBackdropBorderColor(0.35, 0.35, 0.38, 0.65)
-        if hudTalkBtn.highlightTex then
-            hudTalkBtn.highlightTex:Hide()
-        end
-        if hudBotDropDown and UIDROPDOWNMENU_OPEN_MENU == hudBotDropDown and CloseDropDownMenus then
-            CloseDropDownMenus()
-        end
+    hudTalkBtn:SetAlpha(1.0)
+    if hudTalkBtn.icon then
+        hudTalkBtn.icon:SetDesaturated(false)
+        hudTalkBtn.icon:SetVertexColor(1, 1, 1, 1)
+    end
+    hudTalkBtn:SetBackdropBorderColor(c[1], c[2], c[3], 0.85)
+    if hudTalkBtn.highlightTex then
+        hudTalkBtn.highlightTex:Show()
+    end
+    if not canTalk and hudBotDropDown and UIDROPDOWNMENU_OPEN_MENU == hudBotDropDown and CloseDropDownMenus then
+        CloseDropDownMenus()
     end
 end
 
@@ -397,7 +385,7 @@ local function CreateFloatingToolbar(cfg)
             GameTooltip:AddLine(action.title, 1, 1, 1)
             GameTooltip:AddLine(action.desc, 0.85, 0.85, 0.85, true)
             if action.isTalkPicker and DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
-                GameTooltip:AddLine("Desactivado: Haz clic primero en un PNJ (los bots no cuentan).", 1.0, 0.35, 0.35, true)
+                GameTooltip:AddLine("Nota: Haz clic primero en un PNJ válido (los bots no cuentan).", 1.0, 0.72, 0.25, true)
             elseif action.tooltipCmd then
                 GameTooltip:AddLine(action.tooltipCmd, 0.5, 0.8, 1.0)
             elseif action.cmd then
