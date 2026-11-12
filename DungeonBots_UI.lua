@@ -1360,6 +1360,7 @@ local FROZEN_HALLS_DATA = {
         fallbackIDs = { 232, 233, 252, 253 },
     },
 }
+DungeonBots.FROZEN_HALLS_DATA = FROZEN_HALLS_DATA
 
 function DungeonBots:GetConnectedPartyBotCount()
     local count = 0
@@ -1589,36 +1590,12 @@ function DungeonBots:RequestDungeonLockInfo(force)
 end
 
 function DungeonBots:UpdateDungeonAccessUI()
-    local panel = DungeonBots.dungeonCheckPanel
-    local scrollWrap = DungeonBots.guideScrollWrap
-    local parent = DungeonBots.guideParentTab
-    if not panel or not scrollWrap or not parent then return end
-
-    local connectedBots = DungeonBots:GetConnectedPartyBotCount()
-    if connectedBots == 0 then
-        -- Si no hay grupo o no hay nadie conectado, no mostrar nada de requisitos
-        panel:Hide()
-        scrollWrap:ClearAllPoints()
-        scrollWrap:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -4)
-        scrollWrap:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -6, 6)
-        if DungeonBots.RefreshGuideLayout then
-            DungeonBots:RefreshGuideLayout()
-        end
-        return
-    end
-
-    -- Si hay grupo con bots conectados, mostrar el comprobador de misiones
-    panel:Show()
-    scrollWrap:ClearAllPoints()
-    scrollWrap:SetPoint("TOPLEFT", panel, "BOTTOMLEFT", 0, -6)
-    scrollWrap:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -6, 6)
-    if DungeonBots.RefreshGuideLayout then
-        DungeonBots:RefreshGuideLayout()
-    end
-
     DungeonBots:ResolveFrozenHallsIDs()
 
-    for i, def in ipairs(FROZEN_HALLS_DATA) do
+    local data = DungeonBots.FROZEN_HALLS_DATA or FROZEN_HALLS_DATA
+    if not data then return end
+
+    for i, def in ipairs(data) do
         local btn = DungeonBots.dungeonButtons and DungeonBots.dungeonButtons[def.key]
         local canEnter, reasons = DungeonBots:CheckDungeonQuestStatus(def)
 
@@ -1719,96 +1696,7 @@ function DungeonBots:BuildTab3(parent)
     DungeonBots.dalaranTimerBar = nil
     DungeonBots.guideParentTab = parent
 
-    -- Panel superior: Comprobación de misiones para Foso y Cámaras
-    local checkPanel = CreateFrame("Frame", "DungeonBots_DungeonCheckPanel", parent)
-    checkPanel:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -4)
-    checkPanel:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -4)
-    checkPanel:SetHeight(44)
-    ApplyDarkBackdrop(checkPanel, 8)
-    checkPanel:SetBackdropColor(0.04, 0.05, 0.08, 0.94)
-    checkPanel:SetBackdropBorderColor(0.28, 0.38, 0.52, 0.95)
-    DungeonBots.dungeonCheckPanel = checkPanel
-
-    -- Fila de 2 botones: Foso de Saron y Cámaras de Reflexión
-    DungeonBots.dungeonButtons = {}
-    local prevDungeonBtn = nil
-    for i, def in ipairs(FROZEN_HALLS_DATA) do
-        local btn = CreateFrame("Button", "DungeonBots_DungeonBtn_" .. def.key, checkPanel)
-        btn:SetSize(268, 34)
-        if prevDungeonBtn then
-            btn:SetPoint("LEFT", prevDungeonBtn, "RIGHT", 6, 0)
-        else
-            btn:SetPoint("TOPLEFT", checkPanel, "TOPLEFT", 8, -5)
-        end
-        ApplyInsetPanelBackdrop(btn, 8)
-        btn:SetBackdropColor(0.04, 0.05, 0.08, 0.95)
-        btn:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.85)
-
-        local icon = btn:CreateTexture(nil, "ARTWORK")
-        icon:SetSize(20, 20)
-        icon:SetPoint("LEFT", btn, "LEFT", 8, 0)
-        icon:SetTexture(def.icon)
-        icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-        btn.icon = icon
-
-        local nameText = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        nameText:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, 1)
-        nameText:SetPoint("RIGHT", btn, "RIGHT", -4, 0)
-        nameText:SetJustifyH("LEFT")
-        nameText:SetText(def.shortName)
-        btn.nameText = nameText
-
-        local statusText = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        statusText:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 8, -1)
-        statusText:SetPoint("RIGHT", btn, "RIGHT", -4, 0)
-        statusText:SetJustifyH("LEFT")
-        statusText:SetText("|cffaaaaaa...|r")
-        btn.statusText = statusText
-
-        btn:SetScript("OnClick", function()
-            PlaySound("igMainMenuOptionCheckBoxOn")
-            DungeonBots:RequestDungeonLockInfo(true)
-            DungeonBots:UpdateDungeonAccessUI()
-        end)
-
-        btn:SetScript("OnEnter", function(self)
-            self:SetBackdropBorderColor(0.45, 0.55, 0.70, 1.0)
-            GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:AddLine(self.dungeonName or def.name, 1, 0.82, 0)
-            if self.canEnter == true then
-                GameTooltip:AddLine("Estado: |cff00ff00Puede ir|r", 1, 1, 1)
-                GameTooltip:AddLine("Todos los miembros conectados tienen las misiones previas completadas.", 0.7, 0.8, 1, true)
-                GameTooltip:AddLine("Requiere cadena previa: |cffffd200" .. (def.prereq or "Forja de Almas") .. "|r", 0.7, 0.7, 0.7)
-            elseif self.canEnter == false then
-                GameTooltip:AddLine("Estado: |cffff4444Falta misión previa|r", 1, 1, 1)
-                GameTooltip:AddLine("Requiere completar la cadena de: |cffffd200" .. (def.prereq or "Mazmorra anterior") .. "|r", 1, 0.82, 0, true)
-                if self.reasons and #self.reasons > 0 then
-                    GameTooltip:AddLine(" ", 1, 1, 1)
-                    GameTooltip:AddLine("Miembros sin la misión necesaria:", 1, 0.82, 0)
-                    for _, r in ipairs(self.reasons) do
-                        local pColor = r.isSelf and "|cff00ccff" or "|cffffd200"
-                        local displayName = r.isSelf and (r.playerName .. " (Tú)") or r.playerName
-                        GameTooltip:AddLine("  • " .. pColor .. displayName .. ":|r |cffff7777" .. (r.text or "no ha completado la misión necesaria.") .. "|r", 1, 1, 1, true)
-                    end
-                else
-                    GameTooltip:AddLine("  • Uno o más miembros no han completado la misión previa requerida.", 1, 0.4, 0.4, true)
-                end
-            else
-                GameTooltip:AddLine("Estado: |cffaaaaaaSin información del servidor|r", 1, 1, 1)
-                GameTooltip:AddLine("Haz clic para consultar o pulsa Actualizar.", 0.7, 0.7, 0.7)
-            end
-            GameTooltip:Show()
-        end)
-        btn:SetScript("OnLeave", function(self)
-            self:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.85)
-            GameTooltip:Hide()
-        end)
-
-        DungeonBots.dungeonButtons[def.key] = btn
-        prevDungeonBtn = btn
-    end
-
-    -- ScrollFrame de las 4 tarjetas de consejos
+    -- ScrollFrame de las 4 tarjetas de consejos (ocupa todo el espacio de Tab 3)
     local scrollWrap = CreateFrame("Frame", nil, parent)
     scrollWrap:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -4)
     scrollWrap:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -6, 6)

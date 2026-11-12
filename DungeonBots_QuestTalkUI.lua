@@ -177,7 +177,7 @@ function DungeonBots:BuildQuestDialog()
 
     local scrollBg = CreateFrame("Frame", nil, qf)
     scrollBg:SetPoint("TOPLEFT", qf, "TOPLEFT", 10, -68)
-    scrollBg:SetPoint("BOTTOMRIGHT", qf, "BOTTOMRIGHT", -10, 40)
+    scrollBg:SetPoint("BOTTOMRIGHT", qf, "BOTTOMRIGHT", -10, 76)
     ApplyDarkBackdrop(scrollBg, 10)
     scrollBg:SetBackdropColor(0.02, 0.03, 0.05, 1.0)
     scrollBg:SetBackdropBorderColor(0.30, 0.34, 0.42, 1.0)
@@ -201,6 +201,119 @@ function DungeonBots:BuildQuestDialog()
     emptyLabel:SetWidth(420)
     emptyLabel:SetText("Este bot no tiene misiones activas.")
     qf.emptyLabel = emptyLabel
+
+    -- Panel de Comprobación de Mazmorras (Foso de Saron y Cámaras de Reflexión)
+    local checkPanel = CreateFrame("Frame", "DungeonBots_QuestDungeonCheckPanel", qf)
+    checkPanel:SetPoint("BOTTOMLEFT", qf, "BOTTOMLEFT", 10, 38)
+    checkPanel:SetPoint("BOTTOMRIGHT", qf, "BOTTOMRIGHT", -10, 38)
+    checkPanel:SetHeight(34)
+    ApplyDarkBackdrop(checkPanel, 8)
+    checkPanel:SetBackdropColor(0.04, 0.05, 0.08, 0.94)
+    checkPanel:SetBackdropBorderColor(0.28, 0.38, 0.52, 0.95)
+    DungeonBots.dungeonCheckPanel = checkPanel
+
+    DungeonBots.dungeonButtons = {}
+    local frozenHallsData = DungeonBots.FROZEN_HALLS_DATA or {
+        {
+            key = "foso",
+            name = "Foso de Saron",
+            shortName = "1. Foso de Saron",
+            icon = "Interface\\Icons\\Spell_Shadow_ShadowPact",
+            keywords = { "saron", "foso", "pit" },
+            prereq = "La Forja de Almas",
+            fallbackIDs = { 230, 231, 250, 251 },
+        },
+        {
+            key = "camaras",
+            name = "Cámaras de Reflexión",
+            shortName = "2. Cámaras de Reflexión",
+            icon = "Interface\\Icons\\Spell_Frost_FrostWard",
+            keywords = { "refle", "reflection" },
+            prereq = "Foso de Saron",
+            fallbackIDs = { 232, 233, 252, 253 },
+        },
+    }
+
+    local prevDungeonBtn = nil
+    for _, def in ipairs(frozenHallsData) do
+        local btn = CreateFrame("Button", "DungeonBots_QuestDungeonBtn_" .. def.key, checkPanel)
+        btn:SetSize(256, 28)
+        if prevDungeonBtn then
+            btn:SetPoint("RIGHT", checkPanel, "RIGHT", -3, 0)
+        else
+            btn:SetPoint("LEFT", checkPanel, "LEFT", 3, 0)
+        end
+        ApplyInsetPanelBackdrop(btn, 8)
+        btn:SetBackdropColor(0.04, 0.05, 0.08, 0.95)
+        btn:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.85)
+
+        local icon = btn:CreateTexture(nil, "ARTWORK")
+        icon:SetSize(18, 18)
+        icon:SetPoint("LEFT", btn, "LEFT", 6, 0)
+        icon:SetTexture(def.icon)
+        icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        btn.icon = icon
+
+        local nameText = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        nameText:SetPoint("TOPLEFT", icon, "TOPRIGHT", 6, 1)
+        nameText:SetPoint("RIGHT", btn, "RIGHT", -4, 0)
+        nameText:SetJustifyH("LEFT")
+        nameText:SetText(def.shortName)
+        btn.nameText = nameText
+
+        local statusText = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        statusText:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 6, -1)
+        statusText:SetPoint("RIGHT", btn, "RIGHT", -4, 0)
+        statusText:SetJustifyH("LEFT")
+        statusText:SetText("|cffaaaaaa...|r")
+        btn.statusText = statusText
+
+        btn:SetScript("OnClick", function()
+            PlaySound("igMainMenuOptionCheckBoxOn")
+            if DungeonBots.RequestDungeonLockInfo then
+                DungeonBots:RequestDungeonLockInfo(true)
+            end
+            if DungeonBots.UpdateDungeonAccessUI then
+                DungeonBots:UpdateDungeonAccessUI()
+            end
+        end)
+
+        btn:SetScript("OnEnter", function(self)
+            self:SetBackdropBorderColor(0.45, 0.55, 0.70, 1.0)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:AddLine(self.dungeonName or def.name, 1, 0.82, 0)
+            if self.canEnter == true then
+                GameTooltip:AddLine("Estado: |cff00ff00Puede ir|r", 1, 1, 1)
+                GameTooltip:AddLine("Todos los miembros tienen las misiones necesarias completadas.", 0.7, 0.8, 1, true)
+                GameTooltip:AddLine("Requiere cadena previa: |cffffd200" .. (def.prereq or "Forja de Almas") .. "|r", 0.7, 0.7, 0.7)
+            elseif self.canEnter == false then
+                GameTooltip:AddLine("Estado: |cffff4444Falta misión previa|r", 1, 1, 1)
+                GameTooltip:AddLine("Requiere completar la cadena de: |cffffd200" .. (def.prereq or "Mazmorra anterior") .. "|r", 1, 0.82, 0, true)
+                if self.reasons and #self.reasons > 0 then
+                    GameTooltip:AddLine(" ", 1, 1, 1)
+                    GameTooltip:AddLine("Miembros sin la misión necesaria:", 1, 0.82, 0)
+                    for _, r in ipairs(self.reasons) do
+                        local pColor = r.isSelf and "|cff00ccff" or "|cffffd200"
+                        local displayName = r.isSelf and (r.playerName .. " (Tú)") or r.playerName
+                        GameTooltip:AddLine("  • " .. pColor .. displayName .. ":|r |cffff7777" .. (r.text or "no ha completado la misión necesaria.") .. "|r", 1, 1, 1, true)
+                    end
+                else
+                    GameTooltip:AddLine("  • Uno o más miembros no han completado la misión previa requerida.", 1, 0.4, 0.4, true)
+                end
+            else
+                GameTooltip:AddLine("Estado: |cffaaaaaaConsultando al servidor...|r", 1, 1, 1)
+                GameTooltip:AddLine("Haz clic para solicitar la información de acceso actualizada.", 0.8, 0.8, 0.8, true)
+            end
+            GameTooltip:Show()
+        end)
+        btn:SetScript("OnLeave", function(self)
+            self:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.85)
+            GameTooltip:Hide()
+        end)
+
+        DungeonBots.dungeonButtons[def.key] = btn
+        prevDungeonBtn = btn
+    end
 
     local nextBotBtn = CreateFrame("Button", nil, qf, "UIPanelButtonTemplate")
     nextBotBtn:SetSize(120, 24)
@@ -405,6 +518,12 @@ function DungeonBots:OpenQuestDialog(botName)
     DungeonBots.questFrame:Show()
     if DungeonBots.questFrame.Raise then
         pcall(DungeonBots.questFrame.Raise, DungeonBots.questFrame)
+    end
+    if DungeonBots.RequestDungeonLockInfo then
+        DungeonBots:RequestDungeonLockInfo(false)
+    end
+    if DungeonBots.UpdateDungeonAccessUI then
+        DungeonBots:UpdateDungeonAccessUI()
     end
 end
 
