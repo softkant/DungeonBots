@@ -296,13 +296,20 @@ function DungeonBots:BuildInventoryDialog()
     end)
     inv.refreshBtn = refreshBtn
 
-    local statusLabel = inv:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    statusLabel:SetPoint("LEFT", searchBox, "RIGHT", 10, 0)
-    statusLabel:SetPoint("RIGHT", refreshBtn, "LEFT", -8, 0)
-    statusLabel:SetJustifyH("LEFT")
-    statusLabel:SetWordWrap(false)
-    statusLabel:SetText("Consultando bolsas...")
-    inv.statusLabel = statusLabel
+    local bagSpaceIcon = inv:CreateTexture(nil, "ARTWORK")
+    bagSpaceIcon:SetSize(14, 14)
+    bagSpaceIcon:SetPoint("LEFT", searchBox, "RIGHT", 10, 0)
+    bagSpaceIcon:SetTexture("Interface\\Icons\\INV_Misc_Bag_08")
+    bagSpaceIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    inv.bagSpaceIcon = bagSpaceIcon
+
+    local bagSpaceLabel = inv:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    bagSpaceLabel:SetPoint("LEFT", bagSpaceIcon, "RIGHT", 5, 0)
+    bagSpaceLabel:SetPoint("RIGHT", refreshBtn, "LEFT", -8, 0)
+    bagSpaceLabel:SetJustifyH("LEFT")
+    bagSpaceLabel:SetWordWrap(false)
+    bagSpaceLabel:SetText("Bolsas: |cff888888Consultando...|r")
+    inv.bagSpaceLabel = bagSpaceLabel
 
     local bagBg = CreateFrame("Frame", nil, inv)
     bagBg:SetPoint("TOPLEFT", inv, "TOPLEFT", 10, -68)
@@ -362,21 +369,6 @@ function DungeonBots:BuildInventoryDialog()
     destroyBtn:SetPoint("BOTTOMRIGHT", inv, "BOTTOMRIGHT", -12, 10)
     destroyBtn:Disable()
     destroyBtn:SetAlpha(0.45)
-
-    local bagSpaceIcon = inv:CreateTexture(nil, "ARTWORK")
-    bagSpaceIcon:SetSize(14, 14)
-    bagSpaceIcon:SetPoint("LEFT", botCycleLabel, "RIGHT", 10, 0)
-    bagSpaceIcon:SetTexture("Interface\\Icons\\INV_Misc_Bag_08")
-    bagSpaceIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    inv.bagSpaceIcon = bagSpaceIcon
-
-    local bagSpaceLabel = inv:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    bagSpaceLabel:SetPoint("LEFT", bagSpaceIcon, "RIGHT", 5, 0)
-    bagSpaceLabel:SetPoint("RIGHT", destroyBtn, "LEFT", -8, 0)
-    bagSpaceLabel:SetJustifyH("LEFT")
-    bagSpaceLabel:SetWordWrap(false)
-    bagSpaceLabel:SetText("Bolsas: |cff888888Consultando...|r")
-    inv.bagSpaceLabel = bagSpaceLabel
     destroyBtn:SetScript("OnClick", function()
         if not inv.currentBot or not inv.selectedItem then return end
         ConfirmDestroyBotItem(inv.currentBot, inv.selectedItem)
@@ -460,16 +452,6 @@ function DungeonBots:UpdateInventoryDialog(botName)
         else
             inv.bagSpaceLabel:SetText("Bolsas: |cff888888Consultando...|r")
         end
-    end
-
-    if data and data.loading then
-        inv.statusLabel:SetText("|cffffd200Consultando bolsas...|r (" .. #allItems .. ")")
-    elseif #allItems == 0 then
-        inv.statusLabel:SetText("|cff888888Bolsa vacía (0 objetos)|r")
-    elseif filterText ~= "" then
-        inv.statusLabel:SetText("|cff34c759" .. #visibleItems .. "/" .. #allItems .. "|r objetos")
-    else
-        inv.statusLabel:SetText("|cff34c759" .. #allItems .. "|r objeto(s)")
     end
 
     if #visibleItems == 0 then
