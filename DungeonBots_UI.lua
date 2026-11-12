@@ -942,8 +942,8 @@ function DungeonBots:BuildTab2(parent)
     -- Crear 4 tarjetas de bots para las unidades party1 a party4
     for i = 1, 4 do
         local card = CreateFrame("Frame", "DungeonBots_BotCard_" .. i, cardContainer)
-        card:SetSize(588, 70)
-        card:SetPoint("TOPLEFT", cardContainer, "TOPLEFT", 6, -1 - (i - 1) * 74)
+        card:SetSize(588, 72)
+        card:SetPoint("TOPLEFT", cardContainer, "TOPLEFT", 6, -4 - (i - 1) * 88)
         ApplyInsetPanelBackdrop(card)
 
         local cIcon = card:CreateTexture(nil, "ARTWORK")
@@ -1020,7 +1020,7 @@ function DungeonBots:BuildTab2(parent)
 
         for idx, cfg in ipairs(CARD_ACTION_BUTTONS) do
             local actionBtn = CreateCardActionIconButton(card, cfg)
-            actionBtn:SetPoint("TOPLEFT", card, "TOPLEFT", 220 + (idx - 1) * 88, -11)
+            actionBtn:SetPoint("TOPLEFT", card, "TOPLEFT", 220 + (idx - 1) * 88, -12)
             card[cfg.key] = actionBtn
         end
 
@@ -1257,7 +1257,7 @@ function DungeonBots:UpdatePartyUI()
     if DungeonBots.tab2ScanHelp then
         if lastVisibleCard then
             DungeonBots.tab2ScanHelp:ClearAllPoints()
-            DungeonBots.tab2ScanHelp:SetPoint("TOPLEFT", lastVisibleCard, "BOTTOMLEFT", 4, -5)
+            DungeonBots.tab2ScanHelp:SetPoint("TOPLEFT", lastVisibleCard, "BOTTOMLEFT", 4, -8)
             DungeonBots.tab2ScanHelp:Show()
         else
             DungeonBots.tab2ScanHelp:Hide()
