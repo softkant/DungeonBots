@@ -514,7 +514,7 @@ function DungeonBots:BuildSpellsDialog()
     emptyLabel:SetText("Esperando respuesta del bot...")
     sp.emptyLabel = emptyLabel
 
-    -- Barra inferior: Siguiente Bot + (idx/total) + Talentos  |  Lanzar (cast)
+    -- Barra inferior: Siguiente Bot + (idx/total)  |  Lanzar (cast)
     local nextBotBtn = CreateFrame("Button", nil, sp, "UIPanelButtonTemplate")
     nextBotBtn:SetSize(118, 24)
     nextBotBtn:SetPoint("BOTTOMLEFT", sp, "BOTTOMLEFT", 12, 10)
@@ -534,25 +534,6 @@ function DungeonBots:BuildSpellsDialog()
     botCycleLabel:SetJustifyH("LEFT")
     botCycleLabel:SetText("|cff888888(0/0)|r")
     sp.botCycleLabel = botCycleLabel
-
-    local talentsBtn = CreateFrame("Button", nil, sp, "UIPanelButtonTemplate")
-    talentsBtn:SetSize(104, 24)
-    talentsBtn:SetPoint("LEFT", botCycleLabel, "RIGHT", 6, 0)
-    talentsBtn:SetText("Cambiar Rama")
-    talentsBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        if DungeonBots.OpenTab then
-            DungeonBots:OpenTab(2)
-        end
-    end)
-    talentsBtn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Cambiar Rama / Grupo", 1, 0.82, 0)
-        GameTooltip:AddLine("Abre la pestaña Bots en el grupo para cambiar su especialización.", 0.85, 0.85, 0.85, true)
-        GameTooltip:Show()
-    end)
-    talentsBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    sp.talentsBtn = talentsBtn
 
     local castBtn = CreateRedIconButton(sp, 98, 24, "Lanzar", "Interface\\Icons\\Spell_Holy_MagicalSentry")
     castBtn:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", -12, 10)
