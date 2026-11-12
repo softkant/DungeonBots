@@ -30,6 +30,46 @@ DB_Internal.ApplyDarkBackdrop = ApplyDarkBackdrop
 
 local SUB_MODAL_KEYS = { "spellsFrame", "inventoryFrame", "questFrame" }
 
+local function ApplyTabButtonsVisualState(isDimmed)
+    local baseLevel = (mainFrame and mainFrame.GetFrameLevel and mainFrame:GetFrameLevel()) or 10
+    for i = 1, 3 do
+        local btn = DungeonBots.tabButtons and DungeonBots.tabButtons[i]
+        if btn then
+            local isSelected = (i == activeTab)
+            btn:SetFrameLevel(isSelected and (baseLevel + 3) or (baseLevel + 1))
+            if btn.EnableMouse then
+                btn:EnableMouse(not isDimmed)
+            end
+            if isDimmed then
+                if btn.Disable then btn:Disable() end
+                if btn.checked then btn.checked:Hide() end
+                if btn.icon then btn.icon:SetVertexColor(0.20, 0.20, 0.20) end
+                if btn.bg then btn.bg:SetVertexColor(0.20, 0.20, 0.20) end
+                if btn.countBadgeBg then btn.countBadgeBg:SetAlpha(0.25) end
+                if btn.countBadgeText then btn.countBadgeText:SetAlpha(0.25) end
+                if GameTooltip and GameTooltip.IsOwned and GameTooltip:IsOwned(btn) then
+                    GameTooltip:Hide()
+                end
+            else
+                if btn.Enable then btn:Enable() end
+                if btn.checked then
+                    if isSelected then btn.checked:Show() else btn.checked:Hide() end
+                end
+                if btn.icon then
+                    local c = isSelected and 1.0 or 0.52
+                    btn.icon:SetVertexColor(c, c, c)
+                end
+                if btn.bg then
+                    local c = isSelected and 1.0 or 0.75
+                    btn.bg:SetVertexColor(c, c, c)
+                end
+                if btn.countBadgeBg then btn.countBadgeBg:SetAlpha(1.0) end
+                if btn.countBadgeText then btn.countBadgeText:SetAlpha(1.0) end
+            end
+        end
+    end
+end
+
 function DB_Internal.UpdateMainModalDimmer()
     local mf = DungeonBots.mainFrame
     local dimmer = mf and mf.modalDimmer
@@ -45,6 +85,8 @@ function DB_Internal.UpdateMainModalDimmer()
             end
         end
     end
+
+    ApplyTabButtonsVisualState(hasOpenSubModal)
 
     if hasOpenSubModal then
         dimmer:SetFrameStrata("DIALOG")
@@ -483,6 +525,12 @@ function DungeonBots:InitUI()
     modalDimmer:SetFrameStrata("DIALOG")
     modalDimmer:SetFrameLevel(2)
     modalDimmer:EnableMouse(true)
+    if modalDimmer.EnableMouseWheel then
+        modalDimmer:EnableMouseWheel(true)
+    end
+    modalDimmer:SetScript("OnMouseDown", function() end)
+    modalDimmer:SetScript("OnMouseUp", function() end)
+    modalDimmer:SetScript("OnMouseWheel", function() end)
     modalDimmer:Hide()
 
     local dimTex = modalDimmer:CreateTexture(nil, "BACKGROUND")
@@ -543,27 +591,15 @@ end
 
 function DungeonBots:SelectTab(tabIndex)
     activeTab = tabIndex
-    local baseLevel = (mainFrame and mainFrame.GetFrameLevel and mainFrame:GetFrameLevel()) or 10
     for i = 1, 3 do
-        local btn = DungeonBots.tabButtons and DungeonBots.tabButtons[i]
         if i == tabIndex then
             tabFrames[i]:Show()
-            if btn then
-                btn:SetFrameLevel(baseLevel + 3)
-                if btn.checked then btn.checked:Show() end
-                if btn.icon then btn.icon:SetVertexColor(1.0, 1.0, 1.0) end
-                if btn.bg then btn.bg:SetVertexColor(1.0, 1.0, 1.0) end
-            end
         else
             tabFrames[i]:Hide()
-            if btn then
-                btn:SetFrameLevel(baseLevel + 1)
-                if btn.checked then btn.checked:Hide() end
-                if btn.icon then btn.icon:SetVertexColor(0.52, 0.52, 0.52) end
-                if btn.bg then btn.bg:SetVertexColor(0.75, 0.75, 0.75) end
-            end
         end
     end
+    local isDimmed = (mainFrame and mainFrame.modalDimmer and mainFrame.modalDimmer:IsShown()) and true or false
+    ApplyTabButtonsVisualState(isDimmed)
 
     if mainFrame then
         mainFrame:SetHeight((tabIndex == 1) and 414 or 492)
