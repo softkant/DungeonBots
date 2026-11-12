@@ -248,7 +248,7 @@ function DungeonBots:BuildInventoryDialog()
 
     local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("LEFT", hIcon, "RIGHT", 6, 0)
-    title:SetText("|cff00ccffBolsas:|r |cffffd200Bot|r")
+    title:SetText("|cff00ccffInventario:|r |cffffd200Bot|r")
     inv.title = title
 
     local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
@@ -413,7 +413,7 @@ function DungeonBots:UpdateInventoryDialog(botName)
             classHex = string.format("|cff%02x%02x%02x", math.floor(c.r * 255), math.floor(c.g * 255), math.floor(c.b * 255))
         end
     end
-    inv.title:SetText("|cff00ccffBolsas:|r " .. classHex .. targetBot .. "|r")
+    inv.title:SetText("|cff00ccffInventario:|r " .. classHex .. targetBot .. "|r")
 
     local data = DungeonBots.inventoryDialogData and DungeonBots.inventoryDialogData[targetBot]
     local allItems = (data and data.items) or {}
