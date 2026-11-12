@@ -341,14 +341,14 @@ function DungeonBots:InitUI()
             title = "Armar Grupo",
             subtitle = "Historial, clases y control de grupo",
             desc = "Invoca bots por clase individual, abre tu historial y ejecuta acciones rápidas del grupo.",
-            icon = "Interface\\Icons\\INV_Misc_GroupNeedMore",
+            icon = "Interface\\Icons\\Spell_ChargePositive",
         },
         {
             id = 2,
             title = "Bots en el grupo",
             subtitle = "Especialización, equipo y misiones",
             desc = "Gestiona las ramas de talentos, equipo y misiones de los bots activos en tu grupo.",
-            icon = "Interface\\Icons\\INV_Misc_GroupLooking",
+            icon = "Interface\\Icons\\INV_Misc_GroupNeedMore",
         },
         {
             id = 3,
