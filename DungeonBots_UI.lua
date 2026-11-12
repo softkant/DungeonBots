@@ -994,7 +994,9 @@ function DungeonBots:BuildTab2(parent)
     cardContainer:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0, 32)
     DungeonBots.cardContainer = cardContainer
 
-    local scanHelp = cardContainer:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local scanHelp = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    scanHelp:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 8, 11)
+    scanHelp:SetPoint("RIGHT", refreshStatsBtn, "LEFT", -10, 0)
     scanHelp:SetJustifyH("LEFT")
     scanHelp:SetText("|cff888888Pulsa |cff00e5ff[BOT]|r o |cffffb020[JUGADOR]|r para cambiar el rol.|r")
     scanHelp:Hide()
@@ -1185,14 +1187,12 @@ function DungeonBots:UpdatePartyUI()
 
     if DungeonBots.emptyPartyLabel then DungeonBots.emptyPartyLabel:Hide() end
 
-    local lastVisibleCard = nil
     for i = 1, 4 do
         local unit = "party" .. i
         local card = botCards[i]
         if card then
             if UnitExists(unit) then
                 card:Show()
-                lastVisibleCard = card
                 local name = UnitName(unit)
                 local _, classToken = UnitClass(unit)
                 local level = UnitLevel(unit)
@@ -1322,13 +1322,7 @@ function DungeonBots:UpdatePartyUI()
     end
 
     if DungeonBots.tab2ScanHelp then
-        if lastVisibleCard then
-            DungeonBots.tab2ScanHelp:ClearAllPoints()
-            DungeonBots.tab2ScanHelp:SetPoint("TOPLEFT", lastVisibleCard, "BOTTOMLEFT", 4, -8)
-            DungeonBots.tab2ScanHelp:Show()
-        else
-            DungeonBots.tab2ScanHelp:Hide()
-        end
+        DungeonBots.tab2ScanHelp:Show()
     end
 end
 
