@@ -24,6 +24,270 @@ local function SafeShowLinkTooltip(owner, linkRef, displayLink, title, rawLine)
 end
 
 -- =========================================================================
+-- VENTANA DE DIÁLOGO: MISIONES DEL BOT (quests all / drop)
+-- =========================================================================
+local questRows = {}
+
+local function CreateQuestRow(parent, idx)
+    local row = CreateFrame("Frame", "DungeonBots_QuestRow_" .. idx, parent)
+    row:SetSize(486, 36)
+    row:SetPoint("TOPLEFT", 0, -((idx - 1) * 40))
+    ApplyDarkBackdrop(row, 8)
+    row:SetBackdropColor(0.08, 0.10, 0.14, 0.95)
+    row:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.85)
+
+    local icon = row:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(20, 20)
+    icon:SetPoint("LEFT", 8, 0)
+    icon:SetTexture("Interface\\Icons\\INV_Misc_Note_01")
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    row.icon = icon
+
+    local titleBtn = CreateFrame("Button", nil, row)
+    titleBtn:SetPoint("TOPLEFT", row, "TOPLEFT", 32, -2)
+    titleBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -116, 2)
+    row.titleBtn = titleBtn
+
+    local titleText = titleBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    titleText:SetPoint("TOPLEFT", 2, -4)
+    titleText:SetPoint("TOPRIGHT", -2, -4)
+    titleText:SetJustifyH("LEFT")
+    titleText:SetWordWrap(false)
+    row.titleText = titleText
+
+    local subText = titleBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    subText:SetPoint("TOPLEFT", titleText, "BOTTOMLEFT", 0, -2)
+    subText:SetPoint("TOPRIGHT", titleText, "BOTTOMRIGHT", 0, -2)
+    subText:SetJustifyH("LEFT")
+    subText:SetWordWrap(false)
+    row.subText = subText
+
+    local dropBtn = CreateRedIconButton(row, 104, 22, "Abandonar", "Interface\\Icons\\Spell_ChargeNegative")
+    dropBtn:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    row.dropBtn = dropBtn
+
+    questRows[idx] = row
+    return row
+end
+
+function DungeonBots:BuildQuestDialog()
+    if DungeonBots.questFrame then return end
+
+    local qf = CreateFrame("Frame", "DungeonBots_QuestFrame", UIParent)
+    qf:SetSize(540, 420)
+    qf:SetPoint("CENTER", UIParent, "CENTER", 0, 20)
+    qf:SetFrameStrata("DIALOG")
+    qf:SetFrameLevel(28)
+    qf:SetToplevel(true)
+    qf:SetMovable(true)
+    qf:EnableMouse(true)
+    qf:SetClampedToScreen(true)
+    qf:RegisterForDrag("LeftButton")
+    qf:SetScript("OnDragStart", qf.StartMoving)
+    qf:SetScript("OnDragStop", qf.StopMovingOrSizing)
+    qf:Hide()
+    ApplyDarkBackdrop(qf, 14)
+    qf:SetBackdropColor(0.04, 0.05, 0.08, 1.0)
+
+    local solidBg = qf:CreateTexture(nil, "BACKGROUND")
+    solidBg:SetPoint("TOPLEFT", qf, "TOPLEFT", 4, -4)
+    solidBg:SetPoint("BOTTOMRIGHT", qf, "BOTTOMRIGHT", -4, 4)
+    solidBg:SetTexture(0.04, 0.05, 0.08, 1.0)
+
+    table.insert(UISpecialFrames, "DungeonBots_QuestFrame")
+
+    local header = CreateFrame("Frame", nil, qf)
+    header:SetPoint("TOPLEFT", qf, "TOPLEFT", 6, -6)
+    header:SetPoint("TOPRIGHT", qf, "TOPRIGHT", -6, -6)
+    header:SetHeight(30)
+    ApplyHeaderBackdrop(header)
+    header:SetBackdropColor(0.10, 0.12, 0.16, 1.0)
+
+    local headerSolidBg = header:CreateTexture(nil, "BACKGROUND")
+    headerSolidBg:SetPoint("TOPLEFT", header, "TOPLEFT", 2, -2)
+    headerSolidBg:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -2, 2)
+    headerSolidBg:SetTexture(0.10, 0.12, 0.16, 1.0)
+
+    local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    title:SetPoint("LEFT", 10, 0)
+    title:SetText("|cff00ccffMisiones de|r |cffffd200Bot|r")
+    qf.title = title
+
+    local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
+    closeBtn:SetPoint("RIGHT", header, "RIGHT", -2, 0)
+    closeBtn:SetScript("OnClick", function()
+        PlaySound("igMainMenuOptionCheckBoxOff")
+        qf:Hide()
+    end)
+
+    local statusLabel = qf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    statusLabel:SetPoint("TOPLEFT", 14, -44)
+    statusLabel:SetText("Misiones activas: |cffffd2000|r")
+    qf.statusLabel = statusLabel
+
+    local refreshBtn = CreateFrame("Button", nil, qf, "UIPanelButtonTemplate")
+    refreshBtn:SetSize(96, 22)
+    refreshBtn:SetPoint("TOPRIGHT", qf, "TOPRIGHT", -14, -40)
+    refreshBtn:SetText("Actualizar")
+    refreshBtn:SetScript("OnClick", function()
+        PlaySound("igMainMenuOptionCheckBoxOn")
+        if qf.currentBot then
+            DungeonBots:QueryQuests(qf.currentBot, true, false)
+        end
+    end)
+    qf.refreshBtn = refreshBtn
+
+    local scrollBg = CreateFrame("Frame", nil, qf)
+    scrollBg:SetPoint("TOPLEFT", qf, "TOPLEFT", 10, -68)
+    scrollBg:SetPoint("BOTTOMRIGHT", qf, "BOTTOMRIGHT", -10, 40)
+    ApplyDarkBackdrop(scrollBg, 10)
+    scrollBg:SetBackdropColor(0.02, 0.03, 0.05, 1.0)
+    scrollBg:SetBackdropBorderColor(0.30, 0.34, 0.42, 1.0)
+
+    local scrollSolidBg = scrollBg:CreateTexture(nil, "BACKGROUND")
+    scrollSolidBg:SetPoint("TOPLEFT", scrollBg, "TOPLEFT", 3, -3)
+    scrollSolidBg:SetPoint("BOTTOMRIGHT", scrollBg, "BOTTOMRIGHT", -3, 3)
+    scrollSolidBg:SetTexture(0.02, 0.03, 0.05, 1.0)
+
+    local scrollFrame = CreateFrame("ScrollFrame", "DungeonBots_QuestScrollFrame", scrollBg, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", scrollBg, "TOPLEFT", 6, -6)
+    scrollFrame:SetPoint("BOTTOMRIGHT", scrollBg, "BOTTOMRIGHT", -26, 6)
+
+    local scrollChild = CreateFrame("Frame", "DungeonBots_QuestScrollChild", scrollFrame)
+    scrollChild:SetSize(486, 1)
+    scrollFrame:SetScrollChild(scrollChild)
+    qf.scrollChild = scrollChild
+
+    local emptyLabel = scrollBg:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    emptyLabel:SetPoint("CENTER", scrollBg, "CENTER", -8, 0)
+    emptyLabel:SetWidth(420)
+    emptyLabel:SetText("Este bot no tiene misiones activas.")
+    qf.emptyLabel = emptyLabel
+
+    local footerHint = qf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    footerHint:SetPoint("BOTTOMLEFT", 14, 15)
+    footerHint:SetText("|cffaaaaaaHaz clic en una misión para ver detalles o pulsa 'Abandonar'.|r")
+
+    local closeFooterBtn = CreateFrame("Button", nil, qf, "UIPanelButtonTemplate")
+    closeFooterBtn:SetSize(90, 24)
+    closeFooterBtn:SetPoint("BOTTOMRIGHT", qf, "BOTTOMRIGHT", -12, 10)
+    closeFooterBtn:SetText("Cerrar")
+    closeFooterBtn:SetScript("OnClick", function()
+        PlaySound("igMainMenuOptionCheckBoxOff")
+        qf:Hide()
+    end)
+
+    DungeonBots.questFrame = qf
+end
+
+function DungeonBots:UpdateQuestDialog(botName)
+    if not DungeonBots.questFrame then return end
+    local qf = DungeonBots.questFrame
+    local targetBot = botName or qf.currentBot
+    if not targetBot then return end
+    if qf.currentBot and botName and qf.currentBot ~= botName then
+        return
+    end
+    qf.currentBot = targetBot
+    qf.title:SetText("|cff00ccffMisiones de|r |cffffd200" .. targetBot .. "|r")
+
+    local data = DungeonBots.questDialogData and DungeonBots.questDialogData[targetBot]
+    local quests = (data and data.quests) or {}
+
+    if data and data.loading and #quests == 0 then
+        qf.statusLabel:SetText("|cff71d5ffConsultando misiones activas...|r")
+        qf.emptyLabel:SetText("|cff71d5ffConsultando misiones de " .. targetBot .. "...|r\n\n|cff888888Espera un instante mientras responde.|r")
+        qf.emptyLabel:Show()
+    elseif #quests == 0 then
+        qf.statusLabel:SetText("Misiones activas: |cffffd2000|r")
+        if data and data.emptyHint and data.emptyHint ~= "" then
+            qf.emptyLabel:SetText("Este bot no tiene misiones activas.\n\n|cff888888(" .. data.emptyHint .. ")|r")
+        else
+            qf.emptyLabel:SetText("Este bot no tiene misiones activas.")
+        end
+        qf.emptyLabel:Show()
+    else
+        qf.statusLabel:SetText("Misiones activas: |cffffd200" .. #quests .. "|r  |cff888888(clic para ver detalles)|r")
+        qf.emptyLabel:Hide()
+    end
+
+    for _, row in ipairs(questRows) do
+        row:Hide()
+    end
+
+    for i, q in ipairs(quests) do
+        local row = questRows[i] or CreateQuestRow(qf.scrollChild, i)
+        row:Show()
+
+        local lvlPrefix = (q.questLevel and q.questLevel ~= "") and ("|cff88aacc[" .. q.questLevel .. "]|r ") or ""
+        row.titleText:SetText(lvlPrefix .. "|cffffff00" .. (q.title or "Misión") .. "|r")
+
+        local subStr = ""
+        if q.statusText and q.statusText ~= "" then
+            local lowerSt = string.lower(q.statusText)
+            if (string.find(lowerSt, "complete") or string.find(lowerSt, "completa")) and not string.find(lowerSt, "incomplete") then
+                subStr = "|cff34c759" .. q.statusText .. "|r"
+            else
+                subStr = "|cff9aa5b5" .. q.statusText .. "|r"
+            end
+        elseif q.questId then
+            subStr = "|cff777777ID: " .. q.questId .. " (clic para inspeccionar)|r"
+        else
+            subStr = "|cff777777Clic para ver detalle|r"
+        end
+        row.subText:SetText(subStr)
+
+        row.titleBtn:SetScript("OnClick", function(self)
+            PlaySound("igMainMenuOptionCheckBoxOn")
+            local linkRef = q.questId and ("quest:" .. q.questId .. ":" .. (q.questLevel or "80")) or nil
+            SafeShowLinkTooltip(self, linkRef, q.displayLink, q.title, q.rawLine)
+        end)
+        row.titleBtn:SetScript("OnEnter", function(self)
+            row:SetBackdropBorderColor(0.25, 0.78, 1.0, 1.0)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:AddLine(q.title or "Misión", 1, 0.85, 0.2)
+            if q.statusText and q.statusText ~= "" then
+                GameTooltip:AddLine("Estado: " .. q.statusText, 0.8, 0.9, 1.0, true)
+            end
+            if q.questId then
+                GameTooltip:AddLine("Haz clic para abrir el detalle de la misión.", 0.3, 0.9, 0.5)
+            end
+            GameTooltip:Show()
+        end)
+        row.titleBtn:SetScript("OnLeave", function()
+            row:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.85)
+            GameTooltip:Hide()
+        end)
+
+        row.dropBtn:Show()
+        row.dropBtn:SetScript("OnClick", function()
+            DungeonBots:DropBotQuest(targetBot, q)
+        end)
+        row.dropBtn:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:AddLine("Abandonar Misión", 1, 0.35, 0.35)
+            GameTooltip:AddLine("Ordena a " .. targetBot .. " abandonar '" .. (q.title or "") .. "' y recarga la lista.", 0.8, 0.85, 0.95, true)
+            GameTooltip:Show()
+        end)
+        row.dropBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    end
+
+    qf.scrollChild:SetHeight(math.max(1, (#quests * 40) + 4))
+end
+
+function DungeonBots:OpenQuestDialog(botName)
+    if not DungeonBots.questFrame then
+        DungeonBots:BuildQuestDialog()
+    end
+    DungeonBots.questFrame.currentBot = botName
+    DungeonBots:UpdateQuestDialog(botName)
+    DungeonBots.questFrame:Show()
+    if DungeonBots.questFrame.Raise then
+        pcall(DungeonBots.questFrame.Raise, DungeonBots.questFrame)
+    end
+end
+
+-- =========================================================================
 -- VENTANA DE DIÁLOGO: INTERACCIÓN CON PNJ (talk)
 -- =========================================================================
 local talkActionRows = {}
@@ -217,9 +481,9 @@ function DungeonBots:BuildTalkDialog()
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:AddLine("Registro de Misiones del Bot", 1, 0.85, 0.2)
         if tf.currentBot then
-            GameTooltip:AddLine("Abre la pestaña Misiones de Información del Personaje para " .. tf.currentBot .. " (quests all).", 0.8, 0.9, 1.0, true)
+            GameTooltip:AddLine("Abre la ventana de Misiones para " .. tf.currentBot .. " (quests all).", 0.8, 0.9, 1.0, true)
         else
-            GameTooltip:AddLine("Abre la pestaña Misiones del bot seleccionado en Información del Personaje.", 0.8, 0.9, 1.0, true)
+            GameTooltip:AddLine("Abre la ventana de Misiones del bot seleccionado.", 0.8, 0.9, 1.0, true)
         end
         GameTooltip:Show()
     end)

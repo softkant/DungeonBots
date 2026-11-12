@@ -25,7 +25,6 @@ end
 
 local MODE_TABS = {
     { id = "gear",   label = "Equipo",   icon = "Interface\\Icons\\INV_Chest_Plate01" },
-    { id = "quests", label = "Misiones", icon = "Interface\\QuestFrame\\UI-QuestLog-BookIcon", texCoord = { 0.16, 0.84, 0.16, 0.84 } },
     { id = "spells", label = "Hechizos", icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
     { id = "glyphs", label = "Glifos",   icon = "Interface\\Icons\\INV_Inscription_Tradeskill01" },
 }
@@ -204,57 +203,13 @@ local SPELL_ROW_HEIGHT = 40
 local SPELL_ROW_PITCH = 43
 
 local spellRowButtons = {}
-local questRowButtons = {}
 
 local function HideRowPool(pool, fromIndex)
     for i = (fromIndex or 1), #pool do
         local row = pool[i]
         row.spellEntry = nil
-        row.questEntry = nil
         row:Hide()
     end
-end
-
-local function CreateQuestRowButton(parent, idx)
-    local row = CreateFrame("Frame", "DungeonBots_QuestRow_" .. idx, parent)
-    row:SetSize(492, 36)
-    row:SetPoint("TOPLEFT", parent, "TOPLEFT", 4, -((idx - 1) * 40) - 4)
-    ApplyDarkBackdrop(row, 8)
-    row:SetBackdropColor(0.08, 0.10, 0.14, 0.95)
-    row:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.85)
-
-    local icon = row:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(20, 20)
-    icon:SetPoint("LEFT", 8, 0)
-    icon:SetTexture("Interface\\Icons\\INV_Misc_Note_01")
-    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    row.icon = icon
-
-    local titleBtn = CreateFrame("Button", nil, row)
-    titleBtn:SetPoint("TOPLEFT", row, "TOPLEFT", 32, -2)
-    titleBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -114, 2)
-    row.titleBtn = titleBtn
-
-    local titleText = titleBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    titleText:SetPoint("TOPLEFT", 2, -4)
-    titleText:SetPoint("TOPRIGHT", -2, -4)
-    titleText:SetJustifyH("LEFT")
-    titleText:SetWordWrap(false)
-    row.titleText = titleText
-
-    local subText = titleBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    subText:SetPoint("TOPLEFT", titleText, "BOTTOMLEFT", 0, -2)
-    subText:SetPoint("TOPRIGHT", titleText, "BOTTOMRIGHT", 0, -2)
-    subText:SetJustifyH("LEFT")
-    subText:SetWordWrap(false)
-    row.subText = subText
-
-    local dropBtn = CreateRedIconButton(row, 102, 22, "Abandonar", "Interface\\Icons\\Spell_ChargeNegative")
-    dropBtn:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-    row.dropBtn = dropBtn
-
-    questRowButtons[idx] = row
-    return row
 end
 
 local function ConfigureIconTabButton(btn, iconPath, texCoord)
@@ -582,10 +537,6 @@ function DungeonBots:BuildSpellsDialog()
                 if DungeonBots.EnsureGearTabData then
                     DungeonBots:EnsureGearTabData(sp.currentBot, true)
                 end
-            elseif sp.activeMode == "quests" then
-                if DungeonBots.QueryQuests then
-                    DungeonBots:QueryQuests(sp.currentBot, true, false)
-                end
             elseif DungeonBots.QueryBotSpells then
                 DungeonBots:QueryBotSpells(sp.currentBot, sp.activeMode, "", false)
             end
@@ -593,11 +544,12 @@ function DungeonBots:BuildSpellsDialog()
     end)
     sp.refreshBtn = refreshBtn
 
-    -- Subpestanas de modo: Equipo / Misiones / Hechizos / Glifos
+    -- Subpestanas de modo: Equipo / Hechizos / Glifos
     sp.modeButtons = {}
-    local modeBtnW = 122
-    local modeBtnGap = 8
-    local modeStartX = math.floor((560 - (4 * modeBtnW + 3 * modeBtnGap)) / 2)
+    local numTabs = #MODE_TABS
+    local modeBtnW = 148
+    local modeBtnGap = 14
+    local modeStartX = math.floor((560 - (numTabs * modeBtnW + (numTabs - 1) * modeBtnGap)) / 2)
     for idx, tabDef in ipairs(MODE_TABS) do
         local mBtn = CreateFrame("Button", "DungeonBots_SpellsModeTab_" .. tabDef.id, sp, "UIPanelButtonTemplate")
         mBtn:SetSize(modeBtnW, 22)
@@ -612,17 +564,7 @@ function DungeonBots:BuildSpellsDialog()
             if rec then
                 rec.activeMode = tabDef.id
             end
-            if tabDef.id == "quests" then
-                local qData = sp.currentBot and DungeonBots.questDialogData and DungeonBots.questDialogData[sp.currentBot]
-                local now = DB_Internal.NowTime and DB_Internal.NowTime() or 0
-                if sp.currentBot and (not qData or (not qData.loading and not qData.done) or ((now - (qData.updatedAt or 0)) > 20)) then
-                    if DungeonBots.QueryQuests then
-                        DungeonBots:QueryQuests(sp.currentBot, true, false)
-                    end
-                else
-                    DungeonBots:UpdateSpellsDialog(sp.currentBot)
-                end
-            elseif tabDef.id == "gear" then
+            if tabDef.id == "gear" then
                 if sp.currentBot and DungeonBots.EnsureGearTabData then
                     DungeonBots:EnsureGearTabData(sp.currentBot, false)
                 end
@@ -658,14 +600,6 @@ function DungeonBots:BuildSpellsDialog()
     end)
     localSearchBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     sp.localSearchBox = localSearchBox
-
-    -- Hint de modo secundario (ej. resumen de misiones activas sobre la lista)
-    local modeHintLabel = sp:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    modeHintLabel:SetPoint("TOPLEFT", sp, "TOPLEFT", 14, -72)
-    modeHintLabel:SetPoint("TOPRIGHT", sp, "TOPRIGHT", -14, -72)
-    modeHintLabel:SetJustifyH("LEFT")
-    modeHintLabel:Hide()
-    sp.modeHintLabel = modeHintLabel
 
     -- Panel de lista con scroll
     local listBg = CreateFrame("Frame", nil, sp)
@@ -738,18 +672,11 @@ function DungeonBots:BuildSpellsDialog()
     castBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
     sp.castBtn = castBtn
 
-    local questFooterHint = sp:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    questFooterHint:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", -12, 16)
-    questFooterHint:SetJustifyH("RIGHT")
-    questFooterHint:SetText("|cffaaaaaaHaz clic en una misión para ver detalles o pulsa 'Abandonar'.|r")
-    questFooterHint:Hide()
-    sp.questFooterHint = questFooterHint
-
     DungeonBots.spellsFrame = sp
 end
 
 local function IsValidMode(mode)
-    return mode == "gear" or mode == "spells" or mode == "glyphs" or mode == "quests"
+    return mode == "gear" or mode == "spells" or mode == "glyphs"
 end
 
 local function UpdateCycleFooter(sp, targetBot)
@@ -883,103 +810,6 @@ local function RenderGearPanel(sp, targetBot, classToken)
     gp.blueBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
-local function RenderQuestsPanelRows(sp, targetBot)
-    sp.filterBar:Hide()
-    sp.castBtn:Hide()
-    sp.selectedSpell = nil
-    if sp.questFooterHint then sp.questFooterHint:Show() end
-    sp.modeHintLabel:Show()
-
-    if sp.listBg then
-        sp.listBg:ClearAllPoints()
-        sp.listBg:SetPoint("TOPLEFT", sp, "TOPLEFT", 10, -96)
-        sp.listBg:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", -10, 42)
-    end
-
-    local data = DungeonBots.questDialogData and DungeonBots.questDialogData[targetBot]
-    local quests = (data and data.quests) or {}
-
-    if data and data.loading and #quests == 0 then
-        sp.modeHintLabel:SetText("|cff71d5ffConsultando misiones activas...|r")
-        sp.emptyLabel:SetText("|cff71d5ffConsultando misiones de " .. targetBot .. "...|r\n\n|cff888888Espera un instante mientras responde.|r")
-        sp.emptyLabel:Show()
-    elseif #quests == 0 then
-        sp.modeHintLabel:SetText("Misiones activas: |cffffd2000|r")
-        if data and data.emptyHint and data.emptyHint ~= "" then
-            sp.emptyLabel:SetText("Este bot no tiene misiones activas.\n\n|cff888888(" .. data.emptyHint .. ")|r")
-        else
-            sp.emptyLabel:SetText("Este bot no tiene misiones activas.")
-        end
-        sp.emptyLabel:Show()
-    else
-        sp.modeHintLabel:SetText("Misiones activas: |cffffd200" .. #quests .. "|r  |cff888888(clic para ver detalles)|r")
-        sp.emptyLabel:Hide()
-    end
-
-    HideRowPool(spellRowButtons, 1)
-
-    for i, q in ipairs(quests) do
-        local row = questRowButtons[i] or CreateQuestRowButton(sp.scrollChild, i)
-        row.questEntry = q
-        row:Show()
-
-        local lvlPrefix = (q.questLevel and q.questLevel ~= "") and ("|cff88aacc[" .. q.questLevel .. "]|r ") or ""
-        row.titleText:SetText(lvlPrefix .. "|cffffff00" .. (q.title or "Misión") .. "|r")
-
-        local subStr = ""
-        if q.statusText and q.statusText ~= "" then
-            local lowerSt = string.lower(q.statusText)
-            if (string.find(lowerSt, "complete") or string.find(lowerSt, "completa")) and not string.find(lowerSt, "incomplete") then
-                subStr = "|cff34c759" .. q.statusText .. "|r"
-            else
-                subStr = "|cff9aa5b5" .. q.statusText .. "|r"
-            end
-        elseif q.questId then
-            subStr = "|cff777777ID: " .. q.questId .. " (clic para inspeccionar)|r"
-        else
-            subStr = "|cff777777Clic para ver detalle|r"
-        end
-        row.subText:SetText(subStr)
-
-        row.titleBtn:SetScript("OnClick", function(self)
-            PlaySound("igMainMenuOptionCheckBoxOn")
-            local linkRef = q.questId and ("quest:" .. q.questId .. ":" .. (q.questLevel or "80")) or nil
-            SafeShowLinkTooltip(self, linkRef, q.displayLink, q.title, q.rawLine)
-        end)
-        row.titleBtn:SetScript("OnEnter", function(self)
-            row:SetBackdropBorderColor(0.25, 0.78, 1.0, 1.0)
-            GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:AddLine(q.title or "Misión", 1, 0.85, 0.2)
-            if q.statusText and q.statusText ~= "" then
-                GameTooltip:AddLine("Estado: " .. q.statusText, 0.8, 0.9, 1.0, true)
-            end
-            if q.questId then
-                GameTooltip:AddLine("Haz clic para abrir el detalle de la misión.", 0.3, 0.9, 0.5)
-            end
-            GameTooltip:Show()
-        end)
-        row.titleBtn:SetScript("OnLeave", function()
-            row:SetBackdropBorderColor(0.28, 0.32, 0.40, 0.85)
-            GameTooltip:Hide()
-        end)
-
-        row.dropBtn:Show()
-        row.dropBtn:SetScript("OnClick", function()
-            DungeonBots:DropBotQuest(targetBot, q)
-        end)
-        row.dropBtn:SetScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:AddLine("Abandonar Misión", 1, 0.35, 0.35)
-            GameTooltip:AddLine("Ordena a " .. targetBot .. " abandonar '" .. (q.title or "") .. "' y recarga la lista.", 0.8, 0.85, 0.95, true)
-            GameTooltip:Show()
-        end)
-        row.dropBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    end
-
-    HideRowPool(questRowButtons, #quests + 1)
-    sp.scrollChild:SetHeight(math.max(1, (#quests * 40) + 8))
-    UpdateCycleFooter(sp, targetBot)
-end
 
 function DungeonBots:UpdateSpellsDialog(botName)
     local sp = DungeonBots.spellsFrame
@@ -1018,13 +848,10 @@ function DungeonBots:UpdateSpellsDialog(botName)
 
     if mode == "gear" then
         sp.filterBar:Hide()
-        sp.modeHintLabel:Hide()
         sp.listBg:Hide()
         sp.castBtn:Hide()
-        if sp.questFooterHint then sp.questFooterHint:Hide() end
         sp.emptyLabel:Hide()
         HideRowPool(spellRowButtons, 1)
-        HideRowPool(questRowButtons, 1)
         if sp.gearPanel then
             sp.gearPanel:Show()
             RenderGearPanel(sp, targetBot, targetClassToken)
@@ -1040,21 +867,12 @@ function DungeonBots:UpdateSpellsDialog(botName)
         sp.listBg:Show()
     end
 
-    if mode == "quests" then
-        RenderQuestsPanelRows(sp, targetBot)
-        return
-    end
-
-    if sp.questFooterHint then sp.questFooterHint:Hide() end
-    HideRowPool(questRowButtons, 1)
-
     local allItems = (tab and tab.items) or {}
     local visibleEntries = {}
     local filterRaw = ""
 
     if mode == "spells" then
         sp.filterBar:Show()
-        sp.modeHintLabel:Hide()
         sp.castBtn:Show()
 
         filterRaw = sp.localSearchBox and sp.localSearchBox:GetText() or ""
@@ -1095,7 +913,6 @@ function DungeonBots:UpdateSpellsDialog(botName)
         end
     else
         sp.filterBar:Hide()
-        sp.modeHintLabel:Hide()
         sp.castBtn:Hide()
         sp.selectedSpell = nil
         visibleEntries = allItems

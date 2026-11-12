@@ -70,9 +70,9 @@ local function UpdateBotQuestCountCache(cleanBot, count, timestamp)
     end
 end
 
-function DB_Internal.IsCharQuestsViewOpen(botName)
-    local sp = DungeonBots.spellsFrame
-    return (sp and sp:IsShown() and sp.activeMode == "quests" and (not botName or sp.currentBot == botName)) and true or false
+function DB_Internal.IsQuestDialogOpenFor(botName)
+    local qf = DungeonBots.questFrame
+    return (qf and qf:IsShown() and (not botName or qf.currentBot == botName)) and true or false
 end
 
 function DungeonBots:QueryQuests(botName, isSilent, suppressDialog)
@@ -105,9 +105,9 @@ function DungeonBots:QueryQuests(botName, isSilent, suppressDialog)
     if DungeonBots.uiCaptureFrame then
         DungeonBots.uiCaptureFrame:Show()
     end
-    if not suppressDialog or DB_Internal.IsCharQuestsViewOpen(cleanBot) then
-        if DungeonBots.OpenSpellsDialog then
-            DungeonBots:OpenSpellsDialog(cleanBot, "quests")
+    if not suppressDialog or DB_Internal.IsQuestDialogOpenFor(cleanBot) then
+        if DungeonBots.OpenQuestDialog then
+            DungeonBots:OpenQuestDialog(cleanBot)
         end
     end
     if not isSilent then
@@ -235,8 +235,8 @@ function DungeonBots:DropBotQuest(botName, questEntry, fromTalkDialog)
     DungeonBots:SendWhisperCommand(cleanBot, "drop " .. target)
     DungeonBots:Print("|cffffd200" .. cleanBot .. "|r abandonó la misión: " .. qDisplay)
 
-    if DB_Internal.IsCharQuestsViewOpen(cleanBot) and DungeonBots.UpdateSpellsDialog then
-        DungeonBots:UpdateSpellsDialog(cleanBot)
+    if DB_Internal.IsQuestDialogOpenFor(cleanBot) and DungeonBots.UpdateQuestDialog then
+        DungeonBots:UpdateQuestDialog(cleanBot)
     end
     if DungeonBots.UpdateTalkDialog and DungeonBots.talkFrame and DungeonBots.talkFrame:IsShown() and DungeonBots.talkFrame.currentBot == cleanBot then
         DungeonBots:UpdateTalkDialog(cleanBot)
@@ -546,7 +546,7 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
     for botName, refreshAt in pairs(DungeonBots.pendingQuestRefresh) do
         if now >= refreshAt then
             DungeonBots.pendingQuestRefresh[botName] = nil
-            local keepClosed = not DB_Internal.IsCharQuestsViewOpen(botName)
+            local keepClosed = not DB_Internal.IsQuestDialogOpenFor(botName)
             DungeonBots:QueryQuests(botName, true, keepClosed)
         else
             hasAny = true
@@ -575,8 +575,8 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
                 if cap.gotAnyLine or data.emptyHint or #(data.quests or {}) > 0 then
                     UpdateBotQuestCountCache(botName, #(data.quests or {}), now)
                 end
-                if (not cap.silent or DB_Internal.IsCharQuestsViewOpen(botName)) and DungeonBots.UpdateSpellsDialog then
-                    DungeonBots:UpdateSpellsDialog(botName)
+                if (not cap.silent or DB_Internal.IsQuestDialogOpenFor(botName)) and DungeonBots.UpdateQuestDialog then
+                    DungeonBots:UpdateQuestDialog(botName)
                 end
             end
             if DungeonBots.pendingTalkAfterQuest and DungeonBots.pendingTalkAfterQuest[botName] then
@@ -837,8 +837,8 @@ function DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
     if data.emptyHint or #(data.quests) > 0 then
         UpdateBotQuestCountCache(cleanSender, #(data.quests), now)
     end
-    if (not cap.silent or DB_Internal.IsCharQuestsViewOpen(cleanSender)) and DungeonBots.UpdateSpellsDialog then
-        DungeonBots:UpdateSpellsDialog(cleanSender)
+    if (not cap.silent or DB_Internal.IsQuestDialogOpenFor(cleanSender)) and DungeonBots.UpdateQuestDialog then
+        DungeonBots:UpdateQuestDialog(cleanSender)
     end
     return true
 end

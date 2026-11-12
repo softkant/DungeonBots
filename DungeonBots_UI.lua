@@ -780,7 +780,7 @@ local CARD_ACTION_BUTTONS = {
         icon = "Interface\\QuestFrame\\UI-QuestLog-BookIcon",
         texCoord = { 0.16, 0.84, 0.16, 0.84 },
         tipTitle = "Misiones del Bot (quests all)",
-        tipDesc = "Consulta 'quests all' y abre la pestaña Misiones en Información del Personaje para ver detalles o abandonarlas.",
+        tipDesc = "Consulta 'quests all' y abre la ventana de Misiones para ver detalles o abandonarlas.",
         onClick = function(name)
             PlaySound("igMainMenuOptionCheckBoxOn")
             DungeonBots:QueryQuests(name)

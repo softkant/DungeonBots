@@ -29,7 +29,6 @@ local MODE_COMMANDS = {
     gear = "gear",
     spells = "spells",
     glyphs = "glyphs",
-    quests = "quests",
 }
 
 local function GetOrCreateBotSpellsRecord(cleanBot)
@@ -632,14 +631,6 @@ function DungeonBots:QueryBotSpells(botName, mode, filterText, isSilent)
         end
         return
     end
-    if targetMode == "quests" then
-        rec.activeMode = "quests"
-        DungeonBots.pendingSpellsCapture[cleanBot] = nil
-        if DungeonBots.QueryQuests then
-            DungeonBots:QueryQuests(cleanBot, isSilent, isSilent)
-        end
-        return
-    end
     if targetMode == "spells" then
         rec.spellsFilter = cleanFilter
     end
@@ -729,10 +720,6 @@ function DungeonBots:CycleNextSpellsBot(currentBot, activeMode, serverFilter)
         return nil
     end
     local targetMode = MODE_COMMANDS[activeMode] and activeMode or "gear"
-    if targetMode == "quests" and DungeonBots.QueryQuests then
-        DungeonBots:QueryQuests(nextBot, false, false)
-    else
-        DungeonBots:QueryBotSpells(nextBot, targetMode, serverFilter, false)
-    end
+    DungeonBots:QueryBotSpells(nextBot, targetMode, serverFilter, false)
     return nextBot
 end
