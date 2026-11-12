@@ -220,10 +220,14 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         local isKnownOrHistory = evalResult.isKnownOrHistory
         local isBotText = evalResult.isBotText
 
-        if DB_Internal.ParseQuestCaptureWhisper then
+        local handledQuestShare = false
+        if DB_Internal.ParseQuestShareWhisper then
+            handledQuestShare = DB_Internal.ParseQuestShareWhisper(cleanSender, message) and true or false
+        end
+        if not handledQuestShare and DB_Internal.ParseQuestCaptureWhisper then
             DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
         end
-        if DB_Internal.ParseTalkCaptureWhisper then
+        if not handledQuestShare and DB_Internal.ParseTalkCaptureWhisper then
             DB_Internal.ParseTalkCaptureWhisper(cleanSender, message)
         end
         if DB_Internal.ParseInventoryCaptureWhisper then

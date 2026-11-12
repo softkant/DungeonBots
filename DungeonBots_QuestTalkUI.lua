@@ -45,7 +45,7 @@ local function CreateQuestRow(parent, idx)
 
     local titleBtn = CreateFrame("Button", nil, row)
     titleBtn:SetPoint("TOPLEFT", row, "TOPLEFT", 32, -2)
-    titleBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -116, 2)
+    titleBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -208, 2)
     row.titleBtn = titleBtn
 
     local titleText = titleBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -62,9 +62,13 @@ local function CreateQuestRow(parent, idx)
     subText:SetWordWrap(false)
     row.subText = subText
 
-    local dropBtn = CreateRedIconButton(row, 104, 22, "Abandonar", "Interface\\Icons\\Spell_ChargeNegative")
+    local dropBtn = CreateRedIconButton(row, 96, 22, "Abandonar", "Interface\\Icons\\Spell_ChargeNegative")
     dropBtn:SetPoint("RIGHT", row, "RIGHT", -6, 0)
     row.dropBtn = dropBtn
+
+    local shareBtn = CreateRedIconButton(row, 96, 22, "Compartir", "Interface\\Icons\\INV_Misc_GroupLooking")
+    shareBtn:SetPoint("RIGHT", dropBtn, "LEFT", -6, 0)
+    row.shareBtn = shareBtn
 
     questRows[idx] = row
     return row
@@ -166,7 +170,7 @@ function DungeonBots:BuildQuestDialog()
 
     local footerHint = qf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     footerHint:SetPoint("BOTTOMLEFT", 14, 15)
-    footerHint:SetText("|cffaaaaaaHaz clic en una misión para ver detalles o pulsa 'Abandonar'.|r")
+    footerHint:SetText("|cffaaaaaaClic en una misión para ver detalles, o pulsa 'Compartir' / 'Abandonar'.|r")
 
     local closeFooterBtn = CreateFrame("Button", nil, qf, "UIPanelButtonTemplate")
     closeFooterBtn:SetSize(90, 24)
@@ -262,6 +266,30 @@ function DungeonBots:UpdateQuestDialog(botName)
             GameTooltip:Hide()
         end)
 
+        local canShare = (q.safeLink ~= nil or q.rawDisplayLink ~= nil or q.questId ~= nil)
+        row.shareBtn:Show()
+        if canShare then
+            row.shareBtn:Enable()
+            row.shareBtn:SetAlpha(1.0)
+        else
+            row.shareBtn:Disable()
+            row.shareBtn:SetAlpha(0.45)
+        end
+        row.shareBtn:SetScript("OnClick", function()
+            DungeonBots:ShareBotQuest(targetBot, q)
+        end)
+        row.shareBtn:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:AddLine("Compartir Misión", 0.3, 0.85, 1.0)
+            if canShare then
+                GameTooltip:AddLine("Ordena a " .. targetBot .. " compartir '" .. (q.title or "") .. "' contigo y el grupo.", 0.8, 0.85, 0.95, true)
+            else
+                GameTooltip:AddLine("No hay enlace de misión disponible para compartir.", 1.0, 0.5, 0.4, true)
+            end
+            GameTooltip:Show()
+        end)
+        row.shareBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
         row.dropBtn:Show()
         row.dropBtn:SetScript("OnClick", function()
             DungeonBots:DropBotQuest(targetBot, q)
@@ -315,10 +343,15 @@ local function CreateTalkActionRow(parent, idx)
     label:SetWordWrap(false)
     row.label = label
 
-    local acceptBtn = CreateRedIconButton(row, 104, 20, "Aceptar", "Interface\\Icons\\INV_Misc_Book_09")
+    local acceptBtn = CreateRedIconButton(row, 100, 20, "Aceptar", "Interface\\Icons\\INV_Misc_Book_09")
     acceptBtn:SetPoint("RIGHT", row, "RIGHT", -4, 0)
     acceptBtn:Hide()
     row.acceptBtn = acceptBtn
+
+    local shareBtn = CreateRedIconButton(row, 94, 20, "Compartir", "Interface\\Icons\\INV_Misc_GroupLooking")
+    shareBtn:SetPoint("RIGHT", acceptBtn, "LEFT", -4, 0)
+    shareBtn:Hide()
+    row.shareBtn = shareBtn
 
     local statusTag = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     statusTag:SetPoint("RIGHT", row, "RIGHT", -10, 0)
@@ -679,9 +712,10 @@ function DungeonBots:UpdateTalkDialog(botName)
 
             if act.kind == "quest" then
                 local style = TALK_QUEST_STYLE[act.questState or "unknown"] or TALK_QUEST_STYLE.unknown
+                local showShare = (style.showBtn and style.btnAction == "drop")
                 row.mainBtn:ClearAllPoints()
                 row.mainBtn:SetPoint("TOPLEFT", row, "TOPLEFT", 4, -2)
-                row.mainBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -112, 2)
+                row.mainBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", showShare and -206 or -112, 2)
                 row.label:SetText(style.prefix .. (act.displayLink or act.title or "Misión"))
                 row.mainBtn:SetScript("OnClick", function(self)
                     PlaySound("igMainMenuOptionCheckBoxOn")
@@ -705,6 +739,30 @@ function DungeonBots:UpdateTalkDialog(botName)
                     GameTooltip:Hide()
                 end)
 
+                if showShare and row.shareBtn then
+                    local canShare = (act.safeLink ~= nil or act.rawDisplayLink ~= nil or act.questId ~= nil)
+                    row.shareBtn:Show()
+                    if canShare then
+                        row.shareBtn:Enable()
+                        row.shareBtn:SetAlpha(1.0)
+                    else
+                        row.shareBtn:Disable()
+                        row.shareBtn:SetAlpha(0.45)
+                    end
+                    row.shareBtn:SetScript("OnClick", function()
+                        DungeonBots:ShareBotQuest(targetBot, act)
+                    end)
+                    row.shareBtn:SetScript("OnEnter", function(self)
+                        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                        GameTooltip:AddLine("Compartir Misión", 0.3, 0.85, 1.0)
+                        GameTooltip:AddLine("Ordena a " .. targetBot .. " compartir '" .. (act.title or "") .. "' contigo y el grupo.", 0.8, 0.85, 0.95, true)
+                        GameTooltip:Show()
+                    end)
+                    row.shareBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+                elseif row.shareBtn then
+                    row.shareBtn:Hide()
+                end
+
                 if style.showBtn then
                     row.statusTag:Hide()
                     if row.acceptBtn.icon then
@@ -725,6 +783,9 @@ function DungeonBots:UpdateTalkDialog(botName)
                     row.statusTag:Show()
                 end
             else
+                if row.shareBtn then
+                    row.shareBtn:Hide()
+                end
                 row.acceptBtn:Hide()
                 row.statusTag:Hide()
                 row.mainBtn:ClearAllPoints()

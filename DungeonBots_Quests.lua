@@ -255,6 +255,59 @@ function DungeonBots:DropBotQuest(botName, questEntry, fromTalkDialog)
     end
 end
 
+-- Compartir una misión del quest log de un bot con el grupo (share [link])
+DungeonBots.pendingQuestShare = DungeonBots.pendingQuestShare or {}
+
+function DungeonBots:ShareBotQuest(botName, questEntry)
+    local cleanBot = NormalizePlayerName(botName)
+    if not cleanBot or not questEntry then return end
+
+    local targetLink = questEntry.safeLink or questEntry.rawDisplayLink
+    if (not targetLink or not string.find(targetLink, "|Hquest:", 1, true)) and questEntry.questId then
+        local qId = tostring(questEntry.questId)
+        local qLvl = tostring(questEntry.questLevel or "0")
+        local qName = questEntry.rawTitle or questEntry.title or ("Quest " .. qId)
+        targetLink = "|cffffff00|Hquest:" .. qId .. ":" .. qLvl .. "|h[" .. qName .. "]|h|r"
+    end
+    if not targetLink or targetLink == "" then
+        DungeonBots:Print("|cffff5544No se puede compartir:|r falta el enlace de la misión.")
+        return
+    end
+
+    local rawDisplay = questEntry.displayLink or targetLink
+    local qDisplay = DungeonBots.LocalizeHyperlinksInText and DungeonBots:LocalizeHyperlinksInText(rawDisplay) or rawDisplay
+
+    DungeonBots.pendingQuestShare = DungeonBots.pendingQuestShare or {}
+    DungeonBots.pendingQuestShare[cleanBot] = {
+        display = qDisplay,
+        title = questEntry.title,
+        expiresAt = NowTime() + 8.0,
+    }
+
+    PlaySound("igMainMenuOptionCheckBoxOn")
+    DungeonBots:SendWhisperCommand(cleanBot, "share " .. targetLink)
+end
+
+function DB_Internal.ParseQuestShareWhisper(cleanSender, message)
+    if not cleanSender or cleanSender == "" or not message or message == "" then
+        return false
+    end
+    local lowerMsg = string.lower(TrimText(StripWowFormatting(message)))
+    if string.find(lowerMsg, "quest_shared", 1, true) then
+        local pending = DungeonBots.pendingQuestShare and DungeonBots.pendingQuestShare[cleanSender]
+        if DungeonBots.pendingQuestShare then
+            DungeonBots.pendingQuestShare[cleanSender] = nil
+        end
+        if pending and (pending.expiresAt or 0) >= NowTime() and pending.display then
+            DungeonBots:Print("|cffffd200" .. cleanSender .. "|r compartió la misión: " .. pending.display)
+        else
+            DungeonBots:Print("|cffffd200" .. cleanSender .. "|r compartió la misión.")
+        end
+        return true
+    end
+    return false
+end
+
 -- =========================================================================
 -- Sistema Talk e Interacción con PNJs
 -- =========================================================================
