@@ -869,7 +869,7 @@ local CARD_ACTION_BUTTONS = {
         label = "Misiones",
         icon = "Interface\\QuestFrame\\UI-QuestLog-BookIcon",
         texCoord = { 0.16, 0.84, 0.16, 0.84 },
-        tipTitle = "Misiones del Bot (quests all)",
+        tipTitle = "Misiones del Bot",
         tipDesc = "Consulta 'quests all' y abre la ventana de Misiones para ver detalles o abandonarlas.",
         onClick = function(name)
             PlaySound("igMainMenuOptionCheckBoxOn")
