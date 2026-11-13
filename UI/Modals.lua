@@ -303,7 +303,7 @@ function DungeonBots:BuildSettingsDialog()
 
     local versionLabel = sf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     versionLabel:SetPoint("BOTTOMLEFT", sf, "BOTTOMLEFT", 16, 17)
-    versionLabel:SetText(L["SETTINGS_FOOTER_VER"])
+    versionLabel:SetText(string.format(L["SETTINGS_FOOTER_VER"], (DungeonBots.VERSION or "1.0.0")))
     sf.versionLabel = versionLabel
 
     local closeFooterBtn = CreateFrame("Button", nil, sf, "UIPanelButtonTemplate")

@@ -548,7 +548,7 @@ L["SET_THEME_DARK_TITLE"]  = "Theme: Slate Blue"
 L["SET_THEME_DARK_DESC"]   = "Dark slate-blue and steel theme with Blizzard stone texture and silver borders."
 L["SET_THEME_GOLD_TITLE"]  = "Theme: Gold"
 L["SET_THEME_GOLD_DESC"]   = "Classic Blizzard WotLK style with carved golden borders and warm bronze-stone panels."
-L["SETTINGS_FOOTER_VER"]   = "|cff71d5ff@Shahak|r"
+L["SETTINGS_FOOTER_VER"]   = "|cff71d5ff@Shahak|r |cff888888v%s|r"
 
 L["CLEAR_HIST_CONFIRM"]    = "Are you sure you want to delete all saved bot history?"
 L["CLEAR_HIST_YES"]        = "Yes, clear"
