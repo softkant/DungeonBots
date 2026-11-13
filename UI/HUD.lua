@@ -11,15 +11,21 @@ local hudFrame = nil
 local utilHudFrame = nil
 local hudBotDropDown = nil
 local hudTalkBtn = nil
+local hudAttackBtn = nil
+local hudPullBtn = nil
 local hudFormCycleBtn = nil
 local hudMenuWatcher = nil
 local hudMenuAnchorBtn = nil
 local hudMenuMouseWasDown = false
 
+local ATTACK_WAIT_OPTIONS = { 0, 2, 5, 8 }
+local PULL_WAIT_OPTIONS = { 4, 8, 12 }
+
 local TACTICAL_ACTIONS = {
     {
         name = L["HUD_FOCUS_NAME"],
-        cmd = "do attack my target",
+        actionKind = "attack_target",
+        hasRightClickMenu = true,
         icon = "Interface\\Icons\\Ability_Warrior_OffensiveStance",
         title = L["HUD_FOCUS_TITLE"],
         desc = L["HUD_FOCUS_DESC"],
@@ -27,7 +33,8 @@ local TACTICAL_ACTIONS = {
     },
     {
         name = L["HUD_PULL_NAME"],
-        cmd = "pull my target",
+        actionKind = "pull_back",
+        hasRightClickMenu = true,
         icon = "Interface\\Icons\\Ability_Hunter_AimedShot",
         title = L["HUD_PULL_TITLE"],
         desc = L["HUD_PULL_DESC"],
@@ -299,11 +306,100 @@ local function CycleFormationMode()
     UpdateFormationCycleButtonVisual()
 end
 
+local function GetSavedSeconds(dbKey, defaultVal, validList)
+    local val = DungeonBotsDB and tonumber(DungeonBotsDB[dbKey])
+    if val then
+        for _, v in ipairs(validList) do
+            if val == v then return val end
+        end
+    end
+    return defaultVal
+end
+
+local function ApplyDpsWaitStrategy(secs)
+    if secs > 0 then
+        DungeonBots:SendPartyCommand("@dps co +wait for attack")
+        DungeonBots:SendPartyCommand("@dps wait for attack time " .. secs)
+    else
+        DungeonBots:SendPartyCommand("@dps co -wait for attack")
+    end
+end
+
+local function UpdateCombatActionWaitBadges()
+    if hudAttackBtn and hudAttackBtn.waitBadge then
+        local secs = GetSavedSeconds("attackWaitSeconds", 0, ATTACK_WAIT_OPTIONS)
+        hudAttackBtn.waitBadge:SetText(secs .. "s")
+    end
+    if hudPullBtn and hudPullBtn.waitBadge then
+        local secs = GetSavedSeconds("pullWaitSeconds", 8, PULL_WAIT_OPTIONS)
+        hudPullBtn.waitBadge:SetText(secs .. "s")
+    end
+end
+
+local function OpenWaitDelayDropdown(anchorBtn, cfgMenu)
+    local cur = GetSavedSeconds(cfgMenu.dbKey, cfgMenu.defaultVal, cfgMenu.options)
+    OpenAnchoredHudMenu(anchorBtn, function(_, level)
+        local titleInfo = UIDropDownMenu_CreateInfo()
+        titleInfo.text = cfgMenu.menuTitle
+        titleInfo.isTitle = true
+        titleInfo.notCheckable = true
+        UIDropDownMenu_AddButton(titleInfo, level)
+
+        for _, secs in ipairs(cfgMenu.options) do
+            local info = UIDropDownMenu_CreateInfo()
+            info.text = (secs == 0) and L["HUD_ATK_OPT_NOWAIT"] or string.format(L["HUD_WAIT_SEC_FMT"], secs)
+            info.checked = (cur == secs)
+            local chosen = secs
+            info.func = function()
+                if CloseDropDownMenus then CloseDropDownMenus() end
+                if DungeonBotsDB then
+                    DungeonBotsDB[cfgMenu.dbKey] = chosen
+                end
+                ApplyDpsWaitStrategy(chosen)
+                UpdateCombatActionWaitBadges()
+                if chosen == 0 and cfgMenu.setZeroMsg then
+                    DungeonBots:Print(cfgMenu.setZeroMsg)
+                else
+                    DungeonBots:Print(string.format(cfgMenu.setSecFmt, chosen))
+                end
+            end
+            UIDropDownMenu_AddButton(info, level)
+        end
+    end)
+end
+
+local function ExecuteAttackTargetSequence()
+    if CloseDropDownMenus then CloseDropDownMenus() end
+    local secs = GetSavedSeconds("attackWaitSeconds", 0, ATTACK_WAIT_OPTIONS)
+    ApplyDpsWaitStrategy(secs)
+    DungeonBots:SendPartyCommand("@tank attack")
+    DungeonBots:SendPartyCommand("@dps attack")
+end
+
+local function ExecutePullBackSequence()
+    if CloseDropDownMenus then CloseDropDownMenus() end
+    local secs = GetSavedSeconds("pullWaitSeconds", 8, PULL_WAIT_OPTIONS)
+    ApplyDpsWaitStrategy(secs)
+    DungeonBots:SendPartyCommand("@tank pull back")
+end
+
 local function ShowHudButtonTooltip(btn, action)
     GameTooltip:SetOwner(btn, "ANCHOR_TOP")
     GameTooltip:AddLine(action.title, 1, 1, 1)
     GameTooltip:AddLine(action.desc, 0.85, 0.85, 0.85, true)
-    if action.isFormationCycle then
+    if action.actionKind == "attack_target" then
+        local secs = GetSavedSeconds("attackWaitSeconds", 0, ATTACK_WAIT_OPTIONS)
+        GameTooltip:AddLine(" ")
+        if secs == 0 then
+            GameTooltip:AddLine(L["HUD_ATK_CUR_NOWAIT"], 1, 1, 1)
+        else
+            GameTooltip:AddLine(string.format(L["HUD_ATK_CUR_SEC_FMT"], secs), 1, 1, 1)
+        end
+    elseif action.actionKind == "pull_back" then
+        local secs = GetSavedSeconds("pullWaitSeconds", 8, PULL_WAIT_OPTIONS)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(string.format(L["HUD_PULL_CUR_SEC_FMT"], secs), 1, 1, 1)
+    elseif action.isFormationCycle then
         local _, labelText = GetFormationCycleState()
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine(string.format(L["HUD_FORM_CUR_FMT"], labelText), 1, 1, 1)
@@ -502,7 +598,11 @@ local function CreateFloatingToolbar(cfg)
         local btn = CreateFrame("Button", cfg.btnPrefix .. i, f)
         btn:SetSize(btnSize, btnSize)
         btn:SetPoint("LEFT", f, "LEFT", startX + (i - 1) * (btnSize + spacing), 0)
-        btn:RegisterForClicks("LeftButtonUp")
+        if action.hasRightClickMenu then
+            btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        else
+            btn:RegisterForClicks("LeftButtonUp")
+        end
 
         btn:SetBackdrop({
             bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -543,14 +643,31 @@ local function CreateFloatingToolbar(cfg)
         btn.icon = icon
         btn.highlightTex = highlight
         btn.actionDef = action
-        if action.isTalkPicker then
+        if action.actionKind == "attack_target" or action.actionKind == "pull_back" then
+            local badge = btn:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
+            badge:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -3, 2)
+            badge:SetJustifyH("RIGHT")
+            btn.waitBadge = badge
+            if action.actionKind == "attack_target" then
+                hudAttackBtn = btn
+            else
+                hudPullBtn = btn
+            end
+        elseif action.isTalkPicker then
             hudTalkBtn = btn
         elseif action.isFormationCycle then
             hudFormCycleBtn = btn
             UpdateFormationCycleButtonVisual()
         end
 
-        btn:SetScript("OnClick", function(self)
+        btn:SetScript("OnClick", function(self, mouseBtn)
+            if mouseBtn == "RightButton" then
+                if action.hasRightClickMenu and cfg.onRightClick then
+                    PlaySound("igMainMenuOptionCheckBoxOn")
+                    cfg.onRightClick(self, action)
+                end
+                return
+            end
             if action.isTalkPicker and DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
                 cfg.onActionClick(self, action)
                 return
@@ -615,13 +732,39 @@ function DungeonBots:InitHUD()
             btnPrefix = "DungeonBots_HUDExtBtn_",
             showMainPanelBtn = false,
             onActionClick = function(_, action)
-                if action.actionKind == "formation_cycle" then
+                if action.actionKind == "attack_target" then
+                    ExecuteAttackTargetSequence()
+                    return
+                elseif action.actionKind == "pull_back" then
+                    ExecutePullBackSequence()
+                    return
+                elseif action.actionKind == "formation_cycle" then
                     CycleFormationMode()
                     return
                 end
                 DungeonBots:SendPartyCommand(action.cmd)
                 if action.cmd == "move from group" then
                     DungeonBots:Print(L["HUD_MSG_SPREAD_SENT"])
+                end
+            end,
+            onRightClick = function(btn, action)
+                if action.actionKind == "attack_target" then
+                    OpenWaitDelayDropdown(btn, {
+                        dbKey = "attackWaitSeconds",
+                        defaultVal = 0,
+                        options = ATTACK_WAIT_OPTIONS,
+                        menuTitle = L["HUD_ATK_MENU_TITLE"],
+                        setZeroMsg = L["HUD_ATK_SET_NOWAIT"],
+                        setSecFmt = L["HUD_ATK_SET_SEC_FMT"],
+                    })
+                elseif action.actionKind == "pull_back" then
+                    OpenWaitDelayDropdown(btn, {
+                        dbKey = "pullWaitSeconds",
+                        defaultVal = 8,
+                        options = PULL_WAIT_OPTIONS,
+                        menuTitle = L["HUD_PULL_MENU_TITLE"],
+                        setSecFmt = L["HUD_PULL_SET_SEC_FMT"],
+                    })
                 end
             end,
         })
@@ -643,6 +786,7 @@ function DungeonBots:InitHUD()
         DungeonBots.utilHudFrame = utilHudFrame
     end
 
+    UpdateCombatActionWaitBadges()
     UpdateFormationCycleButtonVisual()
     DungeonBots:UpdateHUDTalkButtonState()
     DungeonBots:UpdateHUDVisibility()
