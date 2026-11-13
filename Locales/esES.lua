@@ -285,7 +285,7 @@ L["HUD_SUMMON_TITLE"]      = "|cff00ccffTeletransportar a Mí|r"
 L["HUD_SUMMON_DESC"]       = "Teletransporta a todos los bots directamente a tu posición.\n\n|cff71d5ffSalva a bots atascados en el suelo, rampas o puertas.|r"
 L["HUD_FLEE_NAME"]         = "¡Huir!"
 L["HUD_FLEE_TITLE"]        = "|cffff3b30¡HUIR! (Modo Pasivo)|r"
-L["HUD_FLEE_DESC"]         = "¡Botón de pánico! Funciona como poner a los bots en \"Pasivo\": dejan de pelear, rompen el combate y corren hacia ti.\n\n|cff71d5ffÚtil para evitar un wipe o hacer pull tras una esquina. Usa Seguir, Quedarse, Ataque o Pull para quitarlo (envían reset).|r"
+L["HUD_FLEE_DESC"]         = "Funciona como poner a los bots en \"Pasivo\": dejan de pelear, rompen el combate y corren hacia ti."
 
 L["HUD_TALK_NAME"]         = "Hablar PNJ"
 L["HUD_TALK_TITLE"]        = "|cff00e5ffHablar con PNJ|r"
