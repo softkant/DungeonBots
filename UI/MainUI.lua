@@ -1671,9 +1671,9 @@ local GUIDE_TOPICS = {
         steps = {
             "El addon te mostrará una alerta de estancia/fase con su zona exacta.",
             "Utiliza |cffffd200Summon|r y/o |cffffd200Follow|r en la barra táctica (HUD) para traerlo contigo.",
-            "Si continúa en otra fase, sal un momento de la mazmorra para reagrupar o reinicia las estancias afuera y usa |cffffd200Reinvocar Grupo|r.",
+            "Si continúa en otra fase, sal un momento de la mazmorra para reagrupar o reinicia las estancias afuera y usa |cffffd200Summon|r.",
         },
-        note = "Al pasar directo entre mazmorras enlazadas (Forja -> Foso -> Cámaras), salir y reinvocar suele alinear la estancia.",
+        note = "Al pasar directo entre mazmorras enlazadas (Forja -> Foso -> Cámaras), salir y reinvocar suele alinear la estancia en caso de error.",
     },
     {
         shortTitle = "4. Bot usado por otro",

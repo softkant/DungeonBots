@@ -677,9 +677,9 @@ function DungeonBots:NotifyBotInstanceMismatch(botName, whoInfo)
         hadZone = hasZone,
     }
     if hasZone then
-        DungeonBots:Warn("|cffff9900[Estancia/Fase]|r |cffffd200" .. cleanName .. "|r está en \"|cffffd200" .. whoInfo.zone .. "|r\" y no en tu estancia/fase. No es de otro jugador; usa Summon, sal un momento de la mazmorra o reinicia estancias.")
+        DungeonBots:Warn("|cffff9900[Estancia/Fase]|r |cffffd200" .. cleanName .. "|r está en \"|cffffd200" .. whoInfo.zone .. "|r\" pero no en tu estancia/fase. Utiliza Summon, sal un momento de la mazmorra o reloguea.")
     else
-        DungeonBots:Warn("|cffff9900[Estancia/Fase]|r |cffffd200" .. cleanName .. "|r no está en tu estancia o quedó faseado. No es de otro jugador; usa Summon o sal un momento de la mazmorra para reagrupar.")
+        DungeonBots:Warn("|cffff9900[Estancia/Fase]|r |cffffd200" .. cleanName .. "|r no está en tu estancia o quedó faseado. Utiliza Summon o sal un momento de la mazmorra para reagruparse con los bots o reloguea.")
     end
 end
 
