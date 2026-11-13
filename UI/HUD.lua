@@ -25,7 +25,7 @@ local TACTICAL_ACTIONS = {
     {
         name = L["HUD_FOCUS_NAME"],
         actionKind = "attack_target",
-        hasRightClickMenu = true,
+        hasRightClickAction = true,
         requiresTarget = true,
         icon = "Interface\\Icons\\Ability_Warrior_OffensiveStance",
         title = L["HUD_FOCUS_TITLE"],
@@ -35,7 +35,7 @@ local TACTICAL_ACTIONS = {
     {
         name = L["HUD_PULL_NAME"],
         actionKind = "pull_back",
-        hasRightClickMenu = true,
+        hasRightClickAction = true,
         requiresTarget = true,
         icon = "Interface\\Icons\\Ability_Hunter_AimedShot",
         title = L["HUD_PULL_TITLE"],
@@ -85,7 +85,9 @@ local TACTICAL_ACTIONS = {
     },
     {
         name = L["HUD_MOVEGRP_NAME"],
+        actionKind = "move_from_group",
         cmd = "move from group",
+        hasRightClickAction = true,
         icon = "Interface\\Icons\\Ability_Rogue_Sprint",
         title = L["HUD_MOVEGRP_TITLE"],
         desc = L["HUD_MOVEGRP_DESC"],
@@ -615,7 +617,7 @@ local function CreateFloatingToolbar(cfg)
         local btn = CreateFrame("Button", cfg.btnPrefix .. i, f)
         btn:SetSize(btnSize, btnSize)
         btn:SetPoint("LEFT", f, "LEFT", startX + (i - 1) * (btnSize + spacing), 0)
-        if action.hasRightClickMenu then
+        if action.hasRightClickAction then
             btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
         else
             btn:RegisterForClicks("LeftButtonUp")
@@ -679,7 +681,7 @@ local function CreateFloatingToolbar(cfg)
 
         btn:SetScript("OnClick", function(self, mouseBtn)
             if mouseBtn == "RightButton" then
-                if action.hasRightClickMenu and cfg.onRightClick then
+                if action.hasRightClickAction and cfg.onRightClick then
                     PlaySound("igMainMenuOptionCheckBoxOn")
                     cfg.onRightClick(self, action)
                 end
@@ -790,6 +792,11 @@ function DungeonBots:InitHUD()
                         menuTitle = L["HUD_PULL_MENU_TITLE"],
                         setSecFmt = L["HUD_PULL_SET_SEC_FMT"],
                     })
+                elseif action.actionKind == "move_from_group" then
+                    if CloseDropDownMenus then CloseDropDownMenus() end
+                    DungeonBots:SendPartyCommand("nc -move from group")
+                    DungeonBots:SendPartyCommand("co -move from group")
+                    DungeonBots:Print(L["HUD_MSG_SPREAD_OFF"])
                 end
             end,
         })
