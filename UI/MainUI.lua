@@ -1702,16 +1702,17 @@ local GUIDE_TOPICS = {
         note = "Despedir desde el addon desconecta al bot limpiamente y libera su cupo al instante.",
     },
     {
-        shortTitle = "6. PNJs e Inventario",
-        title = "Hablar con PNJs e inspeccionar Inventario",
-        category = "UTILIDADES DEL ADDON",
-        icon = "Interface\\Icons\\INV_Misc_Bag_08",
-        summary = "El addon centraliza los diálogos con PNJs y la gestión de bolsas de tus bots ocultando los susurros automáticos del chat.",
+        shortTitle = "6. Equipo y Talentos",
+        title = "Gestión de equipo y autoequipado",
+        category = "EQUIPO DEL BOT",
+        icon = "Interface\\Icons\\INV_Chest_Plate01",
+        summary = "Cada bot conserva el equipamiento de su especialización base; desde |cffffd200Información -> Equipo|r puedes cambiar de rama o pulsar |cffffd200Autoequipar|r.",
         steps = {
-            "Lleva al bot junto al PNJ con |cffffd200Follow|r o |cffffd200Summon|r y pulsa |cffffd200Hablar|r desde la barra HUD o desde Misiones.",
-            "Desde el diálogo del PNJ puedes interactuar y aceptar o entregar misiones del bot con un clic.",
-            "En |cffffd200Inventario|r revisas los objetos en sus bolsas, el espacio disponible y puedes destruir algún ítem si necesitas liberar sitio.",
+            "El botón |cffffd200Autoequipar|r reajusta la armadura actual del bot, pero al hacerlo su equipo se degradará respecto a sus piezas originales.",
+            "Por ello, se recomienda dejar su armadura como está y buscar otro bot que ya cuente con el equipamiento acorde a los talentos que necesitas.",
+            "Si el inventario del bot está lleno, es posible que no pueda cambiar el set correctamente al autoequipar por falta de espacio en las bolsas.",
         },
+        note = "Antes de autoequipar o cambiar de set, revisa sus bolsas en |cffffd200Inventario|r y libera espacio si están llenas.",
     },
 }
 
