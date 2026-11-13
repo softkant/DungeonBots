@@ -124,15 +124,15 @@ local THEME_PALETTES = {
 }
 
 local function GetThemeId()
-    if DungeonBotsDB and DungeonBotsDB.uiTheme == "gold" then
-        return "gold"
+    if DungeonBotsDB and DungeonBotsDB.uiTheme == "dark" then
+        return "dark"
     end
-    return "dark"
+    return "gold"
 end
 DB_Internal.GetThemeId = GetThemeId
 
 local function GetThemePalette()
-    return THEME_PALETTES[GetThemeId()] or THEME_PALETTES.dark
+    return THEME_PALETTES[GetThemeId()] or THEME_PALETTES.gold
 end
 DB_Internal.GetThemePalette = GetThemePalette
 
@@ -377,10 +377,9 @@ end
 DB_Internal.RefreshTheme = RefreshTheme
 
 function DungeonBots:SetUITheme(themeId)
-    local normalized = (themeId == "gold") and "gold" or "dark"
+    local normalized = (themeId == "dark") and "dark" or "gold"
     if DungeonBotsDB then
         DungeonBotsDB.uiTheme = normalized
-        DungeonBotsDB.uiThemeDefaultDarkV1 = true
     end
     RefreshTheme()
 end

@@ -24,7 +24,7 @@ local DEFAULT_CONFIG = {
     whisperMuteMode = "all",
     muteBotGroupChat = false,
     closeWimBotWindows = true,
-    uiTheme = "dark",
+    uiTheme = "gold",
     hudPosition = { point = "BOTTOM", x = 0, y = 140 },
     utilHudPosition = { point = "BOTTOM", x = 0, y = 194 },
     minimapAngle = 195,
