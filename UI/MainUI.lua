@@ -985,10 +985,9 @@ function DungeonBots:BuildTab2(parent)
         specText:SetText("Rama: |cff888888Sin detectar|r")
         card.specText = specText
 
-        local armorDisplay = CreateFrame("Button", "DungeonBots_BotArmorBtn_" .. i, card)
+        local armorDisplay = CreateFrame("Frame", nil, card)
         armorDisplay:SetSize(158, 15)
         armorDisplay:SetPoint("TOPLEFT", specDisplay, "BOTTOMLEFT", 0, -2)
-        armorDisplay:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
         card.armorDisplay = armorDisplay
 
         local armorIcon = armorDisplay:CreateTexture(nil, "ARTWORK")
@@ -1155,24 +1154,6 @@ function DungeonBots:UpdatePartyUI()
                     if card.questsBtn and card.questsBtn.label then
                         card.questsBtn.label:SetText(questsLabel)
                     end
-                    card.armorDisplay:SetScript("OnClick", function()
-                        PlaySound("igMainMenuOptionCheckBoxOn")
-                        if DungeonBots.QueryBotStats then
-                            DungeonBots:QueryBotStats(name, true)
-                        end
-                    end)
-                    card.armorDisplay:SetScript("OnEnter", function(self)
-                        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                        GameTooltip:AddLine("Armadura de " .. name, 1, 1, 1)
-                        if st then
-                            GameTooltip:AddLine(armorStr, 1, 1, 1)
-                        else
-                            GameTooltip:AddLine("Consultando estado de armadura...", 0.75, 0.75, 0.78)
-                        end
-                        GameTooltip:AddLine("\nHaz clic para actualizar el estado ahora.", 1, 0.82, 0.2)
-                        GameTooltip:Show()
-                    end)
-                    card.armorDisplay:SetScript("OnLeave", function() GameTooltip:Hide() end)
                 else
                     card.botBadge.text:SetText("|cffffb020[ JUGADOR ]|r")
                     card.botBadge:SetBackdropBorderColor(1.0, 0.7, 0.2, 0.9)
@@ -1688,7 +1669,7 @@ local GUIDE_TOPICS = {
         icon = "Interface\\Icons\\Spell_Arcane_PortalDalaran",
         summary = "Al invocar o reinvocar un bot dentro de una mazmorra, puede quedar afuera, en otra copia de la estancia o faseado (\"no está en tu estancia\").",
         steps = {
-            "El addon te mostrará una alerta de estancia/fase con su zona exacta, sin confundirlo con un bot usado por otro jugador.",
+            "El addon te mostrará una alerta de estancia/fase con su zona exacta.",
             "Utiliza |cffffd200Summon|r y/o |cffffd200Follow|r en la barra táctica (HUD) para traerlo contigo.",
             "Si continúa en otra fase, sal un momento de la mazmorra para reagrupar o reinicia las estancias afuera y usa |cffffd200Reinvocar Grupo|r.",
         },
