@@ -1677,7 +1677,7 @@ local GUIDE_TOPICS = {
         steps = {
             "El addon reintenta invitar automáticamente varias veces tras detectar el susurro o llamarlo desde el historial.",
             "Comprueba que |cffffd200eres el líder|r del grupo, que no estás en banda y que tienes cupo libre (máximo 5 en grupo).",
-            "Si tras los reintentos sigue fuera, el addon consulta |cffffd200who|r en silencio y te muestra en qué zona se encuentra.",
+            "Si tras los reintentos sigue fuera, el addon te indicará en el chat en qué zona se encuentra.",
         },
         note = "También puedes abrir |cffffd200Ver Historial de bots|r en Armar Grupo y pulsar Invitar manualmente.",
     },
@@ -1688,7 +1688,7 @@ local GUIDE_TOPICS = {
         icon = "Interface\\Icons\\Spell_Arcane_PortalDalaran",
         summary = "Al invocar o reinvocar un bot dentro de una mazmorra, puede quedar afuera, en otra copia de la estancia o faseado (\"no está en tu estancia\").",
         steps = {
-            "El addon consulta |cffffd200who|r al bot para indicarte su zona exacta sin confundirlo con un bot usado por otro jugador.",
+            "El addon te mostrará una alerta de estancia/fase con su zona exacta, sin confundirlo con un bot usado por otro jugador.",
             "Utiliza |cffffd200Summon|r y/o |cffffd200Follow|r en la barra táctica (HUD) para traerlo contigo.",
             "Si continúa en otra fase, sal un momento de la mazmorra para reagrupar o reinicia las estancias afuera y usa |cffffd200Reinvocar Grupo|r.",
         },
@@ -1702,7 +1702,7 @@ local GUIDE_TOPICS = {
         summary = "Un bot puede estar jugando con otro usuario en el servidor o simplemente terminando de desconectarse tras una sesión reciente.",
         steps = {
             "Si otro jugador lo tiene en su grupo, el addon cancela la auto-invitación y muestra una alerta con el |cffffd200nombre del jugador|r y la |cffffd200zona|r donde está.",
-            "Si el servidor solo indica \"ya conectado\" sin dueño confirmado, el addon consulta |cffffd200who|r y reintenta invitarlo si está libre.",
+            "Si el servidor solo indica \"ya conectado\" sin dueño confirmado, el addon espera unos instantes y vuelve a intentar invitarlo si está libre.",
             "Cuando quede disponible o lo suelte el otro jugador, vuelve a llamarlo desde el historial.",
         },
     },
@@ -1908,7 +1908,7 @@ function DungeonBots:BuildTab3(parent)
     local idxHeaderIcon = indexPanel:CreateTexture(nil, "ARTWORK")
     idxHeaderIcon:SetSize(18, 18)
     idxHeaderIcon:SetPoint("TOPLEFT", indexPanel, "TOPLEFT", 11, -10)
-    idxHeaderIcon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
+    idxHeaderIcon:SetTexture("Interface\\Icons\\INV_Misc_Book_11")
     idxHeaderIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
     local idxHeaderTitle = indexPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
