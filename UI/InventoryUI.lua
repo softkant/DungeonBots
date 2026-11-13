@@ -479,7 +479,8 @@ function DungeonBots:UpdateInventoryDialog(botName)
         if data and data.loading then
             inv.emptyLabel:SetText(string.format(L["INV_STATUS_QUERY_FMT"], targetBot))
         elseif data and data.timedOut and #allItems == 0 then
-            inv.emptyLabel:SetText(string.format(L["INV_STATUS_NORESP_FMT"], targetBot))
+            local baseMsg = string.format(L["INV_STATUS_NORESP_FMT"], targetBot)
+            inv.emptyLabel:SetText(DungeonBots.FormatNoResponseBody and DungeonBots:FormatNoResponseBody(baseMsg, targetBot) or baseMsg)
         elseif #allItems == 0 then
             inv.emptyLabel:SetText(string.format(L["INV_STATUS_EMPTY_FMT"], targetBot))
         else

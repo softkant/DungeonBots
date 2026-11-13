@@ -1034,10 +1034,12 @@ function DungeonBots:UpdateSpellsDialog(botName)
             local hintText = (DungeonBots.LocalizeServerHint and DungeonBots:LocalizeServerHint(tab.emptyHint, mode)) or tab.emptyHint
             sp.emptyLabel:SetText(hintText)
         elseif #allItems == 0 then
-            if mode == "glyphs" then
-                sp.emptyLabel:SetText(string.format(L["SPELL_NO_GLYPHS_FMT"], targetBot))
+            local fmt = (mode == "glyphs") and L["SPELL_NO_GLYPHS_FMT"] or L["SPELL_NO_SPELLS_FMT"]
+            local baseMsg = string.format(fmt, targetBot)
+            if tab and tab.timedOut and DungeonBots.FormatNoResponseBody then
+                sp.emptyLabel:SetText(DungeonBots:FormatNoResponseBody(baseMsg, targetBot))
             else
-                sp.emptyLabel:SetText(string.format(L["SPELL_NO_SPELLS_FMT"], targetBot))
+                sp.emptyLabel:SetText(baseMsg)
             end
         else
             sp.emptyLabel:SetText(string.format(L["SPELL_NOMATCH_FMT"], filterRaw))

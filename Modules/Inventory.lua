@@ -541,6 +541,9 @@ function DB_Internal.TickInventoryCapture(now)
                     end
                 end
             else
+                if DB_Internal.TryRetryWhisperCapture then
+                    DB_Internal.TryRetryWhisperCapture(cap, botName, now, "c")
+                end
                 hasAny = true
             end
         end
@@ -604,9 +607,14 @@ function DungeonBots:QueryBotInventory(botName, isSilent, forceStats)
     data.timedOut = false
     data.updatedAt = now
 
+    local unit = DungeonBots.FindPartyUnitByName and DungeonBots:FindPartyUnitByName(cleanBot)
+    local canSend = (unit and UnitIsConnected(unit)) and true or false
+
     DungeonBots.pendingInventoryCapture[cleanBot] = {
         startedAt = now,
-        expiresAt = now + 3.5,
+        expiresAt = canSend and (now + 6.0) or now,
+        retryAt = canSend and (now + 2.8) or nil,
+        retrySent = false,
         finalizeAt = nil,
         gotAnyLine = false,
         hadPrevItems = hadPrevItems,

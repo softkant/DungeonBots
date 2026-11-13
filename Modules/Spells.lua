@@ -688,10 +688,14 @@ function DB_Internal.TickSpellsCapture(now)
                         capGroup.modes[modeKey] = nil
                         tab.loading = false
                         tab.done = true
+                        tab.timedOut = (not cap.gotAnyLine) and true or false
                         tab.dirty = false
                         tab.lastUiRefresh = now
                         needUiRefresh = true
                     else
+                        if DB_Internal.TryRetryWhisperCapture then
+                            DB_Internal.TryRetryWhisperCapture(cap, botName, now, cap.cmd)
+                        end
                         if tab.dirty and ((now - (tab.lastUiRefresh or 0)) >= 0.15) then
                             tab.dirty = false
                             tab.lastUiRefresh = now
@@ -765,6 +769,7 @@ function DungeonBots:QueryBotSpells(botName, mode, filterText, isSilent)
 
     tab.loading = true
     tab.done = false
+    tab.timedOut = false
     tab.sawHeader = false
     tab.items = {}
     tab.lines = {}
@@ -773,6 +778,13 @@ function DungeonBots:QueryBotSpells(botName, mode, filterText, isSilent)
     tab.updatedAt = now
     tab.dirty = false
     tab.lastUiRefresh = now
+
+    local cmd = MODE_COMMANDS[targetMode]
+    if targetMode == "spells" and cleanFilter ~= "" then
+        cmd = "spells " .. cleanFilter
+    end
+    local unit = DungeonBots.FindPartyUnitByName and DungeonBots:FindPartyUnitByName(cleanBot)
+    local canSend = (unit and UnitIsConnected(unit)) and true or false
 
     local capGroup = DungeonBots.pendingSpellsCapture[cleanBot]
     if type(capGroup) ~= "table" or type(capGroup.modes) ~= "table" then
@@ -783,7 +795,10 @@ function DungeonBots:QueryBotSpells(botName, mode, filterText, isSilent)
     capGroup.modes[targetMode] = {
         mode = targetMode,
         startedAt = now,
-        expiresAt = now + 4.0,
+        expiresAt = canSend and (now + 6.0) or now,
+        retryAt = canSend and (now + 2.8) or nil,
+        retrySent = false,
+        cmd = cmd,
         finalizeAt = nil,
         gotAnyLine = false,
         queryParam = cleanFilter,
@@ -799,10 +814,6 @@ function DungeonBots:QueryBotSpells(botName, mode, filterText, isSilent)
         DungeonBots:UpdateSpellsDialog(cleanBot)
     end
 
-    local cmd = MODE_COMMANDS[targetMode]
-    if targetMode == "spells" and cleanFilter ~= "" then
-        cmd = "spells " .. cleanFilter
-    end
     DungeonBots:SendWhisperCommand(cleanBot, cmd)
 end
 

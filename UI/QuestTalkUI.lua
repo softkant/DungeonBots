@@ -452,7 +452,8 @@ function DungeonBots:UpdateQuestDialog(botName)
         qf.emptyLabel:Show()
     elseif #quests == 0 and data and data.timedOut then
         qf.statusLabel:SetText(string.format(L["QUEST_NO_RESP_TITLE"], targetBot))
-        qf.emptyLabel:SetText(string.format(L["QUEST_NO_RESP_BODY"], targetBot))
+        local baseMsg = string.format(L["QUEST_NO_RESP_BODY"], targetBot)
+        qf.emptyLabel:SetText(DungeonBots.FormatNoResponseBody and DungeonBots:FormatNoResponseBody(baseMsg, targetBot) or baseMsg)
         qf.emptyLabel:Show()
     elseif #quests == 0 then
         qf.statusLabel:SetText(L["QUEST_ACTIVE_ZERO"])

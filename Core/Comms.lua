@@ -115,6 +115,21 @@ function DungeonBots:SendBotWhisperUnchecked(botName, cmd)
     return true
 end
 
+-- Reintenta una vez por susurro si la captura aún no recibe respuesta
+function DB_Internal.TryRetryWhisperCapture(cap, botName, now, cmd)
+    if not cap or cap.gotAnyLine or cap.retrySent or not cap.retryAt or now < cap.retryAt then
+        return false
+    end
+    cap.retrySent = true
+    local unit = DungeonBots.FindPartyUnitByName and DungeonBots:FindPartyUnitByName(botName)
+    if unit and UnitIsConnected(unit) and cmd and cmd ~= "" then
+        DungeonBots:SendWhisperCommand(botName, cmd)
+        return true
+    end
+    cap.expiresAt = now
+    return false
+end
+
 function DungeonBots:RequestBotWhoCheck(botName, reason, force)
     local cleanBot = NormalizePlayerName(botName)
     if not cleanBot or cleanBot == "" then return false end

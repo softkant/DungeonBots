@@ -100,9 +100,14 @@ function DungeonBots:QueryQuests(botName, isSilent, suppressDialog, retriedSilen
     local hadPrevSnapshot = (prevData and prevData.done and not prevData.timedOut) and true or false
     local prevQuests = (prevData and type(prevData.quests) == "table" and #(prevData.quests) > 0) and prevData.quests or nil
     local prevEmptyHint = (not prevQuests and prevData and prevData.emptyHint) or nil
+    local unit = DungeonBots.FindPartyUnitByName and DungeonBots:FindPartyUnitByName(cleanBot)
+    local canSend = (unit and UnitIsConnected(unit)) and true or false
+    local isInteractive = (suppressDialog ~= true)
     DungeonBots.pendingQuestCapture[cleanBot] = {
         startedAt = now,
-        expiresAt = now + 4.5,
+        expiresAt = canSend and (isInteractive and (now + 6.0) or (now + 4.5)) or now,
+        retryAt = (canSend and isInteractive) and (now + 2.8) or nil,
+        retrySent = false,
         finalizeAt = nil,
         gotAnyLine = false,
         sawQuestHeader = false,
@@ -741,6 +746,9 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
                 end
             end
         else
+            if DB_Internal.TryRetryWhisperCapture and DB_Internal.TryRetryWhisperCapture(cap, botName, now, "quests all") then
+                lastQuestCountQueryAt[botName] = now
+            end
             hasAny = true
         end
     end

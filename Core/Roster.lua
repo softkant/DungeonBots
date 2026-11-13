@@ -328,6 +328,27 @@ function DungeonBots:GetBotProximityInfo(botName)
     }
 end
 
+-- Anexa al mensaje de sin respuesta un diagnóstico de cercanía/estancia
+function DungeonBots:FormatNoResponseBody(headlineText, botName)
+    local head = tostring(headlineText or "")
+    local cleanName = (DB_Internal.NormalizePlayerName and DB_Internal.NormalizePlayerName(botName)) or tostring(botName or "Bot")
+    if cleanName == "" then cleanName = "Bot" end
+    local prox = self.GetBotProximityInfo and self:GetBotProximityInfo(cleanName) or nil
+    if prox then
+        if prox.key == "missing" or prox.key == "offline" then
+            return head .. "\n\n|cffff7b30" .. (prox.detailMsg or "") .. "|r"
+        elseif prox.key == "dead" then
+            return head .. "\n\n|cffff7b30" .. (prox.detailMsg or "") .. "|r\n|cff888888" .. (L["NORESP_DEAD_HINT"] or "") .. "|r"
+        elseif prox.key == "out_of_sight" then
+            local detail = string.format(L["NORESP_OOS_DETAIL"] or "%s", cleanName)
+            return head .. "\n\n|cffff7b30" .. detail .. "|r\n|cff888888" .. (L["NORESP_OOS_HINT"] or "") .. "|r"
+        elseif prox.isFar then
+            return head .. "\n\n|cffff7b30" .. (prox.detailMsg or "") .. "|r\n|cff888888" .. (L["NORESP_FAR_HINT"] or "") .. "|r"
+        end
+    end
+    return head .. "\n\n|cff888888" .. (L["NORESP_NEAR_HINT"] or "") .. "|r"
+end
+
 function DungeonBots:ToggleUnitBotStatus(name)
     if not name or name == "" then return end
     local current = DungeonBots:ShouldTreatAsBot(name)
