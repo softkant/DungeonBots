@@ -587,7 +587,41 @@ function DungeonBots:ShouldSuppressChatEvent(event, message, sender)
     return false
 end
 
+local function IsInventoryFullText(lowerText)
+    if not lowerText or lowerText == "" then return false end
+    return (string.find(lowerText, "my inventory is full", 1, true) ~= nil)
+        or (string.find(lowerText, "inventory is full", 1, true) ~= nil)
+        or (string.find(lowerText, "my bags are full", 1, true) ~= nil)
+        or (string.find(lowerText, "bags are full", 1, true) ~= nil)
+end
+
+function DB_Internal.ExtractInventoryFullBotName(message, sender)
+    if not message or message == "" then return nil end
+    local clean = TrimText(StripWowFormatting(message))
+    if clean == "" then return nil end
+
+    local cand = nil
+    local prefixName, rest = string.match(clean, "^(.-):%s*(.+)$")
+    if prefixName and rest and IsInventoryFullText(string.lower(rest)) then
+        cand = NormalizePlayerName(prefixName)
+    elseif sender and sender ~= "" and IsInventoryFullText(string.lower(clean)) then
+        cand = NormalizePlayerName(sender)
+    end
+
+    if not cand or cand == "" then return nil end
+    local playerName = UnitName and NormalizePlayerName(UnitName("player"))
+    if playerName and cand == playerName then return nil end
+
+    if DungeonBots:ShouldTreatAsBot(cand) then
+        return cand
+    end
+    return nil
+end
+
 local function ChatEventFilterFunc(self, event, message, sender, ...)
+    if event ~= "CHAT_MSG_WHISPER_INFORM" and DB_Internal.ExtractInventoryFullBotName and DB_Internal.ExtractInventoryFullBotName(message, sender) then
+        return true
+    end
     if event == "CHAT_MSG_SYSTEM" then
         if not message or message == "" then return false end
         local clean = TrimText(StripWowFormatting(message))

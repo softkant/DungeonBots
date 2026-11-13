@@ -28,12 +28,27 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("CHAT_MSG_SYSTEM")
 eventFrame:RegisterEvent("CHAT_MSG_WHISPER")
 eventFrame:RegisterEvent("CHAT_MSG_WHISPER_INFORM")
+eventFrame:RegisterEvent("CHAT_MSG_PARTY")
+eventFrame:RegisterEvent("CHAT_MSG_PARTY_LEADER")
+eventFrame:RegisterEvent("CHAT_MSG_SAY")
 eventFrame:RegisterEvent("PARTY_MEMBERS_CHANGED")
 eventFrame:RegisterEvent("LFG_LOCK_INFO_RECEIVED")
 eventFrame:RegisterEvent("UNIT_NAME_UPDATE")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 eventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
+
+local lastInventoryFullWarnAt = {}
+
+local function NotifyBotInventoryFull(botName)
+    if not botName or botName == "" then return end
+    local now = NowTime()
+    if (lastInventoryFullWarnAt[botName] or 0) > now then
+        return
+    end
+    lastInventoryFullWarnAt[botName] = now + 20.0
+    DungeonBots:Warn("El inventario de |cffffd200" .. botName .. "|r está lleno. Puedes abrir su |cffffd200Inventario|r para destruir objetos y liberar espacio.")
+end
 
 local function HandlePartyChanged(isEnteringWorld)
     if isEnteringWorld then
@@ -191,6 +206,11 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
 
     elseif event == "CHAT_MSG_SYSTEM" then
         local message = ...
+        local fullBot = message and DB_Internal.ExtractInventoryFullBotName and DB_Internal.ExtractInventoryFullBotName(message, nil)
+        if fullBot then
+            NotifyBotInventoryFull(fullBot)
+            return
+        end
         if message and DB_Internal.ExtractBusyBotFromSystem then
             local busyBot, busyKind = DB_Internal.ExtractBusyBotFromSystem(message)
             if busyBot then
@@ -247,6 +267,12 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         local cleanSender = NormalizePlayerName(sender)
         local playerName = UnitName and NormalizePlayerName(UnitName("player"))
         if not cleanSender or cleanSender == "" or cleanSender == playerName then
+            return
+        end
+
+        local fullBot = DB_Internal.ExtractInventoryFullBotName and DB_Internal.ExtractInventoryFullBotName(message, cleanSender)
+        if fullBot then
+            NotifyBotInventoryFull(fullBot)
             return
         end
 
@@ -547,6 +573,13 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         -- Guardar log de último susurro para la pestaña de bots
         if DungeonBots.OnWhisperReceived then
             DungeonBots:OnWhisperReceived(cleanSender, message)
+        end
+
+    elseif event == "CHAT_MSG_PARTY" or event == "CHAT_MSG_PARTY_LEADER" or event == "CHAT_MSG_SAY" then
+        local message, sender = ...
+        local fullBot = message and DB_Internal.ExtractInventoryFullBotName and DB_Internal.ExtractInventoryFullBotName(message, sender)
+        if fullBot then
+            NotifyBotInventoryFull(fullBot)
         end
 
     elseif event == "PARTY_MEMBERS_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
