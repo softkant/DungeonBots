@@ -209,7 +209,7 @@ L["MUST_BE_LEADER_FMT"]    = "You must be the party leader to invite |cffffd200%
 -- Core Events & Module Notifications
 -- =========================================================================
 L["BAG_FULL_WARN_FMT"]     = "|cffffd200%s|r's inventory is full. You can open their |cffffd200Inventory|r to destroy items and free up bag space."
-L["ADDON_LOADED_FMT"]      = "v%s loaded. Type |cffffd200/db|r or |cffffd200/bots|r, or click the |cff71d5ffLFG Eye|r."
+L["ADDON_LOADED_FMT"]      = "v%s loaded. Type |cffffd200/db|r or |cffffd200/bots|r, or click the |cff71d5ffLFG Eye|r or the |cff71d5ffminimap|r icon."
 L["JOIN_FAIL_ZONE_FMT"]    = "|cffffd200%s|r could not join the party (current location: |cffffd200%s|r)"
 L["SPEC_CHANGE_FAIL_FMT"]  = "Could not change |cffffd200%s|r's spec (%s)."
 L["SPEC_CHANGED_FMT"]      = "|cffffd200%s|r's talents changed to |cff71d5ff%s|r."
