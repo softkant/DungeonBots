@@ -46,12 +46,23 @@ local function PrunePendingClassSummons()
     end
 end
 
+local function IsLfgQueueBlockingInvite()
+    local lfgMode = GetLFGMode and GetLFGMode() or nil
+    if lfgMode == "queued" or lfgMode == "proposal" or lfgMode == "rolecheck" then
+        return lfgMode
+    end
+    return nil
+end
+
 function DungeonBots:CanInviteToParty()
     if GetNumRaidMembers and GetNumRaidMembers() > 0 then
         return false
     end
     local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
     if numParty >= 4 then
+        return false
+    end
+    if IsLfgQueueBlockingInvite() then
         return false
     end
     return (numParty == 0 or (IsPartyLeader and IsPartyLeader()))
@@ -425,30 +436,36 @@ end
 -- Funciones Operativas de Invocación y Despido de Bots
 -- =========================================================================
 
--- Invocar bot por clase
-function DungeonBots:AddClass(classId)
-    if not classId then return end
+local function CheckCanSummonBot()
     local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
     if (GetNumRaidMembers and GetNumRaidMembers() > 0) or numParty >= 4 then
         DungeonBots:Warn(L["GROUP_FULL_CANT_ADD"])
-        return
+        return false
     end
+    if IsLfgQueueBlockingInvite() then
+        DungeonBots:Warn(L["LFG_QUEUED_CANT_ADD"])
+        return false
+    end
+    return true
+end
+
+-- Invocar bot por clase
+function DungeonBots:AddClass(classId)
+    if not classId then return false end
+    if not CheckCanSummonBot() then return false end
     DungeonBots:MarkPendingClassSummon(classId)
     local classToken = DB_Internal.CLASS_TOKEN_BY_ID and DB_Internal.CLASS_TOKEN_BY_ID[classId]
     local classDisplay = classToken and DungeonBots:GetClassDisplayInfo(classToken) or classId
     DungeonBots:Print(string.format(L["BOT_ADDED_FMT"], classDisplay))
     DungeonBots:SendDotCommand(".playerbots bot addclass " .. classId)
+    return true
 end
 
 -- Invocar bot por nombre
 function DungeonBots:AddBot(botName)
     local cleanName = NormalizePlayerName(botName)
-    if not cleanName or cleanName == "" then return end
-    local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
-    if (GetNumRaidMembers and GetNumRaidMembers() > 0) or numParty >= 4 then
-        DungeonBots:Warn(L["GROUP_FULL_CANT_ADD"])
-        return
-    end
+    if not cleanName or cleanName == "" then return false end
+    if not CheckCanSummonBot() then return false end
     DungeonBots.lastBotCallAttempt = DungeonBots.lastBotCallAttempt or {}
     DungeonBots.lastBotCallAttempt[cleanName] = NowTime()
     if DungeonBots.busyExternalBots and DungeonBots.busyExternalBots[cleanName] then
@@ -463,6 +480,7 @@ function DungeonBots:AddBot(botName)
     if DungeonBots.SchedulePartyInviteRetry then
         DungeonBots:SchedulePartyInviteRetry(cleanName, 1.4, 3)
     end
+    return true
 end
 
 -- Reinvocar a todos los bots del grupo (clave para entrar a mazmorra)
@@ -680,6 +698,8 @@ function DungeonBots:WarnCannotAutoInvite(botName)
         reason = L["REASON_IN_RAID"]
     elseif (GetNumPartyMembers and GetNumPartyMembers() or 0) >= 4 then
         reason = L["REASON_GROUP_FULL"]
+    elseif IsLfgQueueBlockingInvite() then
+        reason = L["REASON_LFG_QUEUED"]
     end
     DungeonBots:Warn(string.format(L["AUTO_INVITE_FAIL_FMT"], cleanName, reason))
 end
@@ -1033,6 +1053,7 @@ function DungeonBots:SummonAndInviteHistoryBot(botName)
         DungeonBots:Warn(string.format(L["MUST_BE_LEADER_FMT"], cleanBot))
         return
     end
-    DungeonBots:AddBot(cleanBot)
-    DungeonBots:SchedulePartyInviteRetry(cleanBot, 0.9, 3)
+    if DungeonBots:AddBot(cleanBot) then
+        DungeonBots:SchedulePartyInviteRetry(cleanBot, 0.9, 3)
+    end
 end
