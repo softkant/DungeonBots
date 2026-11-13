@@ -462,7 +462,7 @@ L["GUIDE_T1_SUM"]   = "Algunas mazmorras (como Forja de Almas, Foso de Saron y C
 L["GUIDE_T1_S1"]    = "En la pestaña |cffffd200Grupo de Bots|r, revisa los iconos de acceso de |cffffd200Foso de Saron|r y |cffffd200Cámaras de Reflexión|r en el pie de la ventana de Misiones."
 L["GUIDE_T1_S2"]    = "Haz clic en esos botones de acceso para consultar desde el servidor si el bot ya cumple con la misión previa."
 L["GUIDE_T1_S3"]    = "Si le falta, acércate al PNJ con el bot y usa la ventana de |cffffd200Misiones|r o |cffffd200Hablar|r para aceptar y entregar las misiones."
-L["GUIDE_T1_NOTE"]  = "Si el bot acaba de entrar por primera vez, sus misiones y acceso se consultan automáticamente; si ves datos incompletos, pulsa Actualizar."
+L["GUIDE_T1_NOTE"]  = "Ten en cuenta que te puede tocar hacer la misma misión más de una vez, debido a un inconveniente del módulo al compartirse el bot con diferentes jugadores de niveles bajos."
 
 L["GUIDE_T2_SHORT"] = "2. Bot tarda en entrar"
 L["GUIDE_T2_TITLE"] = "Bot agregado que susurra, pero tarda en entrar"
