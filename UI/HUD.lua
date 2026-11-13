@@ -18,8 +18,10 @@ local hudMenuWatcher = nil
 local hudMenuAnchorBtn = nil
 local hudMenuMouseWasDown = false
 
+local DEFAULT_ATTACK_WAIT = 2
+local DEFAULT_PULL_WAIT = 6
 local ATTACK_WAIT_OPTIONS = { 0, 2, 5, 8 }
-local PULL_WAIT_OPTIONS = { 4, 8, 12 }
+local PULL_WAIT_OPTIONS = { 4, 6, 8, 12 }
 
 local TACTICAL_ACTIONS = {
     {
@@ -45,6 +47,7 @@ local TACTICAL_ACTIONS = {
     {
         name = L["HUD_STAY_NAME"],
         cmds = { "reset", "stay" },
+        clearsFlee = true,
         icon = "Interface\\Icons\\Spell_Nature_TimeStop",
         title = L["HUD_STAY_TITLE"],
         desc = L["HUD_STAY_DESC"],
@@ -53,6 +56,7 @@ local TACTICAL_ACTIONS = {
     {
         name = L["HUD_FOLLOW_NAME"],
         cmds = { "reset", "follow" },
+        clearsFlee = true,
         icon = "Interface\\Icons\\Ability_Tracking",
         title = L["HUD_FOLLOW_TITLE"],
         desc = L["HUD_FOLLOW_DESC"],
@@ -333,11 +337,11 @@ end
 
 local function UpdateCombatActionWaitBadges()
     if hudAttackBtn and hudAttackBtn.waitBadge then
-        local secs = GetSavedSeconds("attackWaitSeconds", 0, ATTACK_WAIT_OPTIONS)
+        local secs = GetSavedSeconds("attackWaitSeconds", DEFAULT_ATTACK_WAIT, ATTACK_WAIT_OPTIONS)
         hudAttackBtn.waitBadge:SetText(secs .. "s")
     end
     if hudPullBtn and hudPullBtn.waitBadge then
-        local secs = GetSavedSeconds("pullWaitSeconds", 8, PULL_WAIT_OPTIONS)
+        local secs = GetSavedSeconds("pullWaitSeconds", DEFAULT_PULL_WAIT, PULL_WAIT_OPTIONS)
         hudPullBtn.waitBadge:SetText(secs .. "s")
     end
 end
@@ -374,12 +378,21 @@ local function OpenWaitDelayDropdown(anchorBtn, cfgMenu)
     end)
 end
 
+local function SendCombatPrepReset()
+    DungeonBots:SendPartyCommand("reset")
+    if DungeonBots.IsFleeActive and DungeonBots:IsFleeActive() then
+        DungeonBots:SendPartyCommand("follow")
+        if DungeonBots.SetFleeActive then
+            DungeonBots:SetFleeActive(false, "hud")
+        end
+    end
+end
+
 local function ExecuteAttackTargetSequence()
     if CloseDropDownMenus then CloseDropDownMenus() end
-    DungeonBots:SendPartyCommand("reset")
-    DungeonBots:SendPartyCommand("follow")
+    SendCombatPrepReset()
     local forceNoWait = IsShiftKeyDown and IsShiftKeyDown()
-    local secs = forceNoWait and 0 or GetSavedSeconds("attackWaitSeconds", 0, ATTACK_WAIT_OPTIONS)
+    local secs = forceNoWait and 0 or GetSavedSeconds("attackWaitSeconds", DEFAULT_ATTACK_WAIT, ATTACK_WAIT_OPTIONS)
     ApplyCombatWaitStrategies(secs)
     DungeonBots:SendPartyCommand("@tank attack")
     DungeonBots:SendPartyCommand("@dps attack")
@@ -387,8 +400,8 @@ end
 
 local function ExecutePullBackSequence()
     if CloseDropDownMenus then CloseDropDownMenus() end
-    DungeonBots:SendPartyCommand("reset")
-    local secs = GetSavedSeconds("pullWaitSeconds", 8, PULL_WAIT_OPTIONS)
+    SendCombatPrepReset()
+    local secs = GetSavedSeconds("pullWaitSeconds", DEFAULT_PULL_WAIT, PULL_WAIT_OPTIONS)
     ApplyCombatWaitStrategies(secs)
     DungeonBots:SendPartyCommand("@tank pull back")
 end
@@ -402,7 +415,7 @@ local function ShowHudButtonTooltip(btn, action)
     GameTooltip:AddLine(action.title, 1, 1, 1)
     GameTooltip:AddLine(action.desc, 0.85, 0.85, 0.85, true)
     if action.actionKind == "attack_target" then
-        local secs = GetSavedSeconds("attackWaitSeconds", 0, ATTACK_WAIT_OPTIONS)
+        local secs = GetSavedSeconds("attackWaitSeconds", DEFAULT_ATTACK_WAIT, ATTACK_WAIT_OPTIONS)
         GameTooltip:AddLine(" ")
         if secs == 0 then
             GameTooltip:AddLine(L["HUD_ATK_CUR_NOWAIT"], 1, 1, 1)
@@ -410,7 +423,7 @@ local function ShowHudButtonTooltip(btn, action)
             GameTooltip:AddLine(string.format(L["HUD_ATK_CUR_SEC_FMT"], secs), 1, 1, 1)
         end
     elseif action.actionKind == "pull_back" then
-        local secs = GetSavedSeconds("pullWaitSeconds", 8, PULL_WAIT_OPTIONS)
+        local secs = GetSavedSeconds("pullWaitSeconds", DEFAULT_PULL_WAIT, PULL_WAIT_OPTIONS)
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine(string.format(L["HUD_PULL_CUR_SEC_FMT"], secs), 1, 1, 1)
     elseif action.isFormationCycle then
@@ -769,10 +782,15 @@ function DungeonBots:InitHUD()
                     for _, c in ipairs(action.cmds) do
                         DungeonBots:SendPartyCommand(c)
                     end
+                    if action.clearsFlee and DungeonBots.SetFleeActive then
+                        DungeonBots:SetFleeActive(false, "hud")
+                    end
                     return
                 end
                 DungeonBots:SendPartyCommand(action.cmd)
-                if action.cmd == "move from group" then
+                if action.cmd == "flee" and DungeonBots.SetFleeActive then
+                    DungeonBots:SetFleeActive(true, "hud")
+                elseif action.cmd == "move from group" then
                     DungeonBots:Print(L["HUD_MSG_SPREAD_SENT"])
                 end
             end,
@@ -780,7 +798,7 @@ function DungeonBots:InitHUD()
                 if action.actionKind == "attack_target" then
                     OpenWaitDelayDropdown(btn, {
                         dbKey = "attackWaitSeconds",
-                        defaultVal = 0,
+                        defaultVal = DEFAULT_ATTACK_WAIT,
                         options = ATTACK_WAIT_OPTIONS,
                         menuTitle = L["HUD_ATK_MENU_TITLE"],
                         setZeroMsg = L["HUD_ATK_SET_NOWAIT"],
@@ -789,7 +807,7 @@ function DungeonBots:InitHUD()
                 elseif action.actionKind == "pull_back" then
                     OpenWaitDelayDropdown(btn, {
                         dbKey = "pullWaitSeconds",
-                        defaultVal = 8,
+                        defaultVal = DEFAULT_PULL_WAIT,
                         options = PULL_WAIT_OPTIONS,
                         menuTitle = L["HUD_PULL_MENU_TITLE"],
                         setSecFmt = L["HUD_PULL_SET_SEC_FMT"],

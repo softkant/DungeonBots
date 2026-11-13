@@ -51,6 +51,29 @@ local function NotifyBotInventoryFull(botName)
     DungeonBots:Warn(string.format(L["BAG_FULL_WARN_FMT"], botName))
 end
 
+local function UpdateFleeStateFromMessage(cleanSender, message, isPartyChat)
+    if not message or message == "" or not DungeonBots.SetFleeActive then return end
+    local clean = TrimText(DB_Internal.StripWowFormatting(message))
+    if clean == "" then return end
+    local lowerMsg = string.lower(clean)
+    local playerName = UnitName and NormalizePlayerName(UnitName("player"))
+
+    if isPartyChat and playerName and cleanSender == playerName then
+        if lowerMsg == "flee" or string.match(lowerMsg, "^@%S+%s+flee$") then
+            DungeonBots:SetFleeActive(true, "chat")
+        elseif lowerMsg == "follow" or lowerMsg == "stay" then
+            DungeonBots:SetFleeActive(false, "chat")
+        end
+        return
+    end
+
+    if cleanSender and cleanSender ~= "" and DungeonBots:FindPartyUnitByName(cleanSender, true) then
+        if lowerMsg == "fleeing" then
+            DungeonBots:SetFleeActive(true, "chat")
+        end
+    end
+end
+
 local function HandlePartyChanged(isEnteringWorld)
     if isEnteringWorld then
         if DB_Internal.ClearWhisperQueue then DB_Internal.ClearWhisperQueue() end
@@ -58,6 +81,9 @@ local function HandlePartyChanged(isEnteringWorld)
         if DB_Internal.ClearAllPendingQuestCounts then DB_Internal.ClearAllPendingQuestCounts() end
     end
     DungeonBots:ResolvePendingPartyBots()
+    if GetNumPartyMembers and GetNumPartyMembers() == 0 and DungeonBots.SetFleeActive then
+        DungeonBots:SetFleeActive(false, "party_empty")
+    end
     DungeonBots:SyncPartyToHistory()
     if DungeonBots.CheckPartyForNewBots then
         DungeonBots:CheckPartyForNewBots()
@@ -572,12 +598,18 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         end
 
         -- Guardar log de último susurro para la pestaña de bots
+        if inParty then
+            UpdateFleeStateFromMessage(cleanSender, message, false)
+        end
         if DungeonBots.OnWhisperReceived then
             DungeonBots:OnWhisperReceived(cleanSender, message)
         end
 
     elseif event == "CHAT_MSG_PARTY" or event == "CHAT_MSG_PARTY_LEADER" or event == "CHAT_MSG_SAY" then
         local message, sender = ...
+        if event ~= "CHAT_MSG_SAY" then
+            UpdateFleeStateFromMessage(NormalizePlayerName(sender), message, true)
+        end
         local fullBot = message and DB_Internal.ExtractInventoryFullBotName and DB_Internal.ExtractInventoryFullBotName(message, sender)
         if fullBot then
             NotifyBotInventoryFull(fullBot)

@@ -18,8 +18,9 @@ local DEFAULT_CONFIG = {
     utilHudVisible = true,
     utilHudLocked = false,
     hudOnlyInDungeon = true,
-    attackWaitSeconds = 0,
-    pullWaitSeconds = 8,
+    attackWaitSeconds = 2,
+    pullWaitSeconds = 6,
+    fleeActive = false,
     whisperMuteMode = "all",
     muteBotGroupChat = false,
     closeWimBotWindows = true,
@@ -447,6 +448,30 @@ function DB_Internal.FormatBotStatsDisplay(st, fallbackValueText)
     local freeSlots, totalSlots, bagColor = DB_Internal.GetBotBagFreeInfo(st)
     local bagStr = L["STATS_BAGS_PREFIX"] .. bagColor .. tostring(freeSlots) .. "/" .. tostring(totalSlots) .. "|r"
     return armorStr, bagStr, st
+end
+
+function DungeonBots:IsFleeActive()
+    if DungeonBotsDB and DungeonBotsDB.fleeActive ~= nil then
+        return DungeonBotsDB.fleeActive and true or false
+    end
+    return self._fleeActive and true or false
+end
+
+function DungeonBots:SetFleeActive(active, source)
+    local val = active and true or false
+    local now = DB_Internal.NowTime()
+    if val then
+        -- Evita que el eco retrasado de /p flee o "Fleeing" reactive flee justo tras limpiarlo
+        if source == "chat" and self._lastFleeClearedAt and (now - self._lastFleeClearedAt) < 2.0 then
+            return
+        end
+    else
+        self._lastFleeClearedAt = now
+    end
+    self._fleeActive = val
+    if DungeonBotsDB then
+        DungeonBotsDB.fleeActive = val
+    end
 end
 
 -- =========================================================================
