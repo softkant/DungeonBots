@@ -24,7 +24,7 @@ This document defines the architecture, repository map, technical constraints, c
 - `UI/Modals.lua` — Settings modal dialog (`BuildSettingsDialog`, `UpdateSettingsDialog`, `ToggleSettingsDialog`, visual theme switcher) and Bot History modal dialog (`BuildHistoryDialog`, `UpdateHistoryUI`, `ToggleHistoryDialog`, including manual bot-name input `DungeonBots_HistAddNameBox`).
 - `UI/QuestTalkUI.lua` — Interactive Bot Quest Log dialog (`BuildQuestDialog`, `UpdateQuestDialog`, `OpenQuestDialog`) and NPC Talk dialog (`BuildTalkDialog`, `UpdateTalkDialog`, `OpenTalkDialog`).
 - `UI/InventoryUI.lua` — Bag-style Bot Inventory grid viewer (`BuildInventoryDialog`, `UpdateInventoryDialog`, `OpenInventoryDialog`) with live search filter, quality-colored slot borders, stack counts, sequential bot cycling, client-localized item tooltips, and confirmed item destruction.
-- `UI/SpellsUI.lua` — Interactive Character Info window (`Información del Personaje`, `BuildSpellsDialog`, `UpdateSpellsDialog`, `OpenSpellsDialog`) featuring 3 compact icon-badged mode buttons (`Equipo`, `Hechizos`, `Glifos`), local search filter, reagent/difficulty badges, per-glyph rows, cast & cancel (`reset`) controls with live cast detection, and sequential `Siguiente Bot` cycling.
+- `UI/SpellsUI.lua` — Interactive Character Info window (`BuildSpellsDialog`, `UpdateSpellsDialog`, `OpenSpellsDialog`) featuring 3 compact icon-badged mode buttons (`Gear`, `Spells`, `Glyphs`), local search filter, reagent/difficulty badges, per-glyph rows, cast & cancel (`reset`) controls with live cast detection, and sequential `Next Bot` cycling.
 - `README.md` — English user documentation describing all features, localization behavior, UI controls, and slash commands.
 
 ---
@@ -38,7 +38,7 @@ This document defines the architecture, repository map, technical constraints, c
    - WoW 3.3.5a UI fonts / Lua strings in this addon must stay within **ASCII + Latin-1 (`<= U+00FF`)** (standard Spanish accents `á é í ó ú ñ ¿ ¡` are fine; **never** insert emojis or Unicode characters `> U+00FF` such as `U+2014`, `U+2022`, `U+2192` inside `.lua` files).
    - If you ever use `$` in markdown artifacts or prose, escape properly; in `.lua`, write plain ASCII punctuation like `--` instead of em-dashes.
 3. **In-Game UI Text Language & Command Safety:**
-   - User-facing UI labels, tooltips, and chat notifications inside the `.lua` files are in **Spanish** unless the user specifically asks otherwise, while quests, items, spells, classes, specs, and targeted NPCs localize automatically via `Locales/`.
+   - All user-facing UI labels, tooltips, and chat notifications must go through `Locales/enUS.lua` (English default) and `Locales/esES.lua` (`esES`/`esMX` Spanish) via `L[...]`, keeping exact key parity between both files, while quests, items, spells, classes, specs, and targeted NPCs localize automatically via `Locales/Locale.lua`.
    - Never alter canonical command strings sent to `mod-playerbots` (`safeLink`, `rawTitle`, `acceptCmd`, `talkCmd`, `talents spec <cleanSpec>`). Plain-text NPC gossip without hyperlinks/IDs has no client-side translation key in 3.3.5a and must remain unmodified.
 4. **Documentation & Commit Language:**
    - **`README.md`, `AGENTS.md`, and ALL Git commit messages must be written in English.**
