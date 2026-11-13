@@ -115,7 +115,12 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         if DungeonBotsDB.botActiveSpec then
             for name, activeSpec in pairs(DungeonBotsDB.botActiveSpec) do
                 if activeSpec and activeSpec ~= "" then
-                    DungeonBotsDB.botActiveSpec[name] = DungeonBots:CleanSpecText(activeSpec)
+                    local cleanedActive = DungeonBots:CleanSpecText(activeSpec)
+                    if not DB_Internal.IsValidSpecEntry or DB_Internal.IsValidSpecEntry(cleanedActive) then
+                        DungeonBotsDB.botActiveSpec[name] = cleanedActive
+                    else
+                        DungeonBotsDB.botActiveSpec[name] = nil
+                    end
                 end
             end
         end
@@ -128,7 +133,8 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                         if type(specVal) == "string" and specVal ~= "" then
                             local cleanedSpec = DungeonBots:CleanSpecText(specVal)
                             local lowerSpec = string.lower(cleanedSpec)
-                            if cleanedSpec ~= "" and not seen[lowerSpec] then
+                            local isValidSpec = (not DB_Internal.IsValidSpecEntry) or DB_Internal.IsValidSpecEntry(cleanedSpec)
+                            if isValidSpec and cleanedSpec ~= "" and not seen[lowerSpec] then
                                 seen[lowerSpec] = true
                                 table.insert(deduped, cleanedSpec)
                             end
@@ -342,11 +348,13 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         if not handledQuestShare and not handledQuestSummary and DB_Internal.ParseTalkCaptureWhisper then
             DB_Internal.ParseTalkCaptureWhisper(cleanSender, message)
         end
+        local handledInventory = false
         if not handledQuestSummary and DB_Internal.ParseInventoryCaptureWhisper then
-            DB_Internal.ParseInventoryCaptureWhisper(cleanSender, message)
+            handledInventory = DB_Internal.ParseInventoryCaptureWhisper(cleanSender, message) and true or false
         end
+        local handledSpells = false
         if not handledQuestSummary and DB_Internal.ParseSpellsCaptureWhisper then
-            DB_Internal.ParseSpellsCaptureWhisper(cleanSender, message)
+            handledSpells = DB_Internal.ParseSpellsCaptureWhisper(cleanSender, message) and true or false
         end
 
         local parsedStats = nil
@@ -364,7 +372,8 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
 
         -- Parser dinámico de ramas de talentos y especialización activa en vivo
         local foundSpecList, detectedActiveSpec, specErrorReason, isSwitchConfirmation = false, nil, nil, false
-        if DB_Internal.ParseTalentWhisper then
+        local skipTalentParse = handledQuestShare or handledQuestSummary or handledInventory or handledSpells or (parsedStats ~= nil)
+        if not skipTalentParse and DB_Internal.ParseTalentWhisper then
             foundSpecList, detectedActiveSpec, specErrorReason, isSwitchConfirmation = DB_Internal.ParseTalentWhisper(cleanSender, message)
         end
         local queryStates = DB_Internal.queryStates

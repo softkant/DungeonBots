@@ -105,25 +105,25 @@ local TREE_ALIASES = {
     ["fire"] = "fire", ["fuego"] = "fire",
     ["frost"] = "frost", ["escarcha"] = "frost",
     ["frostfire"] = "frostfire",
-    ["protection"] = "protection", ["proteccion"] = "protection", ["protección"] = "protection",
+    ["protection"] = "protection", ["prot"] = "protection", ["proteccion"] = "protection", ["protección"] = "protection",
     ["holy"] = "holy", ["sagrado"] = "holy",
-    ["retribution"] = "retribution", ["reprension"] = "retribution", ["reprensión"] = "retribution",
-    ["discipline"] = "discipline", ["disciplina"] = "discipline",
+    ["retribution"] = "retribution", ["ret"] = "retribution", ["reprension"] = "retribution", ["reprensión"] = "retribution",
+    ["discipline"] = "discipline", ["disc"] = "discipline", ["disciplina"] = "discipline",
     ["shadow"] = "shadow", ["sombras"] = "shadow",
     ["feral"] = "feral",
     ["balance"] = "balance", ["equilibrio"] = "balance",
-    ["restoration"] = "restoration", ["restauracion"] = "restoration", ["restauración"] = "restoration",
-    ["elemental"] = "elemental",
-    ["enhancement"] = "enhancement", ["mejora"] = "enhancement",
-    ["affliction"] = "affliction", ["afliccion"] = "affliction", ["aflicción"] = "affliction",
-    ["demonology"] = "demonology", ["demonologia"] = "demonology", ["demonología"] = "demonology",
-    ["destruction"] = "destruction", ["destruccion"] = "destruction", ["destrucción"] = "destruction",
-    ["beastmastery"] = "beastmastery", ["beast mastery"] = "beastmastery", ["bestias"] = "beastmastery",
-    ["marksmanship"] = "marksmanship", ["punteria"] = "marksmanship", ["puntería"] = "marksmanship",
-    ["survival"] = "survival", ["supervivencia"] = "survival",
+    ["restoration"] = "restoration", ["resto"] = "restoration", ["restauracion"] = "restoration", ["restauración"] = "restoration",
+    ["elemental"] = "elemental", ["ele"] = "elemental",
+    ["enhancement"] = "enhancement", ["enh"] = "enhancement", ["mejora"] = "enhancement",
+    ["affliction"] = "affliction", ["aff"] = "affliction", ["affli"] = "affliction", ["afliccion"] = "affliction", ["aflicción"] = "affliction",
+    ["demonology"] = "demonology", ["demo"] = "demonology", ["demonologia"] = "demonology", ["demonología"] = "demonology",
+    ["destruction"] = "destruction", ["destro"] = "destruction", ["destruccion"] = "destruction", ["destrucción"] = "destruction",
+    ["beastmastery"] = "beastmastery", ["beast mastery"] = "beastmastery", ["bm"] = "beastmastery", ["bestias"] = "beastmastery",
+    ["marksmanship"] = "marksmanship", ["mm"] = "marksmanship", ["punteria"] = "marksmanship", ["puntería"] = "marksmanship",
+    ["survival"] = "survival", ["surv"] = "survival", ["supervivencia"] = "survival",
     ["combat"] = "combat", ["combate"] = "combat",
-    ["assassination"] = "assassination", ["asesinato"] = "assassination",
-    ["subtlety"] = "subtlety", ["sutileza"] = "subtlety",
+    ["assassination"] = "assassination", ["assa"] = "assassination", ["asesinato"] = "assassination",
+    ["subtlety"] = "subtlety", ["sub"] = "subtlety", ["sutileza"] = "subtlety",
     ["arms"] = "arms", ["armas"] = "arms",
     ["fury"] = "fury", ["furia"] = "fury",
     ["blood"] = "blood", ["sangre"] = "blood",
@@ -144,6 +144,67 @@ local CLASS_TREE_BY_TAB = {
     DRUID       = { "balance", "feral", "restoration" },
 }
 
+local INVALID_SPEC_EXACT = {
+    ["bag"] = true, ["bags"] = true, ["dur"] = true, ["durability"] = true,
+    ["xp"] = true, ["gold"] = true, ["repair"] = true, ["money"] = true,
+    ["slots"] = true, ["total"] = true, ["none"] = true, ["available"] = true,
+    ["list"] = true, ["error"] = true, ["unknown"] = true, ["invalid"] = true,
+    ["reset"] = true, ["ok"] = true, ["specs"] = true, ["spec"] = true,
+}
+
+local function IsValidSpecEntry(specText)
+    if type(specText) ~= "string" then return false end
+    local trimmed = string.gsub(StripWowFormatting(specText), "^%s*(.-)%s*$", "%1")
+    if trimmed == "" or #trimmed < 2 or #trimmed > 40 then return false end
+    if not string.match(trimmed, "%a") then return false end
+    local lower = string.lower(trimmed)
+    if string.match(lower, "^c%x%x%x%x%x%x%x%x") or string.find(lower, "cffffffff", 1, true) then
+        return false
+    end
+    if INVALID_SPEC_EXACT[lower] then
+        return false
+    end
+    if string.find(lower, "specs?%s+found") or string.match(lower, "^total%s+%d+") then
+        return false
+    end
+    if string.match(lower, "^bag[%s:]") or string.match(lower, "^dur[%s:]")
+        or string.match(lower, "^xp[%s:]") or string.match(lower, "^gold[%s:]")
+        or string.match(lower, "^repair[%s:]") then
+        return false
+    end
+    return true
+end
+DB_Internal.IsValidSpecEntry = IsValidSpecEntry
+
+local function NormalizeSpecCompareKey(specText)
+    local lower = string.lower(string.gsub(specText or "", "^%s*(.-)%s*$", "%1"))
+    lower = string.gsub(lower, "[_%-]+", " ")
+    lower = string.gsub(lower, "%s+", " ")
+    local out = {}
+    for word in string.gmatch(lower, "%S+") do
+        table.insert(out, TREE_ALIASES[word] or word)
+    end
+    return table.concat(out, " ")
+end
+
+local function CollectSpecMatchKeys(treeKey)
+    local lowerKey = string.lower(treeKey or "")
+    local normKey = TREE_ALIASES[lowerKey] or lowerKey
+    local keys = { lowerKey }
+    local seen = { [lowerKey] = true }
+    if normKey ~= "" and not seen[normKey] then
+        seen[normKey] = true
+        table.insert(keys, normKey)
+    end
+    for alias, target in pairs(TREE_ALIASES) do
+        if target == normKey and not seen[alias] then
+            seen[alias] = true
+            table.insert(keys, alias)
+        end
+    end
+    return keys
+end
+
 local function ResolveTreeToSpec(botName, treeKey)
     local specs = DungeonBots.botSpecs and DungeonBots.botSpecs[botName]
     if (not specs or #specs == 0) then
@@ -156,29 +217,44 @@ local function ResolveTreeToSpec(botName, treeKey)
         end
     end
     if specs and treeKey and treeKey ~= "" then
-        local lowerKey = string.lower(treeKey)
-        local prefixPat = "^" .. EscapeLuaPattern(lowerKey) .. "[%s_-]"
-        for _, s in ipairs(specs) do
-            local ls = string.lower(s)
-            if (ls == lowerKey or string.match(ls, prefixPat)) and string.find(ls, "pve", 1, true) then
-                return s
+        local keys = CollectSpecMatchKeys(treeKey)
+        for _, key in ipairs(keys) do
+            local prefixPat = "^" .. EscapeLuaPattern(key) .. "[%s_-]"
+            for _, s in ipairs(specs) do
+                if IsValidSpecEntry(s) then
+                    local ls = string.lower(s)
+                    if (ls == key or string.match(ls, prefixPat)) and string.find(ls, "pve", 1, true) then
+                        return s
+                    end
+                end
             end
         end
-        for _, s in ipairs(specs) do
-            local ls = string.lower(s)
-            if ls == lowerKey or string.match(ls, prefixPat) then
-                return s
+        for _, key in ipairs(keys) do
+            local prefixPat = "^" .. EscapeLuaPattern(key) .. "[%s_-]"
+            for _, s in ipairs(specs) do
+                if IsValidSpecEntry(s) then
+                    local ls = string.lower(s)
+                    if ls == key or string.match(ls, prefixPat) then
+                        return s
+                    end
+                end
             end
         end
-        for _, s in ipairs(specs) do
-            local ls = string.lower(s)
-            if string.find(ls, lowerKey, 1, true) and string.find(ls, "pve", 1, true) then
-                return s
+        for _, key in ipairs(keys) do
+            for _, s in ipairs(specs) do
+                if IsValidSpecEntry(s) then
+                    local ls = string.lower(s)
+                    if string.find(ls, key, 1, true) and string.find(ls, "pve", 1, true) then
+                        return s
+                    end
+                end
             end
         end
-        for _, s in ipairs(specs) do
-            if string.find(string.lower(s), lowerKey, 1, true) then
-                return s
+        for _, key in ipairs(keys) do
+            for _, s in ipairs(specs) do
+                if IsValidSpecEntry(s) and string.find(string.lower(s), key, 1, true) then
+                    return s
+                end
             end
         end
     end
@@ -191,6 +267,7 @@ function DungeonBots:CanonicalizeSpec(botName, specText)
     local cleaned = DungeonBots:CleanSpecText(specText)
     if cleaned == "" then return "" end
     local lowerCleaned = string.lower(cleaned)
+    local normCleaned = NormalizeSpecCompareKey(cleaned)
     local specs = DungeonBots.botSpecs and DungeonBots.botSpecs[botName]
     if (not specs or #specs == 0) then
         local unit = DungeonBots:FindPartyUnitByName(botName)
@@ -203,7 +280,12 @@ function DungeonBots:CanonicalizeSpec(botName, specText)
     end
     if specs then
         for _, s in ipairs(specs) do
-            if string.lower(s) == lowerCleaned then
+            if IsValidSpecEntry(s) and string.lower(s) == lowerCleaned then
+                return s
+            end
+        end
+        for _, s in ipairs(specs) do
+            if IsValidSpecEntry(s) and NormalizeSpecCompareKey(s) == normCleaned then
                 return s
             end
         end
@@ -252,10 +334,7 @@ local function ExtractSpecCandidate(chunk, allowBareSpecName)
     if not parsed and allowBareSpecName then
         local bare = DungeonBots:CleanSpecText(normalizedBody)
         if bare ~= "" and string.match(bare, "^[%a][%a%s_-]+$") and #bare >= 2 and #bare <= 40 then
-            local lb = string.lower(bare)
-            if lb ~= "none" and lb ~= "available" and lb ~= "list"
-                and lb ~= "error" and lb ~= "unknown" and lb ~= "invalid"
-                and lb ~= "reset" and lb ~= "ok" then
+            if IsValidSpecEntry(bare) then
                 parsed = bare
             end
         end
@@ -265,7 +344,7 @@ local function ExtractSpecCandidate(chunk, allowBareSpecName)
     parsed = string.gsub(parsed, "%s*%*+%s*$", "")
     parsed = DungeonBots:CleanSpecText(parsed)
     local lowerParsed = string.lower(parsed)
-    if lowerParsed == "" or string.find(lowerParsed, "available", 1, true) then
+    if lowerParsed == "" or string.find(lowerParsed, "available", 1, true) or not IsValidSpecEntry(parsed) then
         return nil
     end
     return parsed
@@ -297,6 +376,26 @@ local function ResolveTripletToSpec(botName, p1, p2, p3)
     return nil
 end
 
+local function IsNonTalentWhisperLine(lowerLine, rawLine)
+    if not lowerLine or lowerLine == "" then return true end
+    if string.match(lowerLine, "^bag%s*:")
+        or string.match(lowerLine, "^dur%s*:")
+        or string.match(lowerLine, "^xp%s*:")
+        or string.match(lowerLine, "^gold%s*:")
+        or string.match(lowerLine, "^repair%s*:")
+        or string.match(lowerLine, "^money%s*:") then
+        return true
+    end
+    if string.find(lowerLine, "bag:", 1, true)
+        and (string.find(lowerLine, "dur:", 1, true) or string.find(lowerLine, "xp:", 1, true) or string.find(lowerLine, "repair:", 1, true)) then
+        return true
+    end
+    if string.match(lowerLine, "^===+.*===+$") or (rawLine and string.find(rawLine, "|Hitem:", 1, true)) then
+        return true
+    end
+    return false
+end
+
 function DB_Internal.ParseTalentWhisper(cleanSender, message)
     local foundSpecList = false
     local detectedActiveSpec = nil
@@ -311,219 +410,232 @@ function DB_Internal.ParseTalentWhisper(cleanSender, message)
         local line = StripWowFormatting(rawLine)
         local trimmedLine = string.gsub(line, "^%s*(.-)%s*$", "%1")
         local lowerLine = string.lower(trimmedLine)
-        local isAvailableListLine = (string.find(lowerLine, "available", 1, true) ~= nil)
-            or (string.match(lowerLine, "^%s*specs%s*:") ~= nil)
-        if isAvailableListLine then
-            recentSpecListHeaderAt[cleanSender] = now
-        end
 
-        if not specErrorReason and IsSpecErrorLine(lowerLine) then
-            specErrorReason = trimmedLine
-        end
-
-        local directActive = string.match(lowerLine, "current%s+talent%s+spec%s+is%s*[:=%s]*(.+)")
-            or string.match(lowerLine, "current%s+talent%s+spec%s*[:=%s]+(.+)")
-            or string.match(lowerLine, "current%s+spec%s+is%s*[:=%s]*(.+)")
-            or string.match(lowerLine, "current%s+spec%s*[:=%s]+(.+)")
-            or string.match(lowerLine, "active%s+spec%s*[:=%s]+(.+)")
-            or string.match(lowerLine, "my%s+spec%s+is%s*[:=%s]*(.+)")
-            or string.match(lowerLine, "using%s+spec%s*[:=%s]+(.+)")
-            or string.match(lowerLine, "rama%s+actual%s*[:=%s]+(.+)")
-            or string.match(lowerLine, "current%s+talents%s*[:=%s]+(.+)")
-            or string.match(lowerLine, "^%s*spec%s*:%s*(.+)")
-
-        local switchMatch = string.match(lowerLine, "picking%s+spec%s*[:=%s]+(.+)")
-            or string.match(lowerLine, "picked%s+spec%s*[:=%s]+(.+)")
-            or string.match(lowerLine, "selecting%s+spec%s*[:=%s]+(.+)")
-            or string.match(lowerLine, "selected%s+spec%s*[:=%s]+(.+)")
-            or string.match(lowerLine, "switching%s+to%s+spec%s*[:=%s]+(.+)")
-            or string.match(lowerLine, "switched%s+to%s+spec%s*[:=%s]+(.+)")
-            or string.match(lowerLine, "changing%s+to%s+spec%s*[:=%s]+(.+)")
-            or string.match(lowerLine, "changed%s+to%s+spec%s*[:=%s]+(.+)")
-            or string.match(lowerLine, "spec%s+changed%s+to%s*[:=%s]+(.+)")
-            or string.match(lowerLine, "spec%s+set%s+to%s*[:=%s]+(.+)")
-            or string.match(lowerLine, "applying%s+spec%s*[:=%s]+(.+)")
-            or string.match(lowerLine, "applied%s+spec%s*[:=%s]+(.+)")
-        if switchMatch then
-            isSwitchConfirmation = true
-            if not directActive then
-                directActive = switchMatch
-            end
-        end
-
-        if not directActive then
-            local talentsRest = string.match(lowerLine, "^%s*talents%s*:%s*(.+)")
-            if talentsRest and not string.find(talentsRest, ",", 1, true) then
-                directActive = talentsRest
-            end
-        end
-        local isDirectLine = (directActive ~= nil)
-        if directActive and not IsSpecErrorLine(lowerLine) then
-            directActive = string.gsub(directActive, "[%.!]+$", "")
-            local dt1, dt2, dt3 = string.match(directActive, "(%d+)%s*[-/]%s*(%d+)%s*[-/]%s*(%d+)")
-            local exactTripletSpec = nil
-            if dt1 and dt2 and dt3 then
-                local tripletKey = dt1 .. "-" .. dt2 .. "-" .. dt3
-                DungeonBots.lastDetectedTriplet[cleanSender] = tripletKey
-                if DungeonBots.botSpecTriplets and DungeonBots.botSpecTriplets[cleanSender] then
-                    exactTripletSpec = DungeonBots.botSpecTriplets[cleanSender][tripletKey]
-                end
-            end
-            local candidate = ExtractSpecCandidate(directActive, isSwitchConfirmation) or DungeonBots:CleanSpecText(StripSpecNoisePrefix(directActive))
-            candidate = DungeonBots:CleanSpecText(candidate)
-            if exactTripletSpec and exactTripletSpec ~= "" then
-                detectedActiveSpec = DungeonBots:CanonicalizeSpec(cleanSender, exactTripletSpec)
-            elseif candidate and candidate ~= "" and string.match(candidate, "%a") then
-                local normDirectTree = TREE_ALIASES[string.lower(candidate)]
-                if normDirectTree then
-                    DungeonBots.lastDetectedTree[cleanSender] = normDirectTree
-                    local byTriplet = (dt1 and dt2 and dt3) and ResolveTripletToSpec(cleanSender, dt1, dt2, dt3) or nil
-                    candidate = byTriplet or ResolveTreeToSpec(cleanSender, normDirectTree)
-                end
-                detectedActiveSpec = DungeonBots:CanonicalizeSpec(cleanSender, candidate)
-            elseif dt1 and dt2 and dt3 then
-                local resolvedT = ResolveTripletToSpec(cleanSender, dt1, dt2, dt3)
-                if resolvedT then
-                    detectedActiveSpec = DungeonBots:CanonicalizeSpec(cleanSender, resolvedT)
-                end
-            end
-        end
-
-        local inSpecListWindow = isAvailableListLine
-            or (recentSpecListHeaderAt[cleanSender] ~= nil and (now - recentSpecListHeaderAt[cleanSender]) <= 3.0
-                and not isDirectLine and not isSwitchConfirmation and not IsSpecErrorLine(lowerLine))
-
-        local rawChunks = {}
-        local greenChunkCount = 0
-        for rawChunk in string.gmatch(rawLine, "[^,;|]+") do
-            local cleanChunk = string.gsub(StripWowFormatting(rawChunk), "^%s*(.-)%s*$", "%1")
-            if cleanChunk ~= "" then
-                local chunkHasGreen = (string.find(rawChunk, "|cff00ff00", 1, true) ~= nil)
-                    or (string.find(rawChunk, "|cff34c759", 1, true) ~= nil)
-                if chunkHasGreen then
-                    greenChunkCount = greenChunkCount + 1
-                end
-                table.insert(rawChunks, { text = cleanChunk, isGreen = chunkHasGreen })
-            end
-        end
-
-        local parsedSpecChunks = {}
-        if not IsSpecErrorLine(lowerLine) then
-            for _, chunkInfo in ipairs(rawChunks) do
-                local cleanChunk = chunkInfo.text
-                local specName = ExtractSpecCandidate(cleanChunk, inSpecListWindow or (#rawChunks >= 2 and not isDirectLine))
-                local t1, t2, t3 = string.match(cleanChunk, "(%d+)%s*[-/]%s*(%d+)%s*[-/]%s*(%d+)")
-                local isBareTreeOnly = specName and (TREE_ALIASES[string.lower(specName)] ~= nil)
-                    and not string.find(string.lower(specName), "pv[ep]")
-                table.insert(parsedSpecChunks, {
-                    chunkInfo = chunkInfo,
-                    cleanChunk = cleanChunk,
-                    specName = specName,
-                    t1 = t1, t2 = t2, t3 = t3,
-                    isBareTreeOnly = isBareTreeOnly,
-                })
-            end
-        end
-
-        local listCandidateCount = 0
-        for _, pc in ipairs(parsedSpecChunks) do
-            if pc.specName and (inSpecListWindow or not pc.isBareTreeOnly) then
-                listCandidateCount = listCandidateCount + 1
-            end
-        end
-        local isTrueSpecListLine = inSpecListWindow or (listCandidateCount >= 2)
-
-        if isTrueSpecListLine and DungeonBots.pendingListReset[cleanSender] then
-            DungeonBots.botSpecs[cleanSender] = {}
+        if string.match(lowerLine, "^total%s+%d+%s+spec") then
+            recentSpecListHeaderAt[cleanSender] = nil
             DungeonBots.pendingListReset[cleanSender] = nil
-        end
+        elseif not IsNonTalentWhisperLine(lowerLine, rawLine) then
+            local hasNumberPrefix = (string.match(trimmedLine, "^%d+%s*[%.%)%]:%-]+%s+[%a]") ~= nil)
+            local hasTriplet = (string.match(lowerLine, "%(%s*%d+%s*[-/]%s*%d+%s*[-/]%s*%d+%s*%)") ~= nil)
+            local hasPvMode = (string.find(lowerLine, " pve", 1, true) ~= nil) or (string.find(lowerLine, " pvp", 1, true) ~= nil)
+            local isNumberedSpecLine = hasNumberPrefix and (hasTriplet or hasPvMode or (DungeonBots.pendingListReset[cleanSender] == true))
+            local isAvailableListLine = (string.find(lowerLine, "available", 1, true) ~= nil)
+                or (string.match(lowerLine, "^%s*specs%s*:") ~= nil)
+                or isNumberedSpecLine
+            if isAvailableListLine then
+                recentSpecListHeaderAt[cleanSender] = now
+            end
 
-        for _, pc in ipairs(parsedSpecChunks) do
-            local cleanChunk = pc.cleanChunk
-            local specName = pc.specName
-            local t1, t2, t3 = pc.t1, pc.t2, pc.t3
-            local isBareTreeOnly = pc.isBareTreeOnly
+            if not specErrorReason and IsSpecErrorLine(lowerLine) then
+                specErrorReason = trimmedLine
+            end
 
-            if specName and (isTrueSpecListLine or not isBareTreeOnly) then
-                specName = DungeonBots:CanonicalizeSpec(cleanSender, specName)
-                if t1 and t2 and t3 then
-                    DungeonBots.botSpecTriplets[cleanSender][t1 .. "-" .. t2 .. "-" .. t3] = specName
+            local directActive = string.match(lowerLine, "current%s+talent%s+spec%s+is%s*[:=%s]*(.+)")
+                or string.match(lowerLine, "current%s+talent%s+spec%s*[:=%s]+(.+)")
+                or string.match(lowerLine, "current%s+spec%s+is%s*[:=%s]*(.+)")
+                or string.match(lowerLine, "current%s+spec%s*[:=%s]+(.+)")
+                or string.match(lowerLine, "active%s+spec%s*[:=%s]+(.+)")
+                or string.match(lowerLine, "my%s+spec%s+is%s*[:=%s]*(.+)")
+                or string.match(lowerLine, "using%s+spec%s*[:=%s]+(.+)")
+                or string.match(lowerLine, "rama%s+actual%s*[:=%s]+(.+)")
+                or string.match(lowerLine, "current%s+talents%s*[:=%s]+(.+)")
+                or string.match(lowerLine, "^%s*spec%s*:%s*(.+)")
+
+            local switchMatch = string.match(lowerLine, "picking%s+spec%s*[:=%s]+(.+)")
+                or string.match(lowerLine, "picked%s+spec%s*[:=%s]+(.+)")
+                or string.match(lowerLine, "selecting%s+spec%s*[:=%s]+(.+)")
+                or string.match(lowerLine, "selected%s+spec%s*[:=%s]+(.+)")
+                or string.match(lowerLine, "switching%s+to%s+spec%s*[:=%s]+(.+)")
+                or string.match(lowerLine, "switched%s+to%s+spec%s*[:=%s]+(.+)")
+                or string.match(lowerLine, "changing%s+to%s+spec%s*[:=%s]+(.+)")
+                or string.match(lowerLine, "changed%s+to%s+spec%s*[:=%s]+(.+)")
+                or string.match(lowerLine, "spec%s+changed%s+to%s*[:=%s]+(.+)")
+                or string.match(lowerLine, "spec%s+set%s+to%s*[:=%s]+(.+)")
+                or string.match(lowerLine, "applying%s+spec%s*[:=%s]+(.+)")
+                or string.match(lowerLine, "applied%s+spec%s*[:=%s]+(.+)")
+            if switchMatch then
+                isSwitchConfirmation = true
+                if not directActive then
+                    directActive = switchMatch
                 end
+            end
 
-                if isTrueSpecListLine then
-                    DungeonBots.botSpecs[cleanSender] = DungeonBots.botSpecs[cleanSender] or {}
-                    local alreadyExists = false
-                    local lowerSpecName = string.lower(specName)
-                    for _, s in ipairs(DungeonBots.botSpecs[cleanSender]) do
-                        if string.lower(s) == lowerSpecName then
-                            alreadyExists = true
-                            break
+            if not directActive then
+                local talentsRest = string.match(lowerLine, "^%s*talents%s*:%s*(.+)")
+                if talentsRest and not string.find(talentsRest, ",", 1, true) then
+                    directActive = talentsRest
+                end
+            end
+            local isDirectLine = (directActive ~= nil)
+            if directActive and not IsSpecErrorLine(lowerLine) then
+                directActive = string.gsub(directActive, "[%.!]+$", "")
+                local dt1, dt2, dt3 = string.match(directActive, "(%d+)%s*[-/]%s*(%d+)%s*[-/]%s*(%d+)")
+                local exactTripletSpec = nil
+                if dt1 and dt2 and dt3 then
+                    local tripletKey = dt1 .. "-" .. dt2 .. "-" .. dt3
+                    DungeonBots.lastDetectedTriplet[cleanSender] = tripletKey
+                    if DungeonBots.botSpecTriplets and DungeonBots.botSpecTriplets[cleanSender] then
+                        exactTripletSpec = DungeonBots.botSpecTriplets[cleanSender][tripletKey]
+                    end
+                end
+                local candidate = ExtractSpecCandidate(directActive, isSwitchConfirmation) or DungeonBots:CleanSpecText(StripSpecNoisePrefix(directActive))
+                candidate = DungeonBots:CleanSpecText(candidate)
+                if exactTripletSpec and exactTripletSpec ~= "" and IsValidSpecEntry(exactTripletSpec) then
+                    detectedActiveSpec = DungeonBots:CanonicalizeSpec(cleanSender, exactTripletSpec)
+                elseif candidate and candidate ~= "" and IsValidSpecEntry(candidate) then
+                    local normDirectTree = TREE_ALIASES[string.lower(candidate)]
+                    if normDirectTree then
+                        DungeonBots.lastDetectedTree[cleanSender] = normDirectTree
+                        local byTriplet = (dt1 and dt2 and dt3) and ResolveTripletToSpec(cleanSender, dt1, dt2, dt3) or nil
+                        candidate = byTriplet or ResolveTreeToSpec(cleanSender, normDirectTree)
+                    end
+                    detectedActiveSpec = DungeonBots:CanonicalizeSpec(cleanSender, candidate)
+                elseif dt1 and dt2 and dt3 then
+                    local resolvedT = ResolveTripletToSpec(cleanSender, dt1, dt2, dt3)
+                    if resolvedT and IsValidSpecEntry(resolvedT) then
+                        detectedActiveSpec = DungeonBots:CanonicalizeSpec(cleanSender, resolvedT)
+                    end
+                end
+            end
+
+            local inSpecListWindow = isAvailableListLine
+                or (recentSpecListHeaderAt[cleanSender] ~= nil and (now - recentSpecListHeaderAt[cleanSender]) <= 3.0
+                    and not isDirectLine and not isSwitchConfirmation and not IsSpecErrorLine(lowerLine))
+
+            local rawChunks = {}
+            local greenChunkCount = 0
+            for rawChunk in string.gmatch(rawLine, "[^,;]+") do
+                local cleanChunk = string.gsub(StripWowFormatting(rawChunk), "^%s*(.-)%s*$", "%1")
+                if cleanChunk ~= "" then
+                    local chunkHasGreen = (string.find(rawChunk, "|cff00ff00", 1, true) ~= nil)
+                        or (string.find(rawChunk, "|cff34c759", 1, true) ~= nil)
+                    if chunkHasGreen then
+                        greenChunkCount = greenChunkCount + 1
+                    end
+                    table.insert(rawChunks, { text = cleanChunk, isGreen = chunkHasGreen })
+                end
+            end
+
+            local parsedSpecChunks = {}
+            if not IsSpecErrorLine(lowerLine) then
+                for _, chunkInfo in ipairs(rawChunks) do
+                    local cleanChunk = chunkInfo.text
+                    local specName = ExtractSpecCandidate(cleanChunk, inSpecListWindow)
+                    local t1, t2, t3 = string.match(cleanChunk, "(%d+)%s*[-/]%s*(%d+)%s*[-/]%s*(%d+)")
+                    local isBareTreeOnly = specName and (TREE_ALIASES[string.lower(specName)] ~= nil)
+                        and not string.find(string.lower(specName), "pv[ep]")
+                    table.insert(parsedSpecChunks, {
+                        chunkInfo = chunkInfo,
+                        cleanChunk = cleanChunk,
+                        specName = specName,
+                        t1 = t1, t2 = t2, t3 = t3,
+                        isBareTreeOnly = isBareTreeOnly,
+                    })
+                end
+            end
+
+            local listCandidateCount = 0
+            for _, pc in ipairs(parsedSpecChunks) do
+                if pc.specName and IsValidSpecEntry(pc.specName) and (inSpecListWindow or not pc.isBareTreeOnly) then
+                    listCandidateCount = listCandidateCount + 1
+                end
+            end
+            local isTrueSpecListLine = inSpecListWindow or (listCandidateCount >= 2)
+
+            if isTrueSpecListLine and DungeonBots.pendingListReset[cleanSender] then
+                DungeonBots.botSpecs[cleanSender] = {}
+                DungeonBots.pendingListReset[cleanSender] = nil
+            end
+
+            for _, pc in ipairs(parsedSpecChunks) do
+                local cleanChunk = pc.cleanChunk
+                local specName = pc.specName
+                local t1, t2, t3 = pc.t1, pc.t2, pc.t3
+                local isBareTreeOnly = pc.isBareTreeOnly
+
+                if specName and IsValidSpecEntry(specName) and (isTrueSpecListLine or not isBareTreeOnly) then
+                    specName = DungeonBots:CanonicalizeSpec(cleanSender, specName)
+                    if IsValidSpecEntry(specName) then
+                        if t1 and t2 and t3 then
+                            DungeonBots.botSpecTriplets[cleanSender][t1 .. "-" .. t2 .. "-" .. t3] = specName
+                        end
+
+                        if isTrueSpecListLine then
+                            DungeonBots.botSpecs[cleanSender] = DungeonBots.botSpecs[cleanSender] or {}
+                            local alreadyExists = false
+                            local lowerSpecName = string.lower(specName)
+                            for _, s in ipairs(DungeonBots.botSpecs[cleanSender]) do
+                                if string.lower(s) == lowerSpecName then
+                                    alreadyExists = true
+                                    break
+                                end
+                            end
+                            if not alreadyExists then
+                                table.insert(DungeonBots.botSpecs[cleanSender], specName)
+                            end
+                            foundSpecList = true
+                        end
+
+                        local lc = string.lower(cleanChunk)
+                        local activeByGreen = pc.chunkInfo.isGreen and ((not isTrueSpecListLine) or greenChunkCount == 1)
+                        if string.find(lc, "active", 1, true)
+                            or string.find(lc, "current", 1, true)
+                            or string.find(lc, "actual", 1, true)
+                            or string.find(lc, "activo", 1, true)
+                            or string.match(cleanChunk, "^%*")
+                            or string.match(cleanChunk, ":%s*%*")
+                            or string.match(cleanChunk, "%*$")
+                            or string.match(cleanChunk, "^%->")
+                            or string.match(cleanChunk, ":%s*%->")
+                            or activeByGreen then
+                            detectedActiveSpec = specName
                         end
                     end
-                    if not alreadyExists then
-                        table.insert(DungeonBots.botSpecs[cleanSender], specName)
-                    end
-                    foundSpecList = true
-                end
-
-                local lc = string.lower(cleanChunk)
-                local activeByGreen = pc.chunkInfo.isGreen and ((not isTrueSpecListLine) or greenChunkCount == 1)
-                if string.find(lc, "active", 1, true)
-                    or string.find(lc, "current", 1, true)
-                    or string.find(lc, "actual", 1, true)
-                    or string.find(lc, "activo", 1, true)
-                    or string.match(cleanChunk, "^%*")
-                    or string.match(cleanChunk, ":%s*%*")
-                    or string.match(cleanChunk, "%*$")
-                    or string.match(cleanChunk, "^%->")
-                    or string.match(cleanChunk, ":%s*%->")
-                    or activeByGreen then
-                    detectedActiveSpec = specName
-                end
-            elseif (t1 and t2 and t3) and not isTrueSpecListLine then
-                DungeonBots.lastDetectedTriplet[cleanSender] = t1 .. "-" .. t2 .. "-" .. t3
-                if specName and isBareTreeOnly then
-                    local normTree = TREE_ALIASES[string.lower(specName)]
-                    if normTree then
-                        DungeonBots.lastDetectedTree[cleanSender] = normTree
-                    end
-                end
-                if not detectedActiveSpec then
-                    local resolvedFromTriplet = ResolveTripletToSpec(cleanSender, t1, t2, t3)
-                    if not resolvedFromTriplet and specName and isBareTreeOnly then
+                elseif (t1 and t2 and t3) and not isTrueSpecListLine then
+                    DungeonBots.lastDetectedTriplet[cleanSender] = t1 .. "-" .. t2 .. "-" .. t3
+                    if specName and isBareTreeOnly then
                         local normTree = TREE_ALIASES[string.lower(specName)]
                         if normTree then
-                            resolvedFromTriplet = ResolveTreeToSpec(cleanSender, normTree)
+                            DungeonBots.lastDetectedTree[cleanSender] = normTree
                         end
                     end
-                    if resolvedFromTriplet then
-                        detectedActiveSpec = DungeonBots:CanonicalizeSpec(cleanSender, resolvedFromTriplet)
-                    end
-                end
-            end
-
-            if not isTrueSpecListLine then
-                for rawTree, rawPts in string.gmatch(cleanChunk, "([%a ]+)%s*[:%(]?%s*(%d+)%)?") do
-                    local key = string.lower(StripSpecNoisePrefix(rawTree))
-                    local normTree = TREE_ALIASES[key]
-                    local pts = tonumber(rawPts)
-                    if normTree and pts and pts > 0 then
-                        DungeonBots.liveTreePoints[cleanSender][normTree] = math.max(
-                            DungeonBots.liveTreePoints[cleanSender][normTree] or 0,
-                            pts
-                        )
+                    if not detectedActiveSpec then
+                        local resolvedFromTriplet = ResolveTripletToSpec(cleanSender, t1, t2, t3)
+                        if not resolvedFromTriplet and specName and isBareTreeOnly then
+                            local normTree = TREE_ALIASES[string.lower(specName)]
+                            if normTree then
+                                resolvedFromTriplet = ResolveTreeToSpec(cleanSender, normTree)
+                            end
+                        end
+                        if resolvedFromTriplet and IsValidSpecEntry(resolvedFromTriplet) then
+                            detectedActiveSpec = DungeonBots:CanonicalizeSpec(cleanSender, resolvedFromTriplet)
+                        end
                     end
                 end
 
-                local tripletTree = string.match(cleanChunk, "([%a ]+)%s*%(%s*%d+[-/]%d+[-/]%d+%s*%)")
-                if tripletTree and t1 and t2 and t3 then
-                    local normTree = TREE_ALIASES[string.lower(StripSpecNoisePrefix(tripletTree))]
-                    local totalPts = (tonumber(t1) or 0) + (tonumber(t2) or 0) + (tonumber(t3) or 0)
-                    if normTree and totalPts > 0 then
-                        DungeonBots.liveTreePoints[cleanSender][normTree] = math.max(
-                            DungeonBots.liveTreePoints[cleanSender][normTree] or 0,
-                            totalPts
-                        )
+                if not isTrueSpecListLine then
+                    for rawTree, rawPts in string.gmatch(cleanChunk, "([%a ]+)%s*[:%(]?%s*(%d+)%)?") do
+                        local key = string.lower(StripSpecNoisePrefix(rawTree))
+                        local normTree = TREE_ALIASES[key]
+                        local pts = tonumber(rawPts)
+                        if normTree and pts and pts > 0 then
+                            DungeonBots.liveTreePoints[cleanSender][normTree] = math.max(
+                                DungeonBots.liveTreePoints[cleanSender][normTree] or 0,
+                                pts
+                            )
+                        end
+                    end
+
+                    local tripletTree = string.match(cleanChunk, "([%a ]+)%s*%(%s*%d+[-/]%d+[-/]%d+%s*%)")
+                    if tripletTree and t1 and t2 and t3 then
+                        local normTree = TREE_ALIASES[string.lower(StripSpecNoisePrefix(tripletTree))]
+                        local totalPts = (tonumber(t1) or 0) + (tonumber(t2) or 0) + (tonumber(t3) or 0)
+                        if normTree and totalPts > 0 then
+                            DungeonBots.liveTreePoints[cleanSender][normTree] = math.max(
+                                DungeonBots.liveTreePoints[cleanSender][normTree] or 0,
+                                totalPts
+                            )
+                        end
                     end
                 end
             end

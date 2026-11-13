@@ -810,8 +810,17 @@ local function RenderGearPanel(sp, targetBot, classToken)
         gp.activeSpecLabel:SetText("Rama actual: |cff888888Sin detectar|r")
     end
 
-    local specs = (DungeonBots.botSpecs and DungeonBots.botSpecs[targetBot])
-    if (not specs or #specs < 2) and classToken and DungeonBots.DEFAULT_CLASS_SPECS then
+    local rawSpecs = (DungeonBots.botSpecs and DungeonBots.botSpecs[targetBot])
+    local validSpecs = {}
+    if rawSpecs then
+        for _, s in ipairs(rawSpecs) do
+            if type(s) == "string" and (not DB_Internal.IsValidSpecEntry or DB_Internal.IsValidSpecEntry(s)) then
+                table.insert(validSpecs, s)
+            end
+        end
+    end
+    local specs = validSpecs
+    if #specs < 2 and classToken and DungeonBots.DEFAULT_CLASS_SPECS then
         specs = DungeonBots.DEFAULT_CLASS_SPECS[classToken]
     end
     local optionList = {}
@@ -825,8 +834,19 @@ local function RenderGearPanel(sp, targetBot, classToken)
             end
         end
     end
-    if activeSpec and activeSpec ~= "" and not seen[string.lower(activeSpec)] then
-        table.insert(optionList, 1, activeSpec)
+    if activeSpec and activeSpec ~= "" then
+        local resolvedActive = activeSpec
+        if not seen[string.lower(resolvedActive)] and DungeonBots.CanonicalizeSpec then
+            local cand = DungeonBots:CanonicalizeSpec(targetBot, resolvedActive)
+            if cand and cand ~= "" and seen[string.lower(cand)] then
+                resolvedActive = cand
+            end
+        end
+        if seen[string.lower(resolvedActive)] then
+            activeSpec = resolvedActive
+        elseif not DB_Internal.IsValidSpecEntry or DB_Internal.IsValidSpecEntry(activeSpec) then
+            table.insert(optionList, activeSpec)
+        end
     end
 
     if #optionList == 0 then
