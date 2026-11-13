@@ -34,6 +34,8 @@ eventFrame:RegisterEvent("UNIT_NAME_UPDATE")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 eventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
+eventFrame:RegisterEvent("UNIT_FLAGS")
+eventFrame:RegisterEvent("UNIT_HEALTH")
 
 local function HandlePartyChanged(isEnteringWorld)
     if isEnteringWorld then
@@ -497,6 +499,12 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     elseif event == "PLAYER_TARGET_CHANGED" then
         if DungeonBots.UpdateHUDTalkButtonState then
             DungeonBots:UpdateHUDTalkButtonState()
+        end
+
+    elseif event == "UNIT_FLAGS" or event == "UNIT_HEALTH" then
+        local unit = ...
+        if unit and string.match(unit, "^party%d$") and DungeonBots.UpdateReviveButtonState then
+            DungeonBots:UpdateReviveButtonState()
         end
     end
 end)

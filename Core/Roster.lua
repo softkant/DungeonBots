@@ -213,6 +213,19 @@ function DungeonBots:GetBotProximityInfo(botName)
             detailMsg = cleanName .. " está desconectado.",
         }
     end
+    if UnitIsGhost and UnitIsGhost(unit) then
+        return {
+            key = "ghost",
+            isNear = false,
+            isFar = true,
+            canTalkRange = false,
+            canInspectRange = false,
+            shortLabel = "En espíritu",
+            badgeText = "|cffff7744[En espíritu]|r",
+            colorHex = "|cffff7744",
+            detailMsg = cleanName .. " liberó el alma y está en espíritu.",
+        }
+    end
     if UnitIsDeadOrGhost and UnitIsDeadOrGhost(unit) then
         return {
             key = "dead",
@@ -223,7 +236,7 @@ function DungeonBots:GetBotProximityInfo(botName)
             shortLabel = "Muerto",
             badgeText = "|cffff5544[Muerto]|r",
             colorHex = "|cffff5544",
-            detailMsg = cleanName .. " está muerto o en espíritu.",
+            detailMsg = cleanName .. " está muerto (sin liberar espíritu).",
         }
     end
     if UnitIsVisible and not UnitIsVisible(unit) then
@@ -325,6 +338,22 @@ function DungeonBots:GetBotProximityInfo(botName)
         colorHex = inPartyRange and "|cffff7b30" or "|cffff5544",
         detailMsg = cleanName .. (inPartyRange and " está lejos (a más de 28 m de ti)." or " está muy lejos (a más de 40 m de ti)."),
     }
+end
+
+function DungeonBots:GetReleasedBotNames()
+    local released = {}
+    for i = 1, 4 do
+        local unit = "party" .. i
+        if UnitExists(unit) and UnitIsConnected(unit) then
+            local name = UnitName(unit)
+            if name and name ~= "" and DungeonBots:ShouldTreatAsBot(name) then
+                if UnitIsGhost and UnitIsGhost(unit) then
+                    table.insert(released, name)
+                end
+            end
+        end
+    end
+    return released
 end
 
 function DungeonBots:ToggleUnitBotStatus(name)
