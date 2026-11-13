@@ -389,6 +389,10 @@ local function ExecutePullBackSequence()
     DungeonBots:SendPartyCommand("@tank pull back")
 end
 
+local function HasLivingTarget()
+    return UnitExists("target") and not UnitIsDeadOrGhost("target")
+end
+
 local function ShowHudButtonTooltip(btn, action)
     GameTooltip:SetOwner(btn, "ANCHOR_TOP")
     GameTooltip:AddLine(action.title, 1, 1, 1)
@@ -412,8 +416,12 @@ local function ShowHudButtonTooltip(btn, action)
     elseif action.isTalkPicker and DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
         GameTooltip:AddLine(L["HUD_NOTE_VALID_NPC"], 1.0, 0.72, 0.25, true)
     end
-    if action.requiresTarget and not UnitExists("target") then
-        GameTooltip:AddLine(L["HUD_NOTE_TARGET_FIRST"], 1.0, 0.72, 0.25, true)
+    if action.requiresTarget and not HasLivingTarget() then
+        if not UnitExists("target") then
+            GameTooltip:AddLine(L["HUD_NOTE_TARGET_FIRST"], 1.0, 0.72, 0.25, true)
+        else
+            GameTooltip:AddLine(L["HUD_NOTE_TARGET_DEAD"], 1.0, 0.40, 0.35, true)
+        end
     end
     GameTooltip:Show()
 end
@@ -677,7 +685,7 @@ local function CreateFloatingToolbar(cfg)
                 end
                 return
             end
-            if action.requiresTarget and not UnitExists("target") then
+            if action.requiresTarget and not HasLivingTarget() then
                 return
             end
             if action.isTalkPicker and DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
