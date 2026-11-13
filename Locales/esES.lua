@@ -272,6 +272,7 @@ L["HUD_ATK_SET_SEC_FMT"]   = "Ataque: espera de DPS fijada en |cffffd200%d seg|r
 L["HUD_PULL_MENU_TITLE"]   = "-- Pull: Espera DPS --"
 L["HUD_PULL_CUR_SEC_FMT"]  = "Espera DPS: |cffffd200%d seg|r"
 L["HUD_PULL_SET_SEC_FMT"]  = "Pull: espera de DPS fijada en |cffffd200%d seg|r."
+L["HUD_NOTE_TARGET_FIRST"] = "Nota: Marca un objetivo primero para usar clic izquierdo."
 L["HUD_STAY_NAME"]         = "Quedarse"
 L["HUD_STAY_TITLE"]        = "|cffffff00Quedarse|r"
 L["HUD_STAY_DESC"]         = "Ordena a los bots frenar en seco y mantener su posición actual.\n\n|cff71d5ffÚtil antes de que jalen patrullas o para posicionar el grupo.|r"
@@ -303,7 +304,7 @@ L["HUD_CHAR_DESC"]         = "Abre la ventana del personaje (o un menú si hay 2
 
 L["HUD_FORM_CYCLE_NAME"]   = "Ciclo de Formación"
 L["HUD_FORM_CYCLE_TITLE"]  = "|cff33d9ffFormación (Flecha / Near / Desactivar)|r"
-L["HUD_FORM_CYCLE_DESC"]   = "Alterna la formación del grupo en cada clic:\n Arrow (Flecha) -> Near (Cerca) ->  Chaos (Defecto / Desactivar)"
+L["HUD_FORM_CYCLE_DESC"]   = "Alterna la formación del grupo en cada clic:\n\n Arrow (Flecha) -> Near (Cerca) ->  Chaos (Defecto / Desactivar)"
 L["HUD_FORM_CUR_FMT"]      = "Actual: %s"
 L["HUD_FORM_LBL_ARROW"]    = "|cff33d9ffArrow (Flecha)|r"
 L["HUD_FORM_LBL_NEAR"]     = "|cffffd200Near (Cerca)|r"

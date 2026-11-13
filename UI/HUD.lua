@@ -26,6 +26,7 @@ local TACTICAL_ACTIONS = {
         name = L["HUD_FOCUS_NAME"],
         actionKind = "attack_target",
         hasRightClickMenu = true,
+        requiresTarget = true,
         icon = "Interface\\Icons\\Ability_Warrior_OffensiveStance",
         title = L["HUD_FOCUS_TITLE"],
         desc = L["HUD_FOCUS_DESC"],
@@ -35,6 +36,7 @@ local TACTICAL_ACTIONS = {
         name = L["HUD_PULL_NAME"],
         actionKind = "pull_back",
         hasRightClickMenu = true,
+        requiresTarget = true,
         icon = "Interface\\Icons\\Ability_Hunter_AimedShot",
         title = L["HUD_PULL_TITLE"],
         desc = L["HUD_PULL_DESC"],
@@ -408,6 +410,9 @@ local function ShowHudButtonTooltip(btn, action)
     elseif action.isTalkPicker and DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
         GameTooltip:AddLine(L["HUD_NOTE_VALID_NPC"], 1.0, 0.72, 0.25, true)
     end
+    if action.requiresTarget and not UnitExists("target") then
+        GameTooltip:AddLine(L["HUD_NOTE_TARGET_FIRST"], 1.0, 0.72, 0.25, true)
+    end
     GameTooltip:Show()
 end
 
@@ -668,6 +673,9 @@ local function CreateFloatingToolbar(cfg)
                     PlaySound("igMainMenuOptionCheckBoxOn")
                     cfg.onRightClick(self, action)
                 end
+                return
+            end
+            if action.requiresTarget and not UnitExists("target") then
                 return
             end
             if action.isTalkPicker and DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
