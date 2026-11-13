@@ -152,7 +152,7 @@ local function BuildGearPanel(sp)
     end
 
     local autogearBtn = CreateFrame("Button", "DungeonBots_GearAutogearBtn", autogearBox, "UIPanelButtonTemplate")
-    autogearBtn:SetSize(166, 30)
+    autogearBtn:SetSize(120, 30)
     autogearBtn:SetPoint("LEFT", autogearBox, "LEFT", 16, 0)
     autogearBtn:SetText("Autoequipar")
     gearPanel.autogearBtn = autogearBtn
