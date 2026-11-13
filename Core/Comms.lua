@@ -675,6 +675,19 @@ local function ChatEventFilterFunc(self, event, message, sender, ...)
             or string.find(lower, "^add class\n") then
             return true
         end
+        if DB_Internal.ExtractBusyBotFromSystem then
+            local busyBot, busyKind = DB_Internal.ExtractBusyBotFromSystem(clean)
+            if busyBot and (busyKind == "already_logged_in" or busyKind == "already_in_group") then
+                local isTracked = DungeonBots:IsRecentBot(busyBot)
+                    or (DungeonBots.HasPendingHistoryInvite and DungeonBots:HasPendingHistoryInvite(busyBot))
+                    or (DungeonBots.IsHistoryBotLoading and DungeonBots:IsHistoryBotLoading(busyBot))
+                    or (DungeonBots.GetExternalBotBusyInfo and DungeonBots:GetExternalBotBusyInfo(busyBot) ~= nil)
+                    or (DungeonBots.pendingWhoCheck and DungeonBots.pendingWhoCheck[busyBot] ~= nil)
+                if isTracked then
+                    return true
+                end
+            end
+        end
         return false
     end
     if DungeonBots:ShouldSuppressChatEvent(event, message, sender) then

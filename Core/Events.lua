@@ -84,6 +84,17 @@ local function HandlePartyChanged(isEnteringWorld)
         if DB_Internal.ClearAllPendingQuestCounts then DB_Internal.ClearAllPendingQuestCounts() end
     end
     DungeonBots:ResolvePendingPartyBots()
+    if DungeonBots.ConfirmSummonedBotAdded then
+        for i = 1, 4 do
+            local unit = "party" .. i
+            if UnitExists(unit) then
+                local pName = UnitName(unit)
+                if pName and pName ~= "" and pName ~= UNKNOWNOBJECT and pName ~= "Unknown" then
+                    DungeonBots:ConfirmSummonedBotAdded(pName)
+                end
+            end
+        end
+    end
     if GetNumPartyMembers and GetNumPartyMembers() == 0 and DungeonBots.SetFleeActive then
         DungeonBots:SetFleeActive(false, "party_empty")
     end
@@ -249,7 +260,10 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             if addedBot and DungeonBots:IsBot(addedBot) ~= false then
                 local inResummon = DungeonBots.pendingResummonVerify and DungeonBots.pendingResummonVerify[addedBot]
                 if inResummon or DungeonBots:FindPartyUnitByName(addedBot, true) or DungeonBots:IsRecentBot(addedBot) then
-                    DungeonBots:ConfirmPartyBotIdentity(addedBot, false)
+                    if DungeonBots.ConfirmSummonedBotAdded then
+                        DungeonBots:ConfirmSummonedBotAdded(addedBot)
+                    end
+                    DungeonBots:ConfirmPartyBotIdentity(addedBot, DungeonBots:IsRecentBot(addedBot) and true or false)
                     return
                 end
             end
@@ -263,6 +277,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                 local isTrackedBot = (partyUnit ~= nil)
                     or DungeonBots:IsRecentBot(busyBot)
                     or (DungeonBots.HasPendingHistoryInvite and DungeonBots:HasPendingHistoryInvite(busyBot))
+                    or (DungeonBots.IsHistoryBotLoading and DungeonBots:IsHistoryBotLoading(busyBot))
                     or (DungeonBots.GetExternalBotBusyInfo and DungeonBots:GetExternalBotBusyInfo(busyBot) ~= nil)
                     or DungeonBots:ShouldTreatAsBot(busyBot)
                     or hasRecentInform
@@ -276,16 +291,23 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                             DungeonBots:RequestBotWhoCheck(busyBot, "not_in_instance")
                         end
                     end
-                elseif not partyUnit and (busyKind == "already_logged_in" or busyKind == "already_in_group") then
-                    if busyKind == "already_logged_in" or isTrackedBot then
-                        if DungeonBots.RequestBotWhoCheck then
-                            DungeonBots:RequestBotWhoCheck(busyBot, busyKind)
+                elseif not partyUnit and busyKind == "already_in_group" then
+                    if isTrackedBot then
+                        local cachedWho = DungeonBots.botWhoInfo and DungeonBots.botWhoInfo[busyBot]
+                        local cachedOwner = cachedWho and cachedWho.playingWith or nil
+                        local cachedZone = cachedWho and cachedWho.zone or nil
+                        if DungeonBots.NotifyExternalBotBusy then
+                            DungeonBots:NotifyExternalBotBusy(busyBot, cachedOwner, "already_in_group", true, cachedZone)
                         end
-                        if busyKind == "already_logged_in"
-                            and (DungeonBots:IsRecentBot(busyBot) or (DungeonBots.HasPendingHistoryInvite and DungeonBots:HasPendingHistoryInvite(busyBot)))
-                            and DungeonBots.SchedulePartyInviteRetry then
-                            DungeonBots:SchedulePartyInviteRetry(busyBot, 0.8, 2)
-                        end
+                    end
+                elseif not partyUnit and busyKind == "already_logged_in" then
+                    if DungeonBots.RequestBotWhoCheck then
+                        DungeonBots:RequestBotWhoCheck(busyBot, "already_logged_in")
+                    end
+                    -- Dar margen a 'who' antes de intentar invitar por si pertenece a otro jugador
+                    if (DungeonBots:IsRecentBot(busyBot) or (DungeonBots.HasPendingHistoryInvite and DungeonBots:HasPendingHistoryInvite(busyBot)))
+                        and DungeonBots.SchedulePartyInviteRetry then
+                        DungeonBots:SchedulePartyInviteRetry(busyBot, 1.0, 1)
                     end
                 end
             end
@@ -375,11 +397,8 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                     if DungeonBots.busyExternalBots then
                         DungeonBots.busyExternalBots[cleanSender] = nil
                     end
-                    if DungeonBots.NotifyBotAlreadyOnline then
-                        DungeonBots:NotifyBotAlreadyOnline(cleanSender, whoInfo)
-                    end
                     if not inParty and DungeonBots.SchedulePartyInviteRetry then
-                        DungeonBots:SchedulePartyInviteRetry(cleanSender, 0.3, 3)
+                        DungeonBots:SchedulePartyInviteRetry(cleanSender, 0.05, 1)
                     end
                 elseif pendingWho.reason == "invite_failed" then
                     if whoInfo.playingWith and playerName and whoInfo.playingWith == playerName and not inParty then
@@ -596,7 +615,15 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             end
         end
 
-        local shouldAutoInvite = (not isExternallyBusy) and (DungeonBots:IsRecentBot(cleanSender) or (isKnownOrHistory and isBotResponse))
+        local isHistoryManaged = (DungeonBots.IsHistoryBotLoading and DungeonBots:IsHistoryBotLoading(cleanSender))
+            or (DungeonBots.HasPendingHistoryInvite and DungeonBots:HasPendingHistoryInvite(cleanSender))
+        if isHistoryManaged and not inParty and not isExternallyBusy
+            and not (DungeonBots.pendingWhoCheck and DungeonBots.pendingWhoCheck[cleanSender])
+            and (DungeonBots.recentInvites[cleanSender] or 0) <= NowTime()
+            and DungeonBots.SchedulePartyInviteRetry then
+            DungeonBots:SchedulePartyInviteRetry(cleanSender, 0.05, 2)
+        end
+        local shouldAutoInvite = (not isExternallyBusy) and (not isHistoryManaged) and (DungeonBots:IsRecentBot(cleanSender) or (isKnownOrHistory and isBotResponse))
         if shouldAutoInvite and not inParty then
             if DungeonBots:CanInviteToParty() then
                 if (DungeonBots.recentInvites[cleanSender] or 0) <= NowTime() then

@@ -613,6 +613,7 @@ function DungeonBots:UpdateHistoryUI()
         local specText = (displaySpec ~= "") and ("|cff71d5ff" .. displaySpec .. "|r") or L["HIST_DEFAULT_TALENTS"]
         row.detailText:SetText(className .. " - " .. specText)
 
+        local isLoading = (DungeonBots.IsHistoryBotLoading and DungeonBots:IsHistoryBotLoading(botName)) and true or false
         if inParty then
             row.inviteBtn:SetText(L["HIST_IN_PARTY_BTN"])
             row.inviteBtn:Disable()
@@ -623,12 +624,23 @@ function DungeonBots:UpdateHistoryUI()
                 GameTooltip:AddLine(string.format(L["HIST_ALREADY_DESC"], botName), 0.8, 0.8, 0.8)
                 GameTooltip:Show()
             end)
+        elseif isLoading then
+            row.inviteBtn:SetText(L["BTN_LOADING"])
+            row.inviteBtn:Disable()
+            row.inviteBtn:SetScript("OnClick", nil)
+            row.inviteBtn:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                GameTooltip:AddLine(string.format(L["HIST_INVITE_TITLE"], botName), 1, 0.85, 0.2)
+                GameTooltip:AddLine(L["WAIT_BOT_RESPONSE"], 0.8, 0.8, 0.8, true)
+                GameTooltip:Show()
+            end)
         else
             row.inviteBtn:SetText(L["BTN_INVITE"])
             row.inviteBtn:Enable()
             row.inviteBtn:SetScript("OnClick", function()
                 PlaySound("igMainMenuOptionCheckBoxOn")
                 DungeonBots:SummonAndInviteHistoryBot(botName)
+                DungeonBots:UpdateHistoryUI()
             end)
             row.inviteBtn:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_TOP")

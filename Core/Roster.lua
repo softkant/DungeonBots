@@ -460,23 +460,84 @@ function DungeonBots:AddClass(classId)
 end
 
 -- Invocar bot por nombre
+local pendingHistoryLoading = {}
+local pendingSummonConfirm = {}
+
+local function RefreshHistoryUIIfVisible()
+    if DungeonBots.UpdateHistoryUI and DungeonBots.historyFrame and DungeonBots.historyFrame:IsShown() then
+        DungeonBots:UpdateHistoryUI()
+    end
+end
+
+function DungeonBots:SetHistoryBotLoading(botName, durationSeconds)
+    local cleanName = NormalizePlayerName(botName)
+    if not cleanName or cleanName == "" then return end
+    pendingHistoryLoading[cleanName] = NowTime() + (durationSeconds or 10.0)
+    RefreshHistoryUIIfVisible()
+end
+
+function DungeonBots:ClearHistoryBotLoading(botName)
+    local cleanName = NormalizePlayerName(botName)
+    if not cleanName or cleanName == "" then return end
+    if pendingHistoryLoading[cleanName] then
+        pendingHistoryLoading[cleanName] = nil
+        RefreshHistoryUIIfVisible()
+    end
+end
+
+function DungeonBots:IsHistoryBotLoading(botName)
+    local cleanName = NormalizePlayerName(botName)
+    if not cleanName or cleanName == "" then return false end
+    if DungeonBots:FindPartyUnitByName(cleanName, true) then
+        pendingHistoryLoading[cleanName] = nil
+        return false
+    end
+    local expiresAt = pendingHistoryLoading[cleanName]
+    if not expiresAt then return false end
+    if expiresAt <= NowTime() then
+        pendingHistoryLoading[cleanName] = nil
+        return false
+    end
+    return true
+end
+
+function DungeonBots:ConfirmSummonedBotAdded(botName)
+    local cleanName = NormalizePlayerName(botName)
+    if not cleanName or cleanName == "" then return false end
+    local confirmed = false
+    if pendingSummonConfirm[cleanName] and pendingSummonConfirm[cleanName] > NowTime() then
+        pendingSummonConfirm[cleanName] = nil
+        DungeonBots:Print(string.format(L["BOT_ADDED_FMT"], cleanName))
+        confirmed = true
+    end
+    if DungeonBots:FindPartyUnitByName(cleanName, true) or not DungeonBots:HasPendingHistoryInvite(cleanName) then
+        DungeonBots:ClearHistoryBotLoading(cleanName)
+    end
+    return confirmed
+end
+
 function DungeonBots:AddBot(botName)
     local cleanName = NormalizePlayerName(botName)
     if not cleanName or cleanName == "" then return false end
     if not CheckCanSummonBot(true) then return false end
+    local now = NowTime()
     DungeonBots.lastBotCallAttempt = DungeonBots.lastBotCallAttempt or {}
-    DungeonBots.lastBotCallAttempt[cleanName] = NowTime()
+    DungeonBots.lastBotCallAttempt[cleanName] = now
     if DungeonBots.busyExternalBots and DungeonBots.busyExternalBots[cleanName] then
         -- Reiniciar ventana activa para permitir reintentar si el otro jugador lo solto, conservando dueno previo
         DungeonBots.busyExternalBots[cleanName].expiresAt = 0
     end
+    local wasKnown = DungeonBots:IsInHistory(cleanName) or (DungeonBots:IsBot(cleanName) == true)
     DungeonBots:MarkRecentBot(cleanName, 120)
-    DungeonBots:RegisterBot(cleanName, true)
-    DungeonBots:RecordBotHistory(cleanName)
-    DungeonBots:Print(string.format(L["BOT_ADDED_FMT"], cleanName))
+    if wasKnown then
+        DungeonBots:RegisterBot(cleanName, true)
+    end
+    pendingSummonConfirm[cleanName] = now + 12.0
+    DungeonBots:SetHistoryBotLoading(cleanName, 10.0)
+    DungeonBots:Print(string.format(L["BOT_SUMMONING_FMT"], cleanName))
     DungeonBots:SendDotCommand(".playerbots bot add " .. cleanName)
     if DungeonBots.SchedulePartyInviteRetry then
-        DungeonBots:SchedulePartyInviteRetry(cleanName, 1.4, 3)
+        DungeonBots:SchedulePartyInviteRetry(cleanName, 0.9, 2)
     end
     return true
 end
@@ -802,25 +863,50 @@ historyInviteFrame:Hide()
 historyInviteFrame:SetScript("OnUpdate", function(self, elapsed)
     local now = NowTime()
     local hasPending = false
+    local loadingChanged = false
+    for botName, expiresAt in pairs(pendingHistoryLoading) do
+        if not expiresAt or expiresAt <= now or DungeonBots:FindPartyUnitByName(botName, true) then
+            pendingHistoryLoading[botName] = nil
+            loadingChanged = true
+        elseif not pendingInviteRetries[botName]
+            and not (DungeonBots.pendingWhoCheck and DungeonBots.pendingWhoCheck[botName]) then
+            pendingHistoryLoading[botName] = nil
+            loadingChanged = true
+        else
+            hasPending = true
+        end
+    end
+    if loadingChanged then
+        RefreshHistoryUIIfVisible()
+    end
+
     for botName, entry in pairs(pendingInviteRetries) do
         if DungeonBots:FindPartyUnitByName(botName, true) or DungeonBots:GetExternalBotBusyInfo(botName) then
             pendingInviteRetries[botName] = nil
+            DungeonBots:ClearHistoryBotLoading(botName)
         elseif now >= (entry.nextAt or 0) then
             if not DungeonBots:CanInviteToParty() then
                 pendingInviteRetries[botName] = nil
+                DungeonBots:ClearHistoryBotLoading(botName)
                 if DungeonBots.WarnCannotAutoInvite then
                     DungeonBots:WarnCannotAutoInvite(botName)
                 end
             elseif (entry.attemptsLeft or 0) > 0 then
                 entry.attemptsLeft = entry.attemptsLeft - 1
-                entry.nextAt = now + 2.2
+                entry.nextAt = now + 2.0
                 DungeonBots.recentInvites[botName] = now + 1.2
                 InviteUnit(botName)
                 hasPending = true
             else
                 pendingInviteRetries[botName] = nil
+                local sentWho = false
                 if DungeonBots.RequestBotWhoCheck and DungeonBots:ShouldTreatAsBot(botName) then
-                    DungeonBots:RequestBotWhoCheck(botName, "invite_failed")
+                    sentWho = DungeonBots:RequestBotWhoCheck(botName, "invite_failed")
+                end
+                if not sentWho then
+                    DungeonBots:ClearHistoryBotLoading(botName)
+                else
+                    hasPending = true
                 end
             end
         else
@@ -845,11 +931,16 @@ whoCheckFrame:SetScript("OnUpdate", function(self, elapsed)
     for botName, entry in pairs(list) do
         if entry.reason ~= "not_in_instance" and DungeonBots:FindPartyUnitByName(botName, true) then
             list[botName] = nil
+            DungeonBots:ClearHistoryBotLoading(botName)
         elseif now >= (entry.expiresAt or 0) then
             list[botName] = nil
+            if not pendingInviteRetries[botName] then
+                DungeonBots:ClearHistoryBotLoading(botName)
+            end
         elseif (entry.reason == "already_logged_in" or entry.reason == "already_in_group") and not entry.warnedTimeout and now >= ((entry.requestedAt or 0) + 2.5) then
             entry.warnedTimeout = true
             list[botName] = nil
+            DungeonBots:ClearHistoryBotLoading(botName)
             if entry.reason == "already_in_group" then
                 if DungeonBots.NotifyExternalBotBusy then
                     DungeonBots:NotifyExternalBotBusy(botName, nil, "already_in_group", true)
@@ -1016,6 +1107,8 @@ function DungeonBots:ClearPendingBotInteractions(botName)
     local cleanName = NormalizePlayerName(botName)
     if not cleanName or cleanName == "" then return end
     DungeonBots:CancelPendingHistoryInvite(cleanName)
+    pendingSummonConfirm[cleanName] = nil
+    DungeonBots:ClearHistoryBotLoading(cleanName)
     DungeonBots:ClearRecentBot(cleanName)
     if DungeonBots.pendingWhoCheck then DungeonBots.pendingWhoCheck[cleanName] = nil end
     if DungeonBots.recentInvites then DungeonBots.recentInvites[cleanName] = nil end
@@ -1297,7 +1390,5 @@ function DungeonBots:SummonAndInviteHistoryBot(botName)
         DungeonBots:Warn(string.format(L["MUST_BE_LEADER_FMT"], cleanBot))
         return
     end
-    if DungeonBots:AddBot(cleanBot) then
-        DungeonBots:SchedulePartyInviteRetry(cleanBot, 0.9, 3)
-    end
+    DungeonBots:AddBot(cleanBot)
 end
