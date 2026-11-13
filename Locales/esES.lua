@@ -208,7 +208,7 @@ L["MUST_BE_LEADER_FMT"]    = "Debes ser el líder del grupo para invitar a |cfff
 -- Eventos del nucleo y notificaciones de modulos
 -- =========================================================================
 L["BAG_FULL_WARN_FMT"]     = "El inventario de |cffffd200%s|r está lleno. Puedes abrir su |cffffd200Inventario|r para destruir objetos y liberar espacio."
-L["ADDON_LOADED_FMT"]      = "v%s cargado. Escribe |cffffd200/db|r o |cffffd200/bots|r, o pulsa en |cff71d5ffEl Ojo|r del Buscador de Mazmorras o en el |cff71d5ffminimapa|r."
+L["ADDON_LOADED_FMT"]      = "v%s cargado. Escribe |cffffd200/db|r o |cffffd200/bots|r, o pulsa en |cff71d5ffEl Ojo|r del Buscador de Mazmorras o en el |cff71d5ffcomplemento del minimapa|r."
 L["JOIN_FAIL_ZONE_FMT"]    = "|cffffd200%s|r no pudo unirse al grupo (ubicación actual: |cffffd200%s|r)"
 L["SPEC_CHANGE_FAIL_FMT"]  = "No se pudo cambiar la rama de |cffffd200%s|r (%s)."
 L["SPEC_CHANGED_FMT"]      = "Talentos de |cffffd200%s|r cambiados a |cff71d5ff%s|r."
