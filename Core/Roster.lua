@@ -153,6 +153,7 @@ function DungeonBots:ShouldTreatAsBot(name)
     if UnitName and name == UnitName("player") then return false end
     local reg = DungeonBots:IsBot(name)
     if reg == false then return false end
+    if reg == true then return true end
     if DungeonBots.confirmedBots and DungeonBots.confirmedBots[name] then return true end
     if DungeonBots:IsRecentBot(name) then return true end
     if DungeonBots:IsInHistory(name) then return true end
@@ -510,44 +511,165 @@ function DungeonBots:AddAllBots()
     end
 end
 
+-- Cola diferida de comandos .playerbots bot remove tras enviar susurro 'leave'
+local pendingDismissQueue = {}
+local pendingDismissSeen = {}
+local dismissDelayFrame = CreateFrame("Frame", "DungeonBots_DismissDelayFrame")
+dismissDelayFrame:Hide()
+dismissDelayFrame:SetScript("OnUpdate", function(self, elapsed)
+    local now = NowTime()
+    while #pendingDismissQueue > 0 do
+        local nextItem = pendingDismissQueue[1]
+        if not nextItem then
+            table.remove(pendingDismissQueue, 1)
+        elseif now < (nextItem.executeAt or 0) then
+            break
+        else
+            table.remove(pendingDismissQueue, 1)
+            if nextItem.cmd and nextItem.cmd ~= "" then
+                pendingDismissSeen[nextItem.cmd] = nil
+                DungeonBots:SendDotCommand(nextItem.cmd)
+            end
+        end
+    end
+    if #pendingDismissQueue == 0 then
+        self:Hide()
+    end
+end)
+
+local function QueueDeferredDotCommand(cmd, delaySeconds)
+    if not cmd or cmd == "" then return end
+    if pendingDismissSeen[cmd] then return end
+    pendingDismissSeen[cmd] = true
+    table.insert(pendingDismissQueue, {
+        cmd = cmd,
+        executeAt = NowTime() + (delaySeconds or 0.35),
+    })
+    dismissDelayFrame:Show()
+end
+
+local function FindDismissUnitByName(name)
+    local partyUnit = DungeonBots:FindPartyUnitByName(name, true)
+    if partyUnit then
+        return partyUnit, false
+    end
+    if GetNumRaidMembers and GetNumRaidMembers() > 0 then
+        for i = 1, 40 do
+            local unit = "raid" .. i
+            if UnitExists(unit) and (not UnitIsUnit or not UnitIsUnit(unit, "player")) and UnitName(unit) == name then
+                return unit, true
+            end
+        end
+    end
+    return nil, false
+end
+
+local function SendBotLeaveWhisper(botName, inRaid)
+    if not botName or botName == "" then return end
+    if inRaid then
+        DungeonBots:SendBotWhisperUnchecked(botName, "leave")
+    else
+        DungeonBots:SendWhisperCommand(botName, "leave")
+    end
+end
+
 -- Remover un bot específico y sacarlo del grupo
 function DungeonBots:RemoveBot(botName)
-    if not botName or botName == "" then return end
-    DungeonBots:Print(string.format(L["DISMISSING_BOT_FMT"], botName))
-    DungeonBots:SendDotCommand(".playerbots bot remove " .. botName)
-    if GetNumPartyMembers() > 0 and IsPartyLeader() and DungeonBots:FindPartyUnitByName(botName) then
-        UninviteUnit(botName)
+    local cleanBot = NormalizePlayerName(botName)
+    if not cleanBot or cleanBot == "" then return end
+    if DungeonBots:IsBot(cleanBot) == false then return end
+
+    DungeonBots:Print(string.format(L["DISMISSING_BOT_FMT"], cleanBot))
+
+    local unit, inRaid = FindDismissUnitByName(cleanBot)
+    local isLfgRestricted = (HasLFGRestrictions and HasLFGRestrictions()) and true or false
+    local inGroup = (GetNumPartyMembers and GetNumPartyMembers() > 0) or (GetNumRaidMembers and GetNumRaidMembers() > 0)
+    local isConnected = unit and UnitIsConnected(unit) and true or false
+
+    if isConnected then
+        -- Solicitar primero que abandone el grupo mientras sigue conectado
+        SendBotLeaveWhisper(cleanBot, inRaid)
+        if inGroup and IsPartyLeader() and not isLfgRestricted then
+            UninviteUnit(cleanBot)
+        end
+        QueueDeferredDotCommand(".playerbots bot remove " .. cleanBot, 0.35)
+    else
+        if unit and inGroup and IsPartyLeader() and not isLfgRestricted then
+            UninviteUnit(cleanBot)
+        end
+        DungeonBots:SendDotCommand(".playerbots bot remove " .. cleanBot)
     end
 end
 
 -- Remover a todos los bots y sacarlos del grupo (preservando humanos)
 function DungeonBots:RemoveAllBots()
     DungeonBots:Print(L["DISMISSING_ALL_BOTS"])
-    DungeonBots:SendDotCommand(".playerbots bot remove *")
 
-    if GetNumPartyMembers() > 0 then
-        local botsToKick = {}
-        local hasHuman = false
-        for i = 1, 4 do
-            local unit = "party" .. i
-            if UnitExists(unit) then
-                local name = UnitName(unit)
-                if name and name ~= "" then
-                    if not DungeonBots:ShouldTreatAsBot(name) then
-                        hasHuman = true
-                    else
-                        table.insert(botsToKick, name)
-                    end
+    local numRaid = (GetNumRaidMembers and GetNumRaidMembers()) or 0
+    local numParty = (GetNumPartyMembers and GetNumPartyMembers()) or 0
+    local inRaid = (numRaid > 0)
+    local inGroup = inRaid or (numParty > 0)
+
+    if not inGroup then
+        DungeonBots:SendDotCommand(".playerbots bot remove *")
+        return
+    end
+
+    local botsToDismiss = {}
+    local hasHuman = false
+    local prefix = inRaid and "raid" or "party"
+    local maxUnits = inRaid and 40 or 4
+
+    for i = 1, maxUnits do
+        local unit = prefix .. i
+        if UnitExists(unit) and (not inRaid or not UnitIsUnit or not UnitIsUnit(unit, "player")) then
+            local name = UnitName(unit)
+            if name and name ~= "" then
+                if not DungeonBots:ShouldTreatAsBot(name) then
+                    hasHuman = true
+                else
+                    table.insert(botsToDismiss, {
+                        name = name,
+                        connected = UnitIsConnected(unit) and true or false,
+                    })
                 end
             end
         end
+    end
 
-        if not hasHuman then
-            LeaveParty()
-        elseif IsPartyLeader() then
-            for _, botName in ipairs(botsToKick) do
-                UninviteUnit(botName)
-            end
+    if #botsToDismiss == 0 then
+        DungeonBots:SendDotCommand(".playerbots bot remove *")
+        return
+    end
+
+    local isLfgRestricted = (HasLFGRestrictions and HasLFGRestrictions()) and true or false
+    local isLeader = (IsPartyLeader and IsPartyLeader()) or (inRaid and IsRaidLeader and IsRaidLeader()) or false
+    local sentAnyLeaveWhisper = false
+
+    for _, bot in ipairs(botsToDismiss) do
+        if bot.connected then
+            SendBotLeaveWhisper(bot.name, inRaid)
+            sentAnyLeaveWhisper = true
+        end
+    end
+
+    if not sentAnyLeaveWhisper then
+        DungeonBots:SendDotCommand(".playerbots bot remove *")
+    end
+
+    if isLeader and not isLfgRestricted then
+        for _, bot in ipairs(botsToDismiss) do
+            UninviteUnit(bot.name)
+        end
+    end
+
+    if not hasHuman and not isLfgRestricted then
+        LeaveParty()
+    end
+
+    if sentAnyLeaveWhisper then
+        for _, bot in ipairs(botsToDismiss) do
+            QueueDeferredDotCommand(".playerbots bot remove " .. bot.name, 0.35)
         end
     end
 end
@@ -978,21 +1100,22 @@ end
 
 function DungeonBots:RemoveFromHistory(botName)
     if not botName or not DungeonBotsDB or not DungeonBotsDB.botHistory then return end
+    -- Conservar la identidad de bot conocida aunque se quite la entrada visible del historial
+    if DungeonBots:IsBot(botName) ~= false then
+        DungeonBots:RegisterBot(botName, true)
+    end
     DungeonBotsDB.botHistory[botName] = nil
-    if DungeonBotsDB.knownBots and DungeonBotsDB.knownBots[botName] == true then
-        DungeonBotsDB.knownBots[botName] = nil
+    if not FindDismissUnitByName(botName) then
+        if DungeonBotsDB.botActiveSpec then
+            DungeonBotsDB.botActiveSpec[botName] = nil
+        end
+        if DungeonBotsDB.botSpecs then
+            DungeonBotsDB.botSpecs[botName] = nil
+        end
+        if DungeonBots.botSpecs then
+            DungeonBots.botSpecs[botName] = nil
+        end
     end
-    if DungeonBotsDB.botActiveSpec then
-        DungeonBotsDB.botActiveSpec[botName] = nil
-    end
-    if DungeonBotsDB.botSpecs then
-        DungeonBotsDB.botSpecs[botName] = nil
-    end
-    if DungeonBots.botSpecs then
-        DungeonBots.botSpecs[botName] = nil
-    end
-    DungeonBots.confirmedBots[botName] = nil
-    DungeonBots.recentBots[botName] = nil
     if DungeonBots.UpdateHistorySummary then
         DungeonBots:UpdateHistorySummary()
     end
@@ -1006,20 +1129,35 @@ end
 
 function DungeonBots:ClearBotHistory()
     if not DungeonBotsDB then DungeonBotsDB = {} end
-    DungeonBotsDB.botHistory = {}
-    DungeonBotsDB.botActiveSpec = {}
-    DungeonBotsDB.botSpecs = {}
-    DungeonBotsDB.historyMigrated = true
-    DungeonBots.botSpecs = DungeonBotsDB.botSpecs
-    if DungeonBotsDB.knownBots then
-        for name, isBot in pairs(DungeonBotsDB.knownBots) do
-            if isBot == true then
-                DungeonBotsDB.knownBots[name] = nil
+    -- Preservar conocidos como bots para evitar que vuelvan a aparecer como humanos al reingresar
+    if DungeonBotsDB.botHistory then
+        for name, _ in pairs(DungeonBotsDB.botHistory) do
+            if name and name ~= "" and DungeonBots:IsBot(name) ~= false then
+                DungeonBots:RegisterBot(name, true)
             end
         end
     end
-    DungeonBots.confirmedBots = {}
-    DungeonBots.recentBots = {}
+    DungeonBotsDB.botHistory = {}
+    local keptActiveSpec = {}
+    if DungeonBotsDB.botActiveSpec then
+        for name, specVal in pairs(DungeonBotsDB.botActiveSpec) do
+            if FindDismissUnitByName(name) then
+                keptActiveSpec[name] = specVal
+            end
+        end
+    end
+    DungeonBotsDB.botActiveSpec = keptActiveSpec
+    local keptBotSpecs = {}
+    if DungeonBotsDB.botSpecs then
+        for name, specList in pairs(DungeonBotsDB.botSpecs) do
+            if FindDismissUnitByName(name) then
+                keptBotSpecs[name] = specList
+            end
+        end
+    end
+    DungeonBotsDB.botSpecs = keptBotSpecs
+    DungeonBotsDB.historyMigrated = true
+    DungeonBots.botSpecs = DungeonBotsDB.botSpecs
     if DungeonBots.UpdateHistorySummary then
         DungeonBots:UpdateHistorySummary()
     end
