@@ -83,7 +83,7 @@ local function BuildGearPanel(sp)
 
     local specSubLabel = specCard:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     specSubLabel:SetPoint("TOPLEFT", specCard, "TOPLEFT", 12, -33)
-    specSubLabel:SetText("|cff9aa5b4Elige la especialización que utilizará el bot (talents spec):|r")
+    specSubLabel:SetText("|cff9aa5b4Elige la especialización que utilizará el bot:|r")
 
     gearPanel.specButtons = {}
     local btnW, btnH = 164, 26
@@ -799,9 +799,11 @@ local function RenderGearPanel(sp, targetBot, classToken)
     if activeSpec and activeSpec ~= "" and DungeonBots.CanonicalizeSpec then
         activeSpec = DungeonBots:CanonicalizeSpec(targetBot, activeSpec)
     end
+    local pendingSwitch = DB_Internal.pendingSpecSwitches and DB_Internal.pendingSpecSwitches[targetBot]
     if activeSpec and activeSpec ~= "" then
         local activeDisplay = DungeonBots.LocalizeSpecText and DungeonBots:LocalizeSpecText(activeSpec) or activeSpec
-        gp.activeSpecLabel:SetText("Rama actual: |cff00e5ff" .. activeDisplay .. "|r")
+        local suffix = pendingSwitch and " |cff888888(cambiando...)|r" or ""
+        gp.activeSpecLabel:SetText("Rama actual: |cff00e5ff" .. activeDisplay .. "|r" .. suffix)
     elseif DungeonBots.pendingSpecReset and DungeonBots.pendingSpecReset[targetBot] then
         gp.activeSpecLabel:SetText("Rama actual: |cff888888Consultando talentos...|r")
     else
@@ -809,7 +811,7 @@ local function RenderGearPanel(sp, targetBot, classToken)
     end
 
     local specs = (DungeonBots.botSpecs and DungeonBots.botSpecs[targetBot])
-    if (not specs or #specs == 0) and classToken and DungeonBots.DEFAULT_CLASS_SPECS then
+    if (not specs or #specs < 2) and classToken and DungeonBots.DEFAULT_CLASS_SPECS then
         specs = DungeonBots.DEFAULT_CLASS_SPECS[classToken]
     end
     local optionList = {}

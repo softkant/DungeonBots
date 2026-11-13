@@ -134,7 +134,11 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                             end
                         end
                     end
-                    DungeonBotsDB.botSpecs[botName] = deduped
+                    if #deduped >= 2 then
+                        DungeonBotsDB.botSpecs[botName] = deduped
+                    else
+                        DungeonBotsDB.botSpecs[botName] = nil
+                    end
                 end
             end
         end
@@ -359,14 +363,40 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         end
 
         -- Parser dinámico de ramas de talentos y especialización activa en vivo
-        local foundAnySpec, detectedActiveSpec = false, nil
+        local foundSpecList, detectedActiveSpec, specErrorReason, isSwitchConfirmation = false, nil, nil, false
         if DB_Internal.ParseTalentWhisper then
-            foundAnySpec, detectedActiveSpec = DB_Internal.ParseTalentWhisper(cleanSender, message)
+            foundSpecList, detectedActiveSpec, specErrorReason, isSwitchConfirmation = DB_Internal.ParseTalentWhisper(cleanSender, message)
         end
         local queryStates = DB_Internal.queryStates
         local qState = queryStates and queryStates[cleanSender]
+        local pendingSwitches = DB_Internal.pendingSpecSwitches
+        local pendingSwitch = pendingSwitches and pendingSwitches[cleanSender]
 
-        if foundAnySpec and DungeonBotsDB then
+        if specErrorReason and pendingSwitch then
+            pendingSwitches[cleanSender] = nil
+            local rollbackSpec = pendingSwitch.prevSpec
+            if DungeonBotsDB then
+                DungeonBotsDB.botActiveSpec = DungeonBotsDB.botActiveSpec or {}
+                DungeonBotsDB.botActiveSpec[cleanSender] = rollbackSpec
+            end
+            DungeonBots:RecordBotHistory(cleanSender, nil, rollbackSpec or "", nil)
+            if DungeonBots.UpdateHistoryUI and DungeonBots.historyFrame and DungeonBots.historyFrame:IsShown() then
+                DungeonBots:UpdateHistoryUI()
+            end
+            if DungeonBots.UpdatePartyUI then
+                DungeonBots:UpdatePartyUI()
+            end
+            if DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == cleanSender then
+                DungeonBots:UpdateSpellsDialog(cleanSender)
+            end
+            DungeonBots:Warn("No se pudo cambiar la rama de |cffffd200" .. cleanSender .. "|r (" .. specErrorReason .. ").")
+            if not (DungeonBots.botSpecListFetched and DungeonBots.botSpecListFetched[cleanSender]) and DungeonBots.QueryBotSpecs then
+                DungeonBots:QueryBotSpecs(cleanSender, false)
+            end
+            detectedActiveSpec = nil
+        end
+
+        if foundSpecList and DungeonBotsDB then
             DungeonBotsDB.botSpecs = DungeonBotsDB.botSpecs or {}
             DungeonBotsDB.botSpecs[cleanSender] = DungeonBots.botSpecs[cleanSender]
             if qState then
@@ -376,7 +406,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             DungeonBots:RecordBotHistory(cleanSender)
 
             -- Si 'talents' llegó antes que 'talents spec list', refinar con las ramas reales recién recibidas
-            if not detectedActiveSpec then
+            if not detectedActiveSpec and not pendingSwitch then
                 local refined = nil
                 local lastTriplet = DungeonBots.lastDetectedTriplet and DungeonBots.lastDetectedTriplet[cleanSender]
                 if lastTriplet and DungeonBots.botSpecTriplets[cleanSender] then
@@ -407,6 +437,30 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             end
         end
 
+        if pendingSwitch then
+            if isSwitchConfirmation then
+                pendingSwitch.gotSwitchConfirm = true
+            end
+            if detectedActiveSpec and detectedActiveSpec ~= "" then
+                local candSpec = DungeonBots:CanonicalizeSpec(cleanSender, detectedActiveSpec)
+                local matchesTarget = (string.lower(candSpec) == string.lower(pendingSwitch.targetSpec or ""))
+                if matchesTarget then
+                    pendingSwitches[cleanSender] = nil
+                    local displaySpec = DungeonBots.LocalizeSpecText and DungeonBots:LocalizeSpecText(candSpec) or candSpec
+                    DungeonBots:Print("Talentos de |cffffd200" .. cleanSender .. "|r cambiados a |cff71d5ff" .. displaySpec .. "|r.")
+                elseif not pendingSwitch.verifySent and not pendingSwitch.gotSwitchConfirm and (NowTime() - (pendingSwitch.sentAt or 0)) < 0.85 then
+                    detectedActiveSpec = nil
+                elseif pendingSwitch.verifySent then
+                    pendingSwitches[cleanSender] = nil
+                    local displayActual = DungeonBots.LocalizeSpecText and DungeonBots:LocalizeSpecText(candSpec) or candSpec
+                    DungeonBots:Warn("La rama de |cffffd200" .. cleanSender .. "|r sigue en |cff71d5ff" .. displayActual .. "|r (el bot no aplicó el cambio).")
+                    if not (DungeonBots.botSpecListFetched and DungeonBots.botSpecListFetched[cleanSender]) and DungeonBots.QueryBotSpecs then
+                        DungeonBots:QueryBotSpecs(cleanSender, false)
+                    end
+                end
+            end
+        end
+
         if detectedActiveSpec and detectedActiveSpec ~= "" then
             detectedActiveSpec = DungeonBots:CanonicalizeSpec(cleanSender, detectedActiveSpec)
             if DungeonBotsDB then
@@ -419,6 +473,9 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             DungeonBots.pendingSpecReset[cleanSender] = nil
             DungeonBots:RegisterBot(cleanSender, true)
             DungeonBots:RecordBotHistory(cleanSender, nil, detectedActiveSpec, nil)
+            if DungeonBots.UpdateHistoryUI and DungeonBots.historyFrame and DungeonBots.historyFrame:IsShown() then
+                DungeonBots:UpdateHistoryUI()
+            end
             if DungeonBots.UpdatePartyUI then
                 DungeonBots:UpdatePartyUI()
             end
@@ -427,7 +484,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             end
         end
 
-        local isBotResponse = (foundAnySpec or detectedActiveSpec or isBotText or handledQuestSummary or (parsedStats ~= nil)) and true or false
+        local isBotResponse = (foundSpecList or detectedActiveSpec or specErrorReason or isSwitchConfirmation or isBotText or handledQuestSummary or (parsedStats ~= nil)) and true or false
         if isBotResponse then
             DungeonBots.confirmedBots[cleanSender] = true
             DungeonBots:RegisterBot(cleanSender, true)

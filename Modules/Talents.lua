@@ -19,6 +19,14 @@ local function EscapeLuaPattern(str)
     return DB_Internal.EscapeLuaPattern(str)
 end
 
+local function NormalizePlayerName(name)
+    if DB_Internal.NormalizePlayerName then
+        return DB_Internal.NormalizePlayerName(name)
+    end
+    if not name or name == "" then return nil end
+    return string.match(name, "([^-]+)") or name
+end
+
 -- =========================================================================
 -- Limpieza y Normalización de Ramas de Talentos
 -- =========================================================================
@@ -77,6 +85,9 @@ function DungeonBots:CleanSpecText(specText)
     if not specText or specText == "" then return "" end
     local cleaned = StripWowFormatting(specText)
     cleaned = string.gsub(cleaned, "%s*%([^%)]*%d[^%)]*%)", "")
+    cleaned = string.gsub(cleaned, "%s*%[[^%]]*%]", "")
+    cleaned = string.gsub(cleaned, "%s*%([Aa]ctive%)%s*", " ")
+    cleaned = string.gsub(cleaned, "%s*%([Cc]urrent%)%s*", " ")
     cleaned = string.gsub(cleaned, "^[%s:=]+", "")
     cleaned = string.gsub(cleaned, "^[Ii][Ss][%s:=]+", "")
     cleaned = string.gsub(cleaned, "^[Ee][Ss][%s:=]+", "")
@@ -84,6 +95,7 @@ function DungeonBots:CleanSpecText(specText)
     cleaned = string.gsub(cleaned, "^[Ii][Ss][%s:=]+", "")
     cleaned = string.gsub(cleaned, "^[Ee][Ss][%s:=]+", "")
     cleaned = string.gsub(cleaned, "^[%s:=]+", "")
+    cleaned = string.gsub(cleaned, "[%.!]+$", "")
     cleaned = string.gsub(cleaned, "^%s*(.-)%s*$", "%1")
     return cleaned
 end
@@ -199,12 +211,54 @@ function DungeonBots:CanonicalizeSpec(botName, specText)
     return cleaned
 end
 
-local function ExtractSpecCandidate(chunk)
+local recentSpecListHeaderAt = {}
+
+local function IsSpecErrorLine(lowerLine)
+    if not lowerLine or lowerLine == "" then return false end
+    if string.find(lowerLine, "unknown spec", 1, true)
+        or string.find(lowerLine, "invalid spec", 1, true)
+        or string.find(lowerLine, "no such spec", 1, true)
+        or string.match(lowerLine, "spec.-not found")
+        or string.find(lowerLine, "cannot reset", 1, true)
+        or string.find(lowerLine, "can't reset", 1, true)
+        or string.find(lowerLine, "cannot change", 1, true)
+        or string.find(lowerLine, "can't change", 1, true)
+        or string.find(lowerLine, "not enough gold", 1, true)
+        or string.find(lowerLine, "not enough money", 1, true)
+        or string.find(lowerLine, "need more gold", 1, true)
+        or string.find(lowerLine, "in combat", 1, true)
+        or string.match(lowerLine, "unable to.-spec")
+        or string.match(lowerLine, "unable to.-talent")
+        or string.match(lowerLine, "failed to.-spec") then
+        return true
+    end
+    return false
+end
+
+local function ExtractSpecCandidate(chunk, allowBareSpecName)
     local body = StripSpecNoisePrefix(chunk)
     if body == "" then return nil end
-    local parsed = string.match(body, "([%a][%a%s_-]*)%s*%(%s*%d+%s*[-/]%s*%d+%s*[-/]%s*%d+%s*%)")
+    local normalizedBody = string.gsub(body, "%s*%[[^%]]*%]", "")
+    normalizedBody = string.gsub(normalizedBody, "%s*%([Aa]ctive%)%s*", " ")
+    normalizedBody = string.gsub(normalizedBody, "%s*%*+%s*", " ")
+    normalizedBody = string.gsub(normalizedBody, "^%s*(.-)%s*$", "%1")
+    local parsed = string.match(normalizedBody, "([%a][%a%s_-]*)%s*%(%s*%d+%s*[-/]%s*%d+%s*[-/]%s*%d+%s*%)")
     if not parsed then
-        parsed = string.match(body, "([%a][%a%s_-]*%s+pv[ep])")
+        parsed = string.match(normalizedBody, "([%a][%a%s_-]*%s+pv[ep])")
+    end
+    if not parsed then
+        parsed = string.match(normalizedBody, "(pv[ep]%s+[%a][%a%s_-]*)")
+    end
+    if not parsed and allowBareSpecName then
+        local bare = DungeonBots:CleanSpecText(normalizedBody)
+        if bare ~= "" and string.match(bare, "^[%a][%a%s_-]+$") and #bare >= 2 and #bare <= 40 then
+            local lb = string.lower(bare)
+            if lb ~= "none" and lb ~= "available" and lb ~= "list"
+                and lb ~= "error" and lb ~= "unknown" and lb ~= "invalid"
+                and lb ~= "reset" and lb ~= "ok" then
+                parsed = bare
+            end
+        end
     end
     if not parsed then return nil end
     parsed = StripSpecNoisePrefix(parsed)
@@ -244,16 +298,28 @@ local function ResolveTripletToSpec(botName, p1, p2, p3)
 end
 
 function DB_Internal.ParseTalentWhisper(cleanSender, message)
-    local foundAnySpec = false
+    local foundSpecList = false
     local detectedActiveSpec = nil
+    local specErrorReason = nil
+    local isSwitchConfirmation = false
 
     DungeonBots.liveTreePoints[cleanSender] = DungeonBots.liveTreePoints[cleanSender] or {}
     DungeonBots.botSpecTriplets[cleanSender] = DungeonBots.botSpecTriplets[cleanSender] or {}
+    local now = NowTime()
 
     for rawLine in string.gmatch(message or "", "[^\r\n]+") do
         local line = StripWowFormatting(rawLine)
-        local lowerLine = string.lower(line)
+        local trimmedLine = string.gsub(line, "^%s*(.-)%s*$", "%1")
+        local lowerLine = string.lower(trimmedLine)
         local isAvailableListLine = (string.find(lowerLine, "available", 1, true) ~= nil)
+            or (string.match(lowerLine, "^%s*specs%s*:") ~= nil)
+        if isAvailableListLine then
+            recentSpecListHeaderAt[cleanSender] = now
+        end
+
+        if not specErrorReason and IsSpecErrorLine(lowerLine) then
+            specErrorReason = trimmedLine
+        end
 
         local directActive = string.match(lowerLine, "current%s+talent%s+spec%s+is%s*[:=%s]*(.+)")
             or string.match(lowerLine, "current%s+talent%s+spec%s*[:=%s]+(.+)")
@@ -265,13 +331,34 @@ function DB_Internal.ParseTalentWhisper(cleanSender, message)
             or string.match(lowerLine, "rama%s+actual%s*[:=%s]+(.+)")
             or string.match(lowerLine, "current%s+talents%s*[:=%s]+(.+)")
             or string.match(lowerLine, "^%s*spec%s*:%s*(.+)")
+
+        local switchMatch = string.match(lowerLine, "picking%s+spec%s*[:=%s]+(.+)")
+            or string.match(lowerLine, "picked%s+spec%s*[:=%s]+(.+)")
+            or string.match(lowerLine, "selecting%s+spec%s*[:=%s]+(.+)")
+            or string.match(lowerLine, "selected%s+spec%s*[:=%s]+(.+)")
+            or string.match(lowerLine, "switching%s+to%s+spec%s*[:=%s]+(.+)")
+            or string.match(lowerLine, "switched%s+to%s+spec%s*[:=%s]+(.+)")
+            or string.match(lowerLine, "changing%s+to%s+spec%s*[:=%s]+(.+)")
+            or string.match(lowerLine, "changed%s+to%s+spec%s*[:=%s]+(.+)")
+            or string.match(lowerLine, "spec%s+changed%s+to%s*[:=%s]+(.+)")
+            or string.match(lowerLine, "spec%s+set%s+to%s*[:=%s]+(.+)")
+            or string.match(lowerLine, "applying%s+spec%s*[:=%s]+(.+)")
+            or string.match(lowerLine, "applied%s+spec%s*[:=%s]+(.+)")
+        if switchMatch then
+            isSwitchConfirmation = true
+            if not directActive then
+                directActive = switchMatch
+            end
+        end
+
         if not directActive then
             local talentsRest = string.match(lowerLine, "^%s*talents%s*:%s*(.+)")
             if talentsRest and not string.find(talentsRest, ",", 1, true) then
                 directActive = talentsRest
             end
         end
-        if directActive then
+        local isDirectLine = (directActive ~= nil)
+        if directActive and not IsSpecErrorLine(lowerLine) then
             directActive = string.gsub(directActive, "[%.!]+$", "")
             local dt1, dt2, dt3 = string.match(directActive, "(%d+)%s*[-/]%s*(%d+)%s*[-/]%s*(%d+)")
             local exactTripletSpec = nil
@@ -282,7 +369,7 @@ function DB_Internal.ParseTalentWhisper(cleanSender, message)
                     exactTripletSpec = DungeonBots.botSpecTriplets[cleanSender][tripletKey]
                 end
             end
-            local candidate = ExtractSpecCandidate(directActive) or DungeonBots:CleanSpecText(StripSpecNoisePrefix(directActive))
+            local candidate = ExtractSpecCandidate(directActive, isSwitchConfirmation) or DungeonBots:CleanSpecText(StripSpecNoisePrefix(directActive))
             candidate = DungeonBots:CleanSpecText(candidate)
             if exactTripletSpec and exactTripletSpec ~= "" then
                 detectedActiveSpec = DungeonBots:CanonicalizeSpec(cleanSender, exactTripletSpec)
@@ -302,9 +389,13 @@ function DB_Internal.ParseTalentWhisper(cleanSender, message)
             end
         end
 
+        local inSpecListWindow = isAvailableListLine
+            or (recentSpecListHeaderAt[cleanSender] ~= nil and (now - recentSpecListHeaderAt[cleanSender]) <= 3.0
+                and not isDirectLine and not isSwitchConfirmation and not IsSpecErrorLine(lowerLine))
+
         local rawChunks = {}
         local greenChunkCount = 0
-        for rawChunk in string.gmatch(rawLine, "[^,;]+") do
+        for rawChunk in string.gmatch(rawLine, "[^,;|]+") do
             local cleanChunk = string.gsub(StripWowFormatting(rawChunk), "^%s*(.-)%s*$", "%1")
             if cleanChunk ~= "" then
                 local chunkHasGreen = (string.find(rawChunk, "|cff00ff00", 1, true) ~= nil)
@@ -316,39 +407,67 @@ function DB_Internal.ParseTalentWhisper(cleanSender, message)
             end
         end
 
-        for _, chunkInfo in ipairs(rawChunks) do
-            local cleanChunk = chunkInfo.text
-            local specName = ExtractSpecCandidate(cleanChunk)
-            local t1, t2, t3 = string.match(cleanChunk, "(%d+)%s*[-/]%s*(%d+)%s*[-/]%s*(%d+)")
-            local isBareTreeOnly = specName and (TREE_ALIASES[string.lower(specName)] ~= nil)
-                and not string.find(string.lower(specName), "pv[ep]")
+        local parsedSpecChunks = {}
+        if not IsSpecErrorLine(lowerLine) then
+            for _, chunkInfo in ipairs(rawChunks) do
+                local cleanChunk = chunkInfo.text
+                local specName = ExtractSpecCandidate(cleanChunk, inSpecListWindow or (#rawChunks >= 2 and not isDirectLine))
+                local t1, t2, t3 = string.match(cleanChunk, "(%d+)%s*[-/]%s*(%d+)%s*[-/]%s*(%d+)")
+                local isBareTreeOnly = specName and (TREE_ALIASES[string.lower(specName)] ~= nil)
+                    and not string.find(string.lower(specName), "pv[ep]")
+                table.insert(parsedSpecChunks, {
+                    chunkInfo = chunkInfo,
+                    cleanChunk = cleanChunk,
+                    specName = specName,
+                    t1 = t1, t2 = t2, t3 = t3,
+                    isBareTreeOnly = isBareTreeOnly,
+                })
+            end
+        end
 
-            if specName and (isAvailableListLine or not isBareTreeOnly) then
-                if DungeonBots.pendingListReset[cleanSender] and (isAvailableListLine or string.find(string.lower(specName), "pv[ep]")) then
-                    DungeonBots.botSpecs[cleanSender] = {}
-                    DungeonBots.pendingListReset[cleanSender] = nil
-                end
+        local listCandidateCount = 0
+        for _, pc in ipairs(parsedSpecChunks) do
+            if pc.specName and (inSpecListWindow or not pc.isBareTreeOnly) then
+                listCandidateCount = listCandidateCount + 1
+            end
+        end
+        local isTrueSpecListLine = inSpecListWindow or (listCandidateCount >= 2)
+
+        if isTrueSpecListLine and DungeonBots.pendingListReset[cleanSender] then
+            DungeonBots.botSpecs[cleanSender] = {}
+            DungeonBots.pendingListReset[cleanSender] = nil
+        end
+
+        for _, pc in ipairs(parsedSpecChunks) do
+            local cleanChunk = pc.cleanChunk
+            local specName = pc.specName
+            local t1, t2, t3 = pc.t1, pc.t2, pc.t3
+            local isBareTreeOnly = pc.isBareTreeOnly
+
+            if specName and (isTrueSpecListLine or not isBareTreeOnly) then
                 specName = DungeonBots:CanonicalizeSpec(cleanSender, specName)
-                DungeonBots.botSpecs[cleanSender] = DungeonBots.botSpecs[cleanSender] or {}
-                local alreadyExists = false
-                local lowerSpecName = string.lower(specName)
-                for _, s in ipairs(DungeonBots.botSpecs[cleanSender]) do
-                    if string.lower(s) == lowerSpecName then
-                        alreadyExists = true
-                        break
-                    end
-                end
-                if not alreadyExists then
-                    table.insert(DungeonBots.botSpecs[cleanSender], specName)
-                    foundAnySpec = true
-                end
-
                 if t1 and t2 and t3 then
                     DungeonBots.botSpecTriplets[cleanSender][t1 .. "-" .. t2 .. "-" .. t3] = specName
                 end
 
+                if isTrueSpecListLine then
+                    DungeonBots.botSpecs[cleanSender] = DungeonBots.botSpecs[cleanSender] or {}
+                    local alreadyExists = false
+                    local lowerSpecName = string.lower(specName)
+                    for _, s in ipairs(DungeonBots.botSpecs[cleanSender]) do
+                        if string.lower(s) == lowerSpecName then
+                            alreadyExists = true
+                            break
+                        end
+                    end
+                    if not alreadyExists then
+                        table.insert(DungeonBots.botSpecs[cleanSender], specName)
+                    end
+                    foundSpecList = true
+                end
+
                 local lc = string.lower(cleanChunk)
-                local activeByGreen = chunkInfo.isGreen and ((not isAvailableListLine) or greenChunkCount == 1)
+                local activeByGreen = pc.chunkInfo.isGreen and ((not isTrueSpecListLine) or greenChunkCount == 1)
                 if string.find(lc, "active", 1, true)
                     or string.find(lc, "current", 1, true)
                     or string.find(lc, "actual", 1, true)
@@ -361,7 +480,7 @@ function DB_Internal.ParseTalentWhisper(cleanSender, message)
                     or activeByGreen then
                     detectedActiveSpec = specName
                 end
-            elseif (t1 and t2 and t3) and not isAvailableListLine then
+            elseif (t1 and t2 and t3) and not isTrueSpecListLine then
                 DungeonBots.lastDetectedTriplet[cleanSender] = t1 .. "-" .. t2 .. "-" .. t3
                 if specName and isBareTreeOnly then
                     local normTree = TREE_ALIASES[string.lower(specName)]
@@ -383,7 +502,7 @@ function DB_Internal.ParseTalentWhisper(cleanSender, message)
                 end
             end
 
-            if not isAvailableListLine then
+            if not isTrueSpecListLine then
                 for rawTree, rawPts in string.gmatch(cleanChunk, "([%a ]+)%s*[:%(]?%s*(%d+)%)?") do
                     local key = string.lower(StripSpecNoisePrefix(rawTree))
                     local normTree = TREE_ALIASES[key]
@@ -411,7 +530,12 @@ function DB_Internal.ParseTalentWhisper(cleanSender, message)
         end
     end
 
-    if not detectedActiveSpec then
+    if foundSpecList then
+        DungeonBots.botSpecListFetched = DungeonBots.botSpecListFetched or {}
+        DungeonBots.botSpecListFetched[cleanSender] = true
+    end
+
+    if not detectedActiveSpec and not specErrorReason then
         local bestTree, bestTreePts = nil, 0
         for treeKey, pts in pairs(DungeonBots.liveTreePoints[cleanSender]) do
             if pts > bestTreePts then
@@ -423,11 +547,11 @@ function DB_Internal.ParseTalentWhisper(cleanSender, message)
             DungeonBots.lastDetectedTree[cleanSender] = bestTree
             detectedActiveSpec = DungeonBots:CanonicalizeSpec(cleanSender, ResolveTreeToSpec(cleanSender, bestTree))
         end
-    elseif detectedActiveSpec ~= "" then
+    elseif detectedActiveSpec and detectedActiveSpec ~= "" then
         detectedActiveSpec = DungeonBots:CanonicalizeSpec(cleanSender, detectedActiveSpec)
     end
 
-    return foundAnySpec, detectedActiveSpec
+    return foundSpecList, detectedActiveSpec, specErrorReason, isSwitchConfirmation
 end
 
 -- =========================================================================
@@ -439,9 +563,11 @@ local SPECS_PENDING_RETRY_COOLDOWN = 15.0
 
 local pendingJoinQueries = {}
 local queryStates = {}
+local pendingSpecSwitches = {}
 local lastStatsQueryAt = {}
 local lastSpecListQueryAt = {}
 DB_Internal.queryStates = queryStates
+DB_Internal.pendingSpecSwitches = pendingSpecSwitches
 
 local joinQueryFrame = CreateFrame("Frame")
 joinQueryFrame:Hide()
@@ -452,7 +578,12 @@ end
 
 function DB_Internal.ClearPendingJoinQueries()
     pendingJoinQueries = {}
-    queryStates = {}
+    for k in pairs(queryStates) do queryStates[k] = nil end
+    for k in pairs(pendingSpecSwitches) do pendingSpecSwitches[k] = nil end
+    for k in pairs(recentSpecListHeaderAt) do recentSpecListHeaderAt[k] = nil end
+    if DungeonBots.botSpecListFetched then
+        for k in pairs(DungeonBots.botSpecListFetched) do DungeonBots.botSpecListFetched[k] = nil end
+    end
     joinQueryFrame:Hide()
 end
 
@@ -517,6 +648,26 @@ joinQueryFrame:SetScript("OnUpdate", function(self, elapsed)
         end
     end
 
+    for botName, sw in pairs(pendingSpecSwitches) do
+        if not DungeonBots:FindPartyUnitByName(botName) then
+            pendingSpecSwitches[botName] = nil
+        elseif now >= (sw.timeoutAt or 0) then
+            pendingSpecSwitches[botName] = nil
+            if DungeonBots.UpdatePartyUI then
+                DungeonBots:UpdatePartyUI()
+            end
+            if DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == botName then
+                DungeonBots:UpdateSpellsDialog(botName)
+            end
+        else
+            hasPending = true
+            if not sw.verifySent and now >= (sw.verifyAt or 0) then
+                sw.verifySent = true
+                DungeonBots:QueueWhisperCommand(botName, "talents", true)
+            end
+        end
+    end
+
     if not hasPending then
         self:Hide()
     end
@@ -533,9 +684,12 @@ local function HasCachedActiveSpec(botName)
 end
 
 local function HasCachedSpecList(botName)
+    if not (DungeonBots.botSpecListFetched and DungeonBots.botSpecListFetched[botName]) then
+        return false
+    end
     local specs = (DungeonBots.botSpecs and DungeonBots.botSpecs[botName])
         or (DungeonBotsDB and DungeonBotsDB.botSpecs and DungeonBotsDB.botSpecs[botName])
-    return (specs and #specs > 0) and true or false
+    return (specs and #specs >= 2) and true or false
 end
 
 local function StartTalentQuery(botName, atFront, includeSpecList, clearActiveCache)
@@ -674,6 +828,10 @@ function DungeonBots:CheckPartyForNewBots()
             DungeonBots.sessionQueriedBots[queriedName] = nil
             lastStatsQueryAt[queriedName] = nil
             lastSpecListQueryAt[queriedName] = nil
+            pendingSpecSwitches[queriedName] = nil
+            if DungeonBots.botSpecListFetched then
+                DungeonBots.botSpecListFetched[queriedName] = nil
+            end
             if DungeonBots.botStats then
                 DungeonBots.botStats[queriedName] = nil
             end
@@ -724,26 +882,61 @@ end
 
 -- Cambiar rama de talentos de un bot (mantiene comando canónico para el servidor)
 function DungeonBots:SetBotSpec(botName, specId)
-    if not botName or not specId then return end
+    local cleanBot = NormalizePlayerName(botName)
+    if not cleanBot or not specId then return end
     local cleanSpec = DungeonBots:CleanSpecText(specId)
-    if cleanSpec == "" then cleanSpec = specId end
+    if cleanSpec == "" then cleanSpec = tostring(specId) end
+    if cleanSpec == "" then return end
+
+    local unit = DungeonBots:FindPartyUnitByName(cleanBot)
+    if not unit or not UnitIsConnected(unit) then
+        DungeonBots:Warn("No se pudo cambiar la rama de |cffffd200" .. cleanBot .. "|r porque no está en grupo o está desconectado.")
+        return
+    end
+    if not DungeonBots:ShouldTreatAsBot(cleanBot) then
+        DungeonBots:Warn("|cffffd200" .. cleanBot .. "|r está marcado como jugador humano; no se enviará cambio de talentos.")
+        return
+    end
+
+    local prevSpec = (DungeonBotsDB and DungeonBotsDB.botActiveSpec and DungeonBotsDB.botActiveSpec[cleanBot])
+        or (DungeonBotsDB and DungeonBotsDB.botHistory and DungeonBotsDB.botHistory[cleanBot] and DungeonBotsDB.botHistory[cleanBot].spec)
+        or (queryStates[cleanBot] and queryStates[cleanBot].prevSpec)
+        or nil
+    if prevSpec == "" then prevSpec = nil end
+
+    -- Evitar que una consulta previa en vuelo revierta el cambio antes de verificarlo
+    queryStates[cleanBot] = nil
+    DungeonBots.pendingSpecReset[cleanBot] = nil
+
+    local now = NowTime()
+    pendingSpecSwitches[cleanBot] = {
+        targetSpec = cleanSpec,
+        prevSpec = prevSpec,
+        sentAt = now,
+        verifyAt = now + 0.90,
+        verifySent = false,
+        timeoutAt = now + 5.0,
+        gotSwitchConfirm = false,
+    }
+    joinQueryFrame:Show()
+
     if DungeonBotsDB then
         DungeonBotsDB.botActiveSpec = DungeonBotsDB.botActiveSpec or {}
-        DungeonBotsDB.botActiveSpec[botName] = cleanSpec
+        DungeonBotsDB.botActiveSpec[cleanBot] = cleanSpec
     end
-    DungeonBots:RecordBotHistory(botName, nil, cleanSpec, nil)
+    DungeonBots:RecordBotHistory(cleanBot, nil, cleanSpec, nil)
     if DungeonBots.UpdateHistoryUI and DungeonBots.historyFrame and DungeonBots.historyFrame:IsShown() then
         DungeonBots:UpdateHistoryUI()
     end
     if DungeonBots.UpdatePartyUI then
         DungeonBots:UpdatePartyUI()
     end
-    if DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == botName then
-        DungeonBots:UpdateSpellsDialog(botName)
+    if DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == cleanBot then
+        DungeonBots:UpdateSpellsDialog(cleanBot)
     end
     local displaySpec = DungeonBots.LocalizeSpecText and DungeonBots:LocalizeSpecText(cleanSpec) or cleanSpec
-    DungeonBots:Print("Talentos de |cffffd200" .. botName .. "|r fueron cambiados a |cff71d5ff" .. displaySpec .. "|r.")
-    DungeonBots:SendWhisperCommand(botName, "talents spec " .. cleanSpec)
+    DungeonBots:Print("Cambiando talentos de |cffffd200" .. cleanBot .. "|r a |cff71d5ff" .. displaySpec .. "|r...")
+    DungeonBots:SendWhisperCommand(cleanBot, "talents spec " .. cleanSpec)
 end
 
 -- Adaptar equipo (autogear match)
