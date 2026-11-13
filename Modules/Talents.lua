@@ -1051,18 +1051,10 @@ function DungeonBots:SetBotSpec(botName, specId)
     DungeonBots:SendWhisperCommand(cleanBot, "talents spec " .. cleanSpec)
 end
 
--- Adaptar equipo (autogear match)
-function DungeonBots:AutogearMatch(botName)
+-- Autoequipar equipo del bot (d autogear)
+function DungeonBots:Autogear(botName)
     if not botName then return end
-    DungeonBots:Print("Adaptando equipo a talentos para |cffffd200" .. botName .. "|r...")
-    DungeonBots:SendWhisperCommand(botName, "autogear match")
-    DungeonBots:QueueWhisperCommand(botName, "stats")
-end
-
--- Equipar ítems azules (autogear blue)
-function DungeonBots:AutogearBlue(botName)
-    if not botName then return end
-    DungeonBots:Print("Equipando ítems azules a |cffffd200" .. botName .. "|r...")
-    DungeonBots:SendWhisperCommand(botName, "autogear blue")
+    DungeonBots:Print("Enviando orden de autoequipar equipo a |cffffd200" .. botName .. "|r...")
+    DungeonBots:SendWhisperCommand(botName, "d autogear")
     DungeonBots:QueueWhisperCommand(botName, "stats")
 end

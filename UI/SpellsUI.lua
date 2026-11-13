@@ -122,7 +122,7 @@ local function BuildGearPanel(sp)
     emptySpecsLabel:Hide()
     gearPanel.emptySpecsLabel = emptySpecsLabel
 
-    -- Seccion 2: Cambio y adaptacion de equipo (Autogear Match / Blue)
+    -- Seccion 2: Gestion de equipo (d autogear)
     local autogearCard = CreateFrame("Frame", "DungeonBots_GearAutogearCard", gearPanel)
     autogearCard:SetPoint("TOPLEFT", specCard, "BOTTOMLEFT", 0, -10)
     autogearCard:SetPoint("TOPRIGHT", specCard, "BOTTOMRIGHT", 0, -10)
@@ -142,41 +142,29 @@ local function BuildGearPanel(sp)
 
     local gearSubLabel = autogearCard:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     gearSubLabel:SetPoint("TOPLEFT", autogearCard, "TOPLEFT", 12, -33)
-    gearSubLabel:SetText("|cff9aa5b4Adapta el equipo del bot según su rama o equípale un conjunto raro:|r")
+    gearSubLabel:SetPoint("TOPRIGHT", autogearCard, "TOPRIGHT", -12, -33)
+    gearSubLabel:SetJustifyH("LEFT")
+    gearSubLabel:SetText("|cff9aa5b4Ajuste rápido del equipamiento actual del bot:|r")
 
-    local matchBox = CreateFrame("Frame", nil, autogearCard)
-    matchBox:SetSize(248, 108)
-    matchBox:SetPoint("TOPLEFT", autogearCard, "TOPLEFT", 14, -56)
-    ApplyInsetPanelBackdrop(matchBox, 8)
+    local autogearBox = CreateFrame("Frame", nil, autogearCard)
+    autogearBox:SetPoint("TOPLEFT", autogearCard, "TOPLEFT", 14, -56)
+    autogearBox:SetPoint("BOTTOMRIGHT", autogearCard, "BOTTOMRIGHT", -14, 14)
+    ApplyInsetPanelBackdrop(autogearBox, 8)
 
-    local matchBtn = CreateFrame("Button", "DungeonBots_GearMatchBtn", matchBox, "UIPanelButtonTemplate")
-    matchBtn:SetSize(224, 26)
-    matchBtn:SetPoint("TOP", matchBox, "TOP", 0, -10)
-    matchBtn:SetText("Adaptar Equipo")
-    gearPanel.matchBtn = matchBtn
+    local autogearBtn = CreateFrame("Button", "DungeonBots_GearAutogearBtn", autogearBox, "UIPanelButtonTemplate")
+    autogearBtn:SetSize(166, 30)
+    autogearBtn:SetPoint("LEFT", autogearBox, "LEFT", 16, 0)
+    autogearBtn:SetText("Autoequipar")
+    gearPanel.autogearBtn = autogearBtn
 
-    local matchDesc = matchBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    matchDesc:SetPoint("TOPLEFT", matchBtn, "BOTTOMLEFT", 2, -8)
-    matchDesc:SetPoint("TOPRIGHT", matchBtn, "BOTTOMRIGHT", -2, -8)
-    matchDesc:SetJustifyH("CENTER")
-    matchDesc:SetText("|cffccccccAjusta su armadura a la rama activa.|r\n|cffff3b30CUIDADO:|r Puede reducir drásticamente el Item Level de sus piezas.")
-
-    local blueBox = CreateFrame("Frame", nil, autogearCard)
-    blueBox:SetSize(248, 108)
-    blueBox:SetPoint("TOPRIGHT", autogearCard, "TOPRIGHT", -14, -56)
-    ApplyInsetPanelBackdrop(blueBox, 8)
-
-    local blueBtn = CreateFrame("Button", "DungeonBots_GearBlueBtn", blueBox, "UIPanelButtonTemplate")
-    blueBtn:SetSize(224, 26)
-    blueBtn:SetPoint("TOP", blueBox, "TOP", 0, -10)
-    blueBtn:SetText("Equipar Azul")
-    gearPanel.blueBtn = blueBtn
-
-    local blueDesc = blueBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    blueDesc:SetPoint("TOPLEFT", blueBtn, "BOTTOMLEFT", 2, -8)
-    blueDesc:SetPoint("TOPRIGHT", blueBtn, "BOTTOMRIGHT", -2, -8)
-    blueDesc:SetJustifyH("CENTER")
-    blueDesc:SetText("|cffccccccEquipa al bot con un conjunto completo de calidad rara (|cff0070ddazul|r|cffcccccc).|r")
+    local autogearDesc = autogearBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    autogearDesc:SetPoint("LEFT", autogearBtn, "RIGHT", 16, 0)
+    autogearDesc:SetPoint("RIGHT", autogearBox, "RIGHT", -16, 0)
+    autogearDesc:SetPoint("TOP", autogearBox, "TOP", 0, -10)
+    autogearDesc:SetPoint("BOTTOM", autogearBox, "BOTTOM", 0, 10)
+    autogearDesc:SetJustifyH("LEFT")
+    autogearDesc:SetJustifyV("MIDDLE")
+    autogearDesc:SetText("|cffff5555Advertencia:|r Si usas esta opción, la armadura actual del bot se degradará.\n\n|cffffd200Recomendación:|r Es mejor dejar su equipo como está y buscar otro bot que ya tenga el equipamiento acorde a los talentos que necesita.")
 end
 
 local SPELL_ROW_HEIGHT = 40
@@ -906,34 +894,20 @@ local function RenderGearPanel(sp, targetBot, classToken)
         end
     end
 
-    gp.matchBtn:SetScript("OnClick", function()
+    gp.autogearBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
-        if DungeonBots.AutogearMatch then
-            DungeonBots:AutogearMatch(targetBot)
+        if DungeonBots.Autogear then
+            DungeonBots:Autogear(targetBot)
         end
     end)
-    gp.matchBtn:SetScript("OnEnter", function(self)
+    gp.autogearBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Adaptar Equipo (Autogear Match)", 1, 0.8, 0.2)
-        GameTooltip:AddLine("Ajusta su armadura a la rama de talentos activa.", 1, 1, 1)
-        GameTooltip:AddLine("\n|cffff3b30CUIDADO:|r Esto puede reducir drásticamente el Item Level de varias o todas sus piezas.", 1, 0.3, 0.3, true)
+        GameTooltip:AddLine("Autoequipar", 1, 0.8, 0.2)
+        GameTooltip:AddLine("Aplica el autoequipamiento al bot actual.", 1, 1, 1, true)
+        GameTooltip:AddLine("\nAdvertencia: La armadura actual se degradará. Se recomienda dejar su equipo como está y buscar otro bot que ya cuente con el equipamiento de los talentos que necesitas.", 1, 0.35, 0.35, true)
         GameTooltip:Show()
     end)
-    gp.matchBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
-    gp.blueBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        if DungeonBots.AutogearBlue then
-            DungeonBots:AutogearBlue(targetBot)
-        end
-    end)
-    gp.blueBtn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Equipar Objetos Azules (Autogear Blue)", 0.2, 0.8, 1.0)
-        GameTooltip:AddLine("Equipa al bot con un conjunto completo de calidad rara (azul).", 0.7, 0.7, 0.7, true)
-        GameTooltip:Show()
-    end)
-    gp.blueBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    gp.autogearBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
 
