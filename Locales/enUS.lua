@@ -259,7 +259,7 @@ L["THEME_DARK_LABEL"]      = "Slate Blue"
 -- =========================================================================
 L["HUD_FOCUS_NAME"]        = "Attack"
 L["HUD_FOCUS_TITLE"]       = "|cffff2020Attack Target|r"
-L["HUD_FOCUS_DESC"]        = "Left-Click: Orders tank and DPS to attack your current target with the selected DPS delay.\nRight-Click: Choose DPS wait delay (None / 2s / 5s / 8s)."
+L["HUD_FOCUS_DESC"]        = "Left-Click: Orders tank and DPS to attack your current target with the selected DPS delay.\nShift + Left-Click: Immediate attack without DPS wait (keeps your saved option).\nRight-Click: Choose DPS wait delay (None / 2s / 5s / 8s)."
 L["HUD_PULL_NAME"]         = "Pull"
 L["HUD_PULL_TITLE"]        = "|cffff9900Tank Pull Back|r"
 L["HUD_PULL_DESC"]         = "Left-Click: Sets DPS wait time and orders the tank to ranged pull and run back.\nRight-Click: Choose DPS wait delay (4s / 8s / 12s)."

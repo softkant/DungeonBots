@@ -373,7 +373,8 @@ end
 local function ExecuteAttackTargetSequence()
     if CloseDropDownMenus then CloseDropDownMenus() end
     DungeonBots:SendPartyCommand("reset")
-    local secs = GetSavedSeconds("attackWaitSeconds", 0, ATTACK_WAIT_OPTIONS)
+    local forceNoWait = IsShiftKeyDown and IsShiftKeyDown()
+    local secs = forceNoWait and 0 or GetSavedSeconds("attackWaitSeconds", 0, ATTACK_WAIT_OPTIONS)
     ApplyDpsWaitStrategy(secs)
     DungeonBots:SendPartyCommand("@tank attack")
     DungeonBots:SendPartyCommand("@dps attack")
