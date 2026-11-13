@@ -564,7 +564,6 @@ function DungeonBots:BuildTab1(parent)
     histIcon:SetPoint("CENTER", 0, 0)
     histIcon:SetTexture("Interface\\Icons\\INV_Misc_Note_01")
     histIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    AddQuickSlotBorder(histIconFrame, 42, 0.85, 0.70, 0.36, 0.95)
 
     local historyTitle = historyBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     historyTitle:SetPoint("TOPLEFT", histIconFrame, "TOPRIGHT", 10, 2)
@@ -956,7 +955,6 @@ function DungeonBots:BuildTab2(parent)
         cIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
         cIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         card.classIcon = cIcon
-        card.classIconBorder = AddQuickSlotBorder(cIconHolder, 56, 0.85, 0.70, 0.36, 0.95)
 
         local nameText = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         nameText:SetPoint("TOPLEFT", card, "TOPLEFT", 58, -6)
@@ -1823,10 +1821,6 @@ function DungeonBots:SelectGuideTopic(index)
                     btn.selectedBg:SetVertexColor(sc[1], sc[2], sc[3], sc[4])
                 end
                 btn.titleText:SetTextColor(1.0, 1.0, 1.0)
-                if btn.slotBorder then
-                    local hc = (p and p.hoverBorder) or { 1.0, 0.82, 0.25, 1.0 }
-                    btn.slotBorder:SetVertexColor(hc[1], hc[2], hc[3], 1.0)
-                end
             else
                 btn.selectedBg:Hide()
                 if t and t.critical then
@@ -1834,10 +1828,6 @@ function DungeonBots:SelectGuideTopic(index)
                 else
                     local tc = (p and p.guideTitle) or { 1.0, 0.82, 0.0 }
                     btn.titleText:SetTextColor(tc[1], tc[2], tc[3])
-                end
-                if btn.slotBorder then
-                    local qc = (p and p.quickSlot) or { 0.75, 0.65, 0.42, 0.85 }
-                    btn.slotBorder:SetVertexColor(qc[1], qc[2], qc[3], qc[4])
                 end
             end
             if btn.catText and t and not t.critical then
@@ -1995,7 +1985,6 @@ function DungeonBots:BuildTab3(parent)
         rIcon:SetAllPoints(iconHolder)
         rIcon:SetTexture(topic.icon)
         rIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-        row.slotBorder = AddQuickSlotBorder(iconHolder, 36, 0.75, 0.65, 0.42, 0.85)
 
         local rTitle = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         rTitle:SetPoint("TOPLEFT", iconHolder, "TOPRIGHT", 8, -2)
