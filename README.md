@@ -23,7 +23,6 @@
   * **Visual Theme:** Switch live between **Dorado** (classic WotLK gold, default on first launch) and **Oscuro Azulado** (dark slate-blue steel).
   * Independently show or hide the Floating Combat HUD and the Floating Utility Bar (both enabled by default) and toggle hiding floating bars outside 5-player dungeons (`IsInInstance() == "party"`, enabled by default).
   * **Bot Whisper Hiding:** Toggle hiding all incoming and outgoing whispers with known bots (compatible with Blizzard chat and WIM without touching WIM's SavedVariables); when enabled, reveals an additional option to also hide bot messages in `/p`, `/y`, and `/s`. Real human players (`[JUGADOR]` or unknown players) are never filtered.
-  * **Version & Support:** Shows `v1.0.0` next to the header title and a Discord contact notice (`@Shahak`) at the bottom-left for reporting issues.
 * **Global Group Controls:**
   * **`Reinvocar Grupo`:** Runs `.playerbots bot add *` + `/p summon` to recall absent bots that are still in your party.
   * **`Despedir a Todos`:** Runs `.playerbots bot remove *` and removes confirmed bots from the party while preserving human players.
@@ -100,7 +99,7 @@ Files listed in `DungeonBots.toc` (`30300`) load order:
 - `UI/Theme.lua` — Visual theme engine (`"gold"` default / `"dark"`), shared backdrop & icon-button primitives
 - `UI/HUD.lua` — Floating Combat Tactical HUD and Floating Utility Bar
 - `UI/MainUI.lua` — Main 3-tab UI frame, Frozen Halls access checks, minimap icon, and LFD eye hooks
-- `UI/Modals.lua` — Settings modal (header version, bottom-left Discord contact notice, theme picker) and Bot History modal (`Nombre` + `Agregar`)
+- `UI/Modals.lua` — Settings modal (theme picker, bar/chat toggles) and Bot History modal (`Nombre` + `Agregar`)
 - `UI/QuestTalkUI.lua` — Quest Log and NPC Talk modal windows
 - `UI/InventoryUI.lua` — Bag-grid Bot Inventory window and item destruction confirmation
 - `UI/SpellsUI.lua` — Interactive Character Info window (`Equipo`, `Hechizos`, `Glifos`, inspected talents, `cast`)
