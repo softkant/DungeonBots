@@ -91,6 +91,9 @@ local function CreateQuestRow(parent, idx)
     row:SetSize(486, 36)
     row:SetPoint("TOPLEFT", 0, -((idx - 1) * 40))
     ApplyInsetPanelBackdrop(row, 8)
+    if DB_Internal.AddGoldWarmFill then
+        DB_Internal.AddGoldWarmFill(row, "BORDER", 0.15, 0.115, 0.075, 0.72, 3)
+    end
 
     local icon = row:CreateTexture(nil, "ARTWORK")
     icon:SetSize(20, 20)
@@ -251,6 +254,9 @@ function DungeonBots:BuildQuestDialog()
             btn:SetPoint("LEFT", checkPanel, "LEFT", 3, 0)
         end
         ApplyInsetPanelBackdrop(btn, 8)
+        if DB_Internal.AddGoldWarmFill then
+            DB_Internal.AddGoldWarmFill(btn, "BORDER", 0.15, 0.115, 0.075, 0.72, 3)
+        end
 
         local icon = btn:CreateTexture(nil, "ARTWORK")
         icon:SetSize(34, 34)
