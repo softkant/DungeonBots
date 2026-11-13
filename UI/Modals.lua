@@ -99,7 +99,7 @@ function DungeonBots:UpdateSettingsDialog()
         StyleThemeChoice(sf.themeGoldBtn, curTheme == "gold", L["THEME_GOLD_LABEL"])
     end
 
-    local totalH = 232 + (anyBarShow and 26 or 0) + (muteShow and 26 or 0)
+    local totalH = 252 + (anyBarShow and 26 or 0) + (muteShow and 26 or 0)
     sf:SetHeight(totalH)
 end
 
@@ -300,6 +300,12 @@ function DungeonBots:BuildSettingsDialog()
     )
     themeGoldBtn:SetPoint("LEFT", themeDarkBtn, "RIGHT", 8, 0)
     sf.themeGoldBtn = themeGoldBtn
+
+    local contactLabel = sf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    contactLabel:SetPoint("BOTTOMLEFT", sf, "BOTTOMLEFT", 16, 44)
+    contactLabel:SetPoint("BOTTOMRIGHT", sf, "BOTTOMRIGHT", -16, 44)
+    contactLabel:SetJustifyH("LEFT")
+    contactLabel:SetText(L["SETTINGS_DISCORD_ERR"])
 
     local versionLabel = sf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     versionLabel:SetPoint("BOTTOMLEFT", sf, "BOTTOMLEFT", 16, 17)
