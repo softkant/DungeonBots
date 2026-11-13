@@ -463,7 +463,7 @@ L["GUIDE_T1_SUM"]   = "Some dungeons (Forge of Souls, Pit of Saron, and Halls of
 L["GUIDE_T1_S1"]    = "In the |cffffd200Party Bots|r tab, open |cffffd200Quests|r on a bot and check the |cffffd200Pit of Saron|r and |cffffd200Halls of Reflection|r status cards at the bottom."
 L["GUIDE_T1_S2"]    = "Click those access cards to query the server on whether each bot already satisfies the prerequisite."
 L["GUIDE_T1_S3"]    = "If missing, walk up to the quest NPC with the bot and use |cffffd200Quests|r or |cffffd200Talk NPC|r to accept and turn in the quests."
-L["GUIDE_T1_NOTE"]  = "Keep in mind you may have to complete the same quest more than once due to a server module limitation when a bot is shared across different low-level players."
+L["GUIDE_T1_NOTE"]  = "Keep in mind you may have to complete the same quest more than once due to an issue in the bot system as bots are shared across different low-level players."
 
 L["GUIDE_T2_SHORT"] = "2. Bot slow to join"
 L["GUIDE_T2_TITLE"] = "Bot whispers on summon, but takes time to join"
