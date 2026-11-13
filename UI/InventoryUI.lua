@@ -288,13 +288,14 @@ function DungeonBots:BuildInventoryDialog()
     refreshBtn:SetText("Actualizar")
     refreshBtn:SetScript("OnClick", function()
         if not inv.currentBot then return end
+        local pendingCap = DungeonBots.pendingInventoryCapture and DungeonBots.pendingInventoryCapture[inv.currentBot]
+        if pendingCap then return end
         PlaySound("igMainMenuOptionCheckBoxOn")
         inv.selectedItem = nil
-        if DungeonBots.QueryBotStats then
-            DungeonBots:QueryBotStats(inv.currentBot, true)
-        end
         if DungeonBots.QueryBotInventory then
-            DungeonBots:QueryBotInventory(inv.currentBot)
+            DungeonBots:QueryBotInventory(inv.currentBot, false, true)
+        elseif DungeonBots.QueryBotStats then
+            DungeonBots:QueryBotStats(inv.currentBot, true)
         end
     end)
     inv.refreshBtn = refreshBtn
@@ -460,10 +461,23 @@ function DungeonBots:UpdateInventoryDialog(botName)
         end
     end
 
+    if inv.refreshBtn then
+        local isCapPending = DungeonBots.pendingInventoryCapture and DungeonBots.pendingInventoryCapture[targetBot] ~= nil
+        if isCapPending or (data and data.loading) then
+            inv.refreshBtn:Disable()
+            inv.refreshBtn:SetText("Consultando...")
+        else
+            inv.refreshBtn:Enable()
+            inv.refreshBtn:SetText("Actualizar")
+        end
+    end
+
     if #visibleItems == 0 then
         inv.emptyLabel:Show()
         if data and data.loading then
             inv.emptyLabel:SetText("Consultando el inventario de |cffffd200" .. targetBot .. "|r...")
+        elseif data and data.timedOut and #allItems == 0 then
+            inv.emptyLabel:SetText("No se recibió respuesta de |cffffd200" .. targetBot .. "|r al consultar su inventario.")
         elseif #allItems == 0 then
             inv.emptyLabel:SetText("|cffffd200" .. targetBot .. "|r no tiene objetos visibles en sus bolsas.")
         else
