@@ -75,12 +75,6 @@ local function BuildGearPanel(sp)
     specTitle:SetPoint("LEFT", specHeaderIcon, "RIGHT", 7, 0)
     specTitle:SetText("|cff71d5ffRama de Talentos|r")
 
-    local activeSpecLabel = specCard:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    activeSpecLabel:SetPoint("TOPRIGHT", specCard, "TOPRIGHT", -12, -12)
-    activeSpecLabel:SetJustifyH("RIGHT")
-    activeSpecLabel:SetText("Rama actual: |cff888888Sin detectar|r")
-    gearPanel.activeSpecLabel = activeSpecLabel
-
     local specSubLabel = specCard:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     specSubLabel:SetPoint("TOPLEFT", specCard, "TOPLEFT", 12, -33)
     specSubLabel:SetText("|cff9aa5b4Elige la especialización que utilizará el bot:|r")
@@ -786,16 +780,6 @@ local function RenderGearPanel(sp, targetBot, classToken)
     local activeSpec = DungeonBotsDB and DungeonBotsDB.botActiveSpec and DungeonBotsDB.botActiveSpec[targetBot]
     if activeSpec and activeSpec ~= "" and DungeonBots.CanonicalizeSpec then
         activeSpec = DungeonBots:CanonicalizeSpec(targetBot, activeSpec)
-    end
-    local pendingSwitch = DB_Internal.pendingSpecSwitches and DB_Internal.pendingSpecSwitches[targetBot]
-    if activeSpec and activeSpec ~= "" then
-        local activeDisplay = DungeonBots.LocalizeSpecText and DungeonBots:LocalizeSpecText(activeSpec) or activeSpec
-        local suffix = pendingSwitch and " |cff888888(cambiando...)|r" or ""
-        gp.activeSpecLabel:SetText("Rama actual: |cff00e5ff" .. activeDisplay .. "|r" .. suffix)
-    elseif DungeonBots.pendingSpecReset and DungeonBots.pendingSpecReset[targetBot] then
-        gp.activeSpecLabel:SetText("Rama actual: |cff888888Consultando talentos...|r")
-    else
-        gp.activeSpecLabel:SetText("Rama actual: |cff888888Sin detectar|r")
     end
 
     local rawSpecs = (DungeonBots.botSpecs and DungeonBots.botSpecs[targetBot])
