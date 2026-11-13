@@ -320,7 +320,9 @@ local function GetSavedSeconds(dbKey, defaultVal, validList)
     return defaultVal
 end
 
-local function ApplyDpsWaitStrategy(secs)
+local function ApplyCombatWaitStrategies(secs)
+    DungeonBots:SendPartyCommand("@heal co -wait for attack")
+    DungeonBots:SendPartyCommand("@heal wait for attack time 0")
     if secs > 0 then
         DungeonBots:SendPartyCommand("@dps co +wait for attack")
         DungeonBots:SendPartyCommand("@dps wait for attack time " .. secs)
@@ -359,7 +361,7 @@ local function OpenWaitDelayDropdown(anchorBtn, cfgMenu)
                 if DungeonBotsDB then
                     DungeonBotsDB[cfgMenu.dbKey] = chosen
                 end
-                ApplyDpsWaitStrategy(chosen)
+                ApplyCombatWaitStrategies(chosen)
                 UpdateCombatActionWaitBadges()
                 if chosen == 0 and cfgMenu.setZeroMsg then
                     DungeonBots:Print(cfgMenu.setZeroMsg)
@@ -378,7 +380,7 @@ local function ExecuteAttackTargetSequence()
     DungeonBots:SendPartyCommand("follow")
     local forceNoWait = IsShiftKeyDown and IsShiftKeyDown()
     local secs = forceNoWait and 0 or GetSavedSeconds("attackWaitSeconds", 0, ATTACK_WAIT_OPTIONS)
-    ApplyDpsWaitStrategy(secs)
+    ApplyCombatWaitStrategies(secs)
     DungeonBots:SendPartyCommand("@tank attack")
     DungeonBots:SendPartyCommand("@dps attack")
 end
@@ -387,7 +389,7 @@ local function ExecutePullBackSequence()
     if CloseDropDownMenus then CloseDropDownMenus() end
     DungeonBots:SendPartyCommand("reset")
     local secs = GetSavedSeconds("pullWaitSeconds", 8, PULL_WAIT_OPTIONS)
-    ApplyDpsWaitStrategy(secs)
+    ApplyCombatWaitStrategies(secs)
     DungeonBots:SendPartyCommand("@tank pull back")
 end
 
