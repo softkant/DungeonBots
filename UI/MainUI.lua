@@ -549,31 +549,14 @@ local function AddPanelDivider(panel, yOffset)
 end
 
 function DungeonBots:BuildTab1(parent)
-    local function StyleGoldWarmFill(tex)
-        local themeId = DB_Internal.GetThemeId and DB_Internal.GetThemeId()
-        local c = tex._dbGoldFill
-        if themeId == "gold" and c then
-            tex:SetTexture(c[1], c[2], c[3], c[4])
-            tex:Show()
-        else
-            tex:Hide()
-        end
-    end
-
     -- Caja 1: Acceso al Historial de bots (tira compacta clásica)
     local historyBox = CreateFrame("Frame", nil, parent)
     historyBox:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -2)
     historyBox:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -2)
     historyBox:SetHeight(52)
     ApplyBlizzardStonePanel(historyBox, 0.66, 0.54, 0.30, 12, 0.28)
-
-    local histWarmFill = historyBox:CreateTexture(nil, "ARTWORK")
-    histWarmFill:SetPoint("TOPLEFT", historyBox, "TOPLEFT", 3, -3)
-    histWarmFill:SetPoint("BOTTOMRIGHT", historyBox, "BOTTOMRIGHT", -3, 3)
-    histWarmFill._dbGoldFill = { 0.16, 0.12, 0.078, 0.48 }
-    StyleGoldWarmFill(histWarmFill)
-    if DB_Internal.RegisterThemed then
-        DB_Internal.RegisterThemed(histWarmFill, StyleGoldWarmFill)
+    if DB_Internal.AddGoldWarmFill then
+        DB_Internal.AddGoldWarmFill(historyBox, "ARTWORK", 0.16, 0.12, 0.078, 0.48, 3)
     end
 
     local histIconFrame = CreateFrame("Frame", nil, historyBox)
@@ -642,14 +625,8 @@ function DungeonBots:BuildTab1(parent)
         cBtn:SetSize(btnW, btnH)
         cBtn:SetPoint("TOPLEFT", classBox, "TOPLEFT", 10 + col * (btnW + spacingX), -32 - row * (btnH + spacingY))
         ApplyInsetPanelBackdrop(cBtn, 8)
-
-        local cSlotBg = cBtn:CreateTexture(nil, "BORDER")
-        cSlotBg:SetPoint("TOPLEFT", cBtn, "TOPLEFT", 3, -3)
-        cSlotBg:SetPoint("BOTTOMRIGHT", cBtn, "BOTTOMRIGHT", -3, 3)
-        cSlotBg._dbGoldFill = { 0.15, 0.115, 0.075, 0.72 }
-        StyleGoldWarmFill(cSlotBg)
-        if DB_Internal.RegisterThemed then
-            DB_Internal.RegisterThemed(cSlotBg, StyleGoldWarmFill)
+        if DB_Internal.AddGoldWarmFill then
+            DB_Internal.AddGoldWarmFill(cBtn, "BORDER", 0.15, 0.115, 0.075, 0.72, 3)
         end
 
         local cIcon = cBtn:CreateTexture(nil, "ARTWORK")
@@ -703,10 +680,13 @@ function DungeonBots:BuildTab1(parent)
     actionBox:SetPoint("TOPLEFT", classBox, "BOTTOMLEFT", 0, -8)
     actionBox:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -6, 4)
     ApplyBlizzardStonePanel(actionBox, 0.66, 0.54, 0.30, 12, 0.28)
+    if DB_Internal.AddGoldWarmFill then
+        DB_Internal.AddGoldWarmFill(actionBox, "ARTWORK", 0.16, 0.12, 0.078, 0.48, 3)
+    end
 
     local actionTitle = actionBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     actionTitle:SetPoint("TOPLEFT", 10, -8)
-    actionTitle:SetText("|cffffd200Control General del Grupo de Bots|r")
+    actionTitle:SetText("|cffffd200Opciones Generales|r")
 
     AddPanelDivider(actionBox, -24)
 

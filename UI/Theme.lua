@@ -241,6 +241,29 @@ local function ApplyInsetPanelBackdrop(frame, edgeSize)
 end
 DB_Internal.ApplyInsetPanelBackdrop = ApplyInsetPanelBackdrop
 
+local function ApplyGoldWarmFill(tex)
+    local c = tex and tex._dbGoldFill
+    if GetThemeId() == "gold" and c then
+        tex:SetTexture(c[1], c[2], c[3], c[4])
+        tex:Show()
+    else
+        tex:Hide()
+    end
+end
+DB_Internal.ApplyGoldWarmFill = ApplyGoldWarmFill
+
+local function AddGoldWarmFill(frame, layer, r, g, b, a, pad)
+    local p = pad or 3
+    local tex = frame:CreateTexture(nil, layer or "BORDER")
+    tex:SetPoint("TOPLEFT", frame, "TOPLEFT", p, -p)
+    tex:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -p, p)
+    tex._dbGoldFill = { r, g, b, a }
+    ApplyGoldWarmFill(tex)
+    RegisterThemed(tex, ApplyGoldWarmFill)
+    return tex
+end
+DB_Internal.AddGoldWarmFill = AddGoldWarmFill
+
 local function ApplyQuickSlotStyle(border)
     local p = GetThemePalette()
     local c = border._dbSlotBright and p.quickSlotBright or p.quickSlot

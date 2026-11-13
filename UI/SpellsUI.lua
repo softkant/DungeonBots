@@ -90,6 +90,9 @@ local function BuildGearPanel(sp)
         sBtn:SetSize(btnW, btnH)
         sBtn:SetPoint("TOPLEFT", specCard, "TOPLEFT", startX + (col * (btnW + gapX)), startY - (row * (btnH + gapY)))
         ApplyInsetPanelBackdrop(sBtn, 8)
+        if DB_Internal.AddGoldWarmFill then
+            sBtn.goldWarmFill = DB_Internal.AddGoldWarmFill(sBtn, "BORDER", 0.15, 0.115, 0.075, 0.72, 3)
+        end
         sBtn:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
 
         local accentBar = sBtn:CreateTexture(nil, "OVERLAY")
@@ -144,6 +147,9 @@ local function BuildGearPanel(sp)
     autogearBox:SetPoint("TOPLEFT", autogearCard, "TOPLEFT", 14, -56)
     autogearBox:SetPoint("BOTTOMRIGHT", autogearCard, "BOTTOMRIGHT", -14, 14)
     ApplyInsetPanelBackdrop(autogearBox, 8)
+    if DB_Internal.AddGoldWarmFill then
+        DB_Internal.AddGoldWarmFill(autogearBox, "BORDER", 0.15, 0.115, 0.075, 0.72, 3)
+    end
 
     local autogearBtn = CreateFrame("Button", "DungeonBots_GearAutogearBtn", autogearBox, "UIPanelButtonTemplate")
     autogearBtn:SetSize(166, 30)
@@ -854,6 +860,10 @@ local function RenderGearPanel(sp, targetBot, classToken)
                     sBtn:SetBackdropBorderColor(0.56, 0.46, 0.28, 0.85)
                 end
                 sBtn.accentBar:Hide()
+            end
+            if sBtn.goldWarmFill and DB_Internal.ApplyGoldWarmFill then
+                sBtn.goldWarmFill._dbGoldFill = isActive and { 0.24, 0.18, 0.09, 0.80 } or { 0.15, 0.115, 0.075, 0.72 }
+                DB_Internal.ApplyGoldWarmFill(sBtn.goldWarmFill)
             end
             sBtn.specValue = specName
             sBtn.isActiveSpec = isActive
