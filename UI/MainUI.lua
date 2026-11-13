@@ -1843,19 +1843,12 @@ function DungeonBots:SelectGuideTopic(index)
         view.categoryText:SetText("|cffff5544" .. (topic.category or "ADVERTENCIA") .. "|r")
         view.titleText:SetText(topic.title)
         view.titleText:SetTextColor(1.0, 0.48, 0.42)
-        if view.headerSlotBorder then
-            view.headerSlotBorder:SetVertexColor(0.95, 0.35, 0.30, 1.0)
-        end
     else
         local catHex = (p and p.guideCatHex) or "|cffc9a96e"
         local dtc = (p and p.guideDetailTitle) or { 1.0, 0.84, 0.16 }
-        local qbc = (p and p.quickSlotBright) or { 1.0, 0.82, 0.32, 1.0 }
         view.categoryText:SetText(catHex .. (topic.category or "GUÍA") .. "|r")
         view.titleText:SetText(topic.title)
         view.titleText:SetTextColor(dtc[1], dtc[2], dtc[3])
-        if view.headerSlotBorder then
-            view.headerSlotBorder:SetVertexColor(qbc[1], qbc[2], qbc[3], qbc[4])
-        end
     end
 
     view.summaryText:SetText(topic.summary or "")
@@ -2037,7 +2030,6 @@ function DungeonBots:BuildTab3(parent)
     local headerIcon = headerIconFrame:CreateTexture(nil, "ARTWORK")
     headerIcon:SetAllPoints(headerIconFrame)
     headerIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    local headerSlotBorder = AddQuickSlotBorder(headerIconFrame, 58, 1.0, 0.82, 0.32, 1.0)
 
     local categoryText = detailPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     categoryText:SetPoint("TOPLEFT", headerIconFrame, "TOPRIGHT", 12, -1)
@@ -2210,7 +2202,6 @@ function DungeonBots:BuildTab3(parent)
 
     DungeonBots.guideDetailView = {
         headerIcon = headerIcon,
-        headerSlotBorder = headerSlotBorder,
         categoryText = categoryText,
         titleText = titleText,
         scrollFrame = scrollFrame,
