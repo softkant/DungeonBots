@@ -371,7 +371,7 @@ L["TAB_SWITCH_HINT"]       = "|cff888888(Click to switch to this tab)|r"
 
 L["HIST_BOX_TITLE"]        = "|cffffd200Bot History|r"
 L["HIST_BOX_COUNT_FMT"]    = "Previously invited bots: |cffffd200%d|r"
-L["HIST_BTN_VIEW"]         = "View Bot History"
+L["HIST_BTN_VIEW"]         = "History/Add"
 L["HIST_BTN_TIP_TITLE"]    = "Open Bot History"
 L["HIST_BTN_TIP_DESC"]     = "Shows bots you have played with before, their last spec, and buttons to resummon and invite them individually."
 L["CLASS_BOX_TITLE"]       = "|cffffd200Summon Bot by Class|r"
