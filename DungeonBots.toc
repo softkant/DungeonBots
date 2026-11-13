@@ -1,8 +1,8 @@
 ## Interface: 30300
 ## Title: |cff00ccffDungeon|r|cffffd200Bots|r
-## Notes: Visual and tactical dungeon bot manager for WoW 3.3.5a.
-## Notes-esES: Gestor táctico y visual de bots para Mazmorras en WoW 3.3.5a.
-## Notes-esMX: Gestor táctico y visual de bots para Mazmorras en WoW 3.3.5a.
+## Notes: Visual and tactical dungeon bot manager for WoW 3.3.5a using the mod-playerbots module.
+## Notes-esES: Gestor táctico y visual de bots para Mazmorras en WoW 3.3.5a para el módulo mod-playerbots.
+## Notes-esMX: Gestor táctico y visual de bots para Mazmorras en WoW 3.3.5a para el módulo mod-playerbots.
 ## Author: Antigravity
 ## Version: 1.0.0
 ## SavedVariables: DungeonBotsDB
