@@ -149,6 +149,10 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             end
         end
         DungeonBots.botSpecs = DungeonBotsDB.botSpecs or {}
+        if type(DungeonBotsDB.botSpecTriplets) ~= "table" then
+            DungeonBotsDB.botSpecTriplets = {}
+        end
+        DungeonBots.botSpecTriplets = DungeonBotsDB.botSpecTriplets
         if DungeonBotsDB.whisperMuteMode == "auto" then
             DungeonBotsDB.whisperMuteMode = "all"
         end
@@ -408,6 +412,8 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         if foundSpecList and DungeonBotsDB then
             DungeonBotsDB.botSpecs = DungeonBotsDB.botSpecs or {}
             DungeonBotsDB.botSpecs[cleanSender] = DungeonBots.botSpecs[cleanSender]
+            DungeonBotsDB.botSpecTriplets = DungeonBotsDB.botSpecTriplets or {}
+            DungeonBotsDB.botSpecTriplets[cleanSender] = DungeonBots.botSpecTriplets[cleanSender]
             if qState then
                 qState.gotSpecList = true
             end
@@ -418,8 +424,11 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             if not detectedActiveSpec and not pendingSwitch then
                 local refined = nil
                 local lastTriplet = DungeonBots.lastDetectedTriplet and DungeonBots.lastDetectedTriplet[cleanSender]
-                if lastTriplet and DungeonBots.botSpecTriplets[cleanSender] then
-                    refined = DungeonBots.botSpecTriplets[cleanSender][lastTriplet]
+                if lastTriplet and DungeonBots.botSpecTriplets[cleanSender] and DungeonBots.botSpecTriplets[cleanSender][lastTriplet] and DB_Internal.ResolveTripletToSpec then
+                    local tp1, tp2, tp3 = string.match(lastTriplet, "^(%d+)%-(%d+)%-(%d+)$")
+                    if tp1 and tp2 and tp3 then
+                        refined = DB_Internal.ResolveTripletToSpec(cleanSender, tp1, tp2, tp3)
+                    end
                 end
                 if not refined then
                     local lastTree = DungeonBots.lastDetectedTree and DungeonBots.lastDetectedTree[cleanSender]

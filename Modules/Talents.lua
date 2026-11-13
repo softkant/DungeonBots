@@ -350,10 +350,71 @@ local function ExtractSpecCandidate(chunk, allowBareSpecName)
     return parsed
 end
 
-local function ResolveTripletToSpec(botName, p1, p2, p3)
+local function AddSpecTripletMapping(botName, tripletKey, specName)
+    if not botName or not tripletKey or not specName or not IsValidSpecEntry(specName) then return end
+    DungeonBots.botSpecTriplets = DungeonBots.botSpecTriplets or {}
+    DungeonBots.botSpecTriplets[botName] = DungeonBots.botSpecTriplets[botName] or {}
+    local cur = DungeonBots.botSpecTriplets[botName][tripletKey]
+    local list
+    if type(cur) == "table" then
+        list = cur
+    elseif type(cur) == "string" and cur ~= "" and IsValidSpecEntry(cur) then
+        list = { cur }
+    else
+        list = {}
+    end
+    local lowerSpec = string.lower(specName)
+    for _, existing in ipairs(list) do
+        if string.lower(existing) == lowerSpec then
+            DungeonBots.botSpecTriplets[botName][tripletKey] = list
+            return
+        end
+    end
+    table.insert(list, specName)
+    DungeonBots.botSpecTriplets[botName][tripletKey] = list
+end
+
+local function ResolveTripletToSpec(botName, p1, p2, p3, preferredSpec)
     local key = p1 .. "-" .. p2 .. "-" .. p3
-    if DungeonBots.botSpecTriplets and DungeonBots.botSpecTriplets[botName] and DungeonBots.botSpecTriplets[botName][key] then
-        return DungeonBots.botSpecTriplets[botName][key]
+    local rawEntry = DungeonBots.botSpecTriplets and DungeonBots.botSpecTriplets[botName] and DungeonBots.botSpecTriplets[botName][key]
+    if rawEntry then
+        local candidates = {}
+        if type(rawEntry) == "string" then
+            if IsValidSpecEntry(rawEntry) then
+                table.insert(candidates, rawEntry)
+            end
+        elseif type(rawEntry) == "table" then
+            for _, s in ipairs(rawEntry) do
+                if type(s) == "string" and IsValidSpecEntry(s) then
+                    table.insert(candidates, s)
+                end
+            end
+        end
+        if #candidates == 1 then
+            return candidates[1]
+        elseif #candidates >= 2 then
+            local pref = preferredSpec
+            if not pref or pref == "" then
+                local sw = DB_Internal.pendingSpecSwitches and DB_Internal.pendingSpecSwitches[botName]
+                pref = (sw and sw.targetSpec)
+                    or (DungeonBotsDB and DungeonBotsDB.botActiveSpec and DungeonBotsDB.botActiveSpec[botName])
+            end
+            if pref and pref ~= "" then
+                local lp = string.lower(pref)
+                local np = NormalizeSpecCompareKey(pref)
+                for _, cand in ipairs(candidates) do
+                    if string.lower(cand) == lp or NormalizeSpecCompareKey(cand) == np then
+                        return cand
+                    end
+                end
+            end
+            for _, cand in ipairs(candidates) do
+                if string.find(string.lower(cand), "pve", 1, true) then
+                    return cand
+                end
+            end
+            return candidates[1]
+        end
     end
     local unit = DungeonBots:FindPartyUnitByName(botName)
     if unit then
@@ -375,6 +436,7 @@ local function ResolveTripletToSpec(botName, p1, p2, p3)
     end
     return nil
 end
+DB_Internal.ResolveTripletToSpec = ResolveTripletToSpec
 
 local function IsNonTalentWhisperLine(lowerLine, rawLine)
     if not lowerLine or lowerLine == "" then return true end
@@ -388,6 +450,11 @@ local function IsNonTalentWhisperLine(lowerLine, rawLine)
     end
     if string.find(lowerLine, "bag:", 1, true)
         and (string.find(lowerLine, "dur:", 1, true) or string.find(lowerLine, "xp:", 1, true) or string.find(lowerLine, "repair:", 1, true)) then
+        return true
+    end
+    if string.find(lowerLine, "talents usage", 1, true)
+        or string.find(lowerLine, "usage:", 1, true)
+        or string.match(lowerLine, "<[^>]+>") then
         return true
     end
     if string.match(lowerLine, "^===+.*===+$") or (rawLine and string.find(rawLine, "|Hitem:", 1, true)) then
@@ -470,18 +537,19 @@ function DB_Internal.ParseTalentWhisper(cleanSender, message)
             if directActive and not IsSpecErrorLine(lowerLine) then
                 directActive = string.gsub(directActive, "[%.!]+$", "")
                 local dt1, dt2, dt3 = string.match(directActive, "(%d+)%s*[-/]%s*(%d+)%s*[-/]%s*(%d+)")
-                local exactTripletSpec = nil
+                local hasSavedTriplet = false
                 if dt1 and dt2 and dt3 then
                     local tripletKey = dt1 .. "-" .. dt2 .. "-" .. dt3
                     DungeonBots.lastDetectedTriplet[cleanSender] = tripletKey
-                    if DungeonBots.botSpecTriplets and DungeonBots.botSpecTriplets[cleanSender] then
-                        exactTripletSpec = DungeonBots.botSpecTriplets[cleanSender][tripletKey]
-                    end
+                    hasSavedTriplet = (DungeonBots.botSpecTriplets and DungeonBots.botSpecTriplets[cleanSender] and DungeonBots.botSpecTriplets[cleanSender][tripletKey] ~= nil) and true or false
                 end
                 local candidate = ExtractSpecCandidate(directActive, isSwitchConfirmation) or DungeonBots:CleanSpecText(StripSpecNoisePrefix(directActive))
                 candidate = DungeonBots:CleanSpecText(candidate)
-                if exactTripletSpec and exactTripletSpec ~= "" and IsValidSpecEntry(exactTripletSpec) then
-                    detectedActiveSpec = DungeonBots:CanonicalizeSpec(cleanSender, exactTripletSpec)
+                if hasSavedTriplet and dt1 and dt2 and dt3 then
+                    local exactTripletSpec = ResolveTripletToSpec(cleanSender, dt1, dt2, dt3)
+                    if exactTripletSpec and exactTripletSpec ~= "" and IsValidSpecEntry(exactTripletSpec) then
+                        detectedActiveSpec = DungeonBots:CanonicalizeSpec(cleanSender, exactTripletSpec)
+                    end
                 elseif candidate and candidate ~= "" and IsValidSpecEntry(candidate) then
                     local normDirectTree = TREE_ALIASES[string.lower(candidate)]
                     if normDirectTree then
@@ -557,7 +625,7 @@ function DB_Internal.ParseTalentWhisper(cleanSender, message)
                     specName = DungeonBots:CanonicalizeSpec(cleanSender, specName)
                     if IsValidSpecEntry(specName) then
                         if t1 and t2 and t3 then
-                            DungeonBots.botSpecTriplets[cleanSender][t1 .. "-" .. t2 .. "-" .. t3] = specName
+                            AddSpecTripletMapping(cleanSender, t1 .. "-" .. t2 .. "-" .. t3, specName)
                         end
 
                         if isTrueSpecListLine then
@@ -795,6 +863,12 @@ local function HasCachedActiveSpec(botName)
     return (cached ~= nil and cached ~= "")
 end
 
+local function HasCachedTriplets(botName)
+    local t = (DungeonBots.botSpecTriplets and DungeonBots.botSpecTriplets[botName])
+        or (DungeonBotsDB and DungeonBotsDB.botSpecTriplets and DungeonBotsDB.botSpecTriplets[botName])
+    return (type(t) == "table" and next(t) ~= nil) and true or false
+end
+
 local function HasCachedSpecList(botName)
     if not (DungeonBots.botSpecListFetched and DungeonBots.botSpecListFetched[botName]) then
         return false
@@ -861,9 +935,10 @@ function DungeonBots:QueryBotLiveInfo(botName)
     if not DungeonBots:ShouldTreatAsBot(botName) then return end
 
     -- Al entrar al mundo o unirse un bot: 0 comandos si su rama ya esta guardada (/reload);
-    -- si es un bot nuevo sin rama en cache, consulta unicamente 'talents' (ligero).
+    -- si es un bot nuevo sin rama en cache, consulta tambien 'talents spec list' si faltan sus tripletes.
     if not HasCachedActiveSpec(botName) then
-        StartTalentQuery(botName, false, false, false)
+        local needList = not HasCachedTriplets(botName)
+        StartTalentQuery(botName, false, needList, false)
     end
 
     -- 'stats' y 'quests all' solo se consultan al entrar si la ventana principal esta visible.

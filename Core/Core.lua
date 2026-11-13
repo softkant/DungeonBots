@@ -31,6 +31,7 @@ local DEFAULT_CONFIG = {
     knownBots = {},
     botHistory = {},
     botSpecs = {},
+    botSpecTriplets = {},
     botActiveSpec = {},
 }
 DB_Internal.DEFAULT_CONFIG = DEFAULT_CONFIG
