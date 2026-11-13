@@ -60,7 +60,7 @@ local TACTICAL_ACTIONS = {
     {
         name = L["HUD_FLEE_NAME"],
         cmd = "flee",
-        icon = "Interface\\Icons\\Spell_Magic_LesserInvisibilty",
+        icon = "Interface\\Icons\\Spell_Magic_PolymorphChicken",
         title = L["HUD_FLEE_TITLE"],
         desc = L["HUD_FLEE_DESC"],
         color = { 1.0, 0.3, 0.3 }

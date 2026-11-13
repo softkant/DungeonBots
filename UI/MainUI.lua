@@ -2324,8 +2324,10 @@ function DungeonBots:HookEye()
         if not LFDParentFrame or LFDParentFrame.dungeonBotsBtn then return end
 
         local btn = CreateFrame("Button", "LFDParentFrame_DungeonBotsBtn", LFDParentFrame, "UIPanelButtonTemplate")
-        btn:SetSize(130, 24)
-        btn:SetPoint("TOPRIGHT", LFDParentFrame, "TOPRIGHT", -38, -42)
+        btn:SetSize(94, 20)
+        btn:SetPoint("TOPRIGHT", LFDParentFrame, "TOPRIGHT", -18, -40)
+        if btn.SetNormalFontObject then btn:SetNormalFontObject("GameFontNormalSmall") end
+        if btn.SetHighlightFontObject then btn:SetHighlightFontObject("GameFontHighlightSmall") end
         btn:SetText("DungeonBots")
         btn:SetFrameLevel(LFDParentFrame:GetFrameLevel() + 5)
 
