@@ -372,7 +372,6 @@ end
 
 local function ExecuteAttackTargetSequence()
     if CloseDropDownMenus then CloseDropDownMenus() end
-    DungeonBots:SendPartyCommand("follow")
     local secs = GetSavedSeconds("attackWaitSeconds", 0, ATTACK_WAIT_OPTIONS)
     ApplyDpsWaitStrategy(secs)
     DungeonBots:SendPartyCommand("@tank attack")
@@ -381,7 +380,6 @@ end
 
 local function ExecutePullBackSequence()
     if CloseDropDownMenus then CloseDropDownMenus() end
-    DungeonBots:SendPartyCommand("follow")
     local secs = GetSavedSeconds("pullWaitSeconds", 8, PULL_WAIT_OPTIONS)
     ApplyDpsWaitStrategy(secs)
     DungeonBots:SendPartyCommand("@tank pull back")
