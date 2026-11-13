@@ -1721,19 +1721,7 @@ local GUIDE_TOPICS = {
         note = "Despedir desde el addon desconecta al bot limpiamente y libera su cupo al instante.",
     },
     {
-        shortTitle = "6. Hechizos y Cancelar",
-        title = "Hechizos, glifos, materiales y botón Cancelar",
-        category = "COMBATE Y CONTROL",
-        icon = "Interface\\Icons\\Spell_Frost_IceShock",
-        summary = "En la pestaña |cffffd200Hechizos|r de cada bot puedes consultar sus facultades, glifos equipados, componentes necesarios y detener un lanzamiento en curso.",
-        steps = {
-            "Cuando el bot esté casteando algo, se iluminará el botón |cffffd200Cancelar|r junto a Lanzar para interrumpirlo de inmediato.",
-            "Los conjuros que consumen componentes (como runas de portales) muestran directamente qué material requieren.",
-            "Si al cambiar rápido de pestañas ves algún glifo u objeto cargando, espera un instante o pulsa |cffffd200Actualizar|r.",
-        },
-    },
-    {
-        shortTitle = "7. PNJs e Inventario",
+        shortTitle = "6. PNJs e Inventario",
         title = "Hablar con PNJs e inspeccionar Inventario",
         category = "UTILIDADES DEL ADDON",
         icon = "Interface\\Icons\\INV_Misc_Bag_08",
