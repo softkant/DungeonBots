@@ -954,6 +954,9 @@ function DungeonBots:BuildTab2(parent)
         card:SetSize(588, 72)
         card:SetPoint("TOPLEFT", cardContainer, "TOPLEFT", 6, -4 - (i - 1) * 88)
         ApplyBlizzardStonePanel(card, 0.62, 0.50, 0.28, 10, 0.28)
+        if DB_Internal.AddGoldWarmFill then
+            DB_Internal.AddGoldWarmFill(card, "ARTWORK", 0.16, 0.12, 0.078, 0.48, 3)
+        end
 
         local cIconHolder = CreateFrame("Button", "DungeonBots_BotPortraitBtn_" .. i, card, "SecureUnitButtonTemplate")
         cIconHolder:SetSize(38, 38)
