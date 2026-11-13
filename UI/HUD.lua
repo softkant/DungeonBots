@@ -9,9 +9,9 @@ local DB_Internal = DungeonBots.Internal
 local L = DungeonBots.L or {}
 local hudFrame = nil
 local utilHudFrame = nil
-local formHudFrame = nil
 local hudBotDropDown = nil
 local hudTalkBtn = nil
+local hudFormCycleBtn = nil
 local hudMenuWatcher = nil
 local hudMenuAnchorBtn = nil
 local hudMenuMouseWasDown = false
@@ -65,6 +65,23 @@ local TACTICAL_ACTIONS = {
         desc = L["HUD_FLEE_DESC"],
         color = { 1.0, 0.3, 0.3 }
     },
+    {
+        name = L["HUD_FORM_CYCLE_NAME"],
+        actionKind = "formation_cycle",
+        isFormationCycle = true,
+        icon = "Interface\\Icons\\Ability_TrueShot",
+        title = L["HUD_FORM_CYCLE_TITLE"],
+        desc = L["HUD_FORM_CYCLE_DESC"],
+        color = { 0.55, 0.55, 0.58 }
+    },
+    {
+        name = L["HUD_MOVEGRP_NAME"],
+        cmd = "move from group",
+        icon = "Interface\\Icons\\Ability_Rogue_Sprint",
+        title = L["HUD_MOVEGRP_TITLE"],
+        desc = L["HUD_MOVEGRP_DESC"],
+        color = { 0.34, 0.85, 0.55 }
+    },
 }
 
 local UTIL_ACTIONS = {
@@ -109,59 +126,6 @@ local UTIL_ACTIONS = {
         title = L["HUD_CHAR_TITLE"],
         desc = L["HUD_CHAR_DESC"],
         color = { 0.68, 0.45, 1.0 }
-    },
-}
-
-local FORMATION_ACTIONS = {
-    {
-        name = L["HUD_FORM_ARROW_NAME"],
-        cmd = "formation arrow",
-        formationId = "arrow",
-        icon = "Interface\\Icons\\Ability_TrueShot",
-        title = L["HUD_FORM_ARROW_TITLE"],
-        desc = L["HUD_FORM_ARROW_DESC"],
-        color = { 0.20, 0.85, 1.0 }
-    },
-    {
-        name = L["HUD_FORM_FAR_NAME"],
-        cmd = "formation far",
-        formationId = "far",
-        icon = "Interface\\Icons\\Ability_Hunter_EagleEye",
-        title = L["HUD_FORM_FAR_TITLE"],
-        desc = L["HUD_FORM_FAR_DESC"],
-        color = { 0.38, 0.70, 1.0 }
-    },
-    {
-        name = L["HUD_FORM_OTHER_NAME"],
-        actionKind = "formation_menu",
-        icon = "Interface\\Icons\\Ability_Hunter_HuntingParty",
-        title = L["HUD_FORM_OTHER_TITLE"],
-        desc = L["HUD_FORM_OTHER_DESC"],
-        color = { 0.95, 0.78, 0.25 }
-    },
-    {
-        name = L["HUD_DISPERSE_NAME"],
-        actionKind = "disperse_menu",
-        icon = "Interface\\Icons\\Spell_Arcane_Blink",
-        title = L["HUD_DISPERSE_TITLE"],
-        desc = L["HUD_DISPERSE_DESC"],
-        color = { 0.78, 0.45, 1.0 }
-    },
-    {
-        name = L["HUD_MOVEGRP_NAME"],
-        cmd = "move from group",
-        icon = "Interface\\Icons\\Ability_Rogue_Sprint",
-        title = L["HUD_MOVEGRP_TITLE"],
-        desc = L["HUD_MOVEGRP_DESC"],
-        color = { 0.34, 0.85, 0.55 }
-    },
-    {
-        name = L["HUD_PULLWAIT_NAME"],
-        actionKind = "pull_wait_menu",
-        icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",
-        title = L["HUD_PULLWAIT_TITLE"],
-        desc = L["HUD_PULLWAIT_DESC"],
-        color = { 1.0, 0.62, 0.15 }
     },
 }
 
@@ -300,161 +264,53 @@ local function OpenHudBotDropdown(anchorBtn, headerTitle, emptyWarnMsg, onSelect
 end
 DB_Internal.OpenPartyBotDropdown = OpenHudBotDropdown
 
-local function AddHudMenuTitle(level, titleText)
-    local info = UIDropDownMenu_CreateInfo()
-    info.text = titleText
-    info.isTitle = true
-    info.notCheckable = true
-    UIDropDownMenu_AddButton(info, level)
+local function GetFormationCycleState()
+    local active = (DungeonBotsDB and DungeonBotsDB.activeFormation) or "chaos"
+    if active == "arrow" then
+        return "arrow", L["HUD_FORM_LBL_ARROW"], { 0.20, 0.85, 1.0 }
+    elseif active == "near" then
+        return "near", L["HUD_FORM_LBL_NEAR"], { 1.0, 0.82, 0.20 }
+    end
+    return "chaos", L["HUD_FORM_LBL_CHAOS"], { 0.55, 0.55, 0.58 }
 end
 
-local function AddHudMenuAction(level, text, checked, onClickFn)
-    local info = UIDropDownMenu_CreateInfo()
-    info.text = text
-    if checked == nil then
-        info.notCheckable = true
+local function UpdateFormationCycleButtonVisual()
+    if not hudFormCycleBtn then return end
+    local _, _, color = GetFormationCycleState()
+    hudFormCycleBtn:SetBackdropBorderColor(color[1], color[2], color[3], 0.90)
+end
+
+local function CycleFormationMode()
+    local curId = GetFormationCycleState()
+    local nextId
+    if curId == "arrow" then
+        nextId = "near"
+    elseif curId == "near" then
+        nextId = "chaos"
     else
-        info.checked = checked and true or false
+        nextId = "arrow"
     end
-    info.func = function()
-        if CloseDropDownMenus then CloseDropDownMenus() end
-        onClickFn()
-    end
-    UIDropDownMenu_AddButton(info, level)
-end
-
-local function ApplyFormationCommand(formationId, labelText)
     if DungeonBotsDB then
-        DungeonBotsDB.activeFormation = formationId
+        DungeonBotsDB.activeFormation = nextId
     end
-    DungeonBots:SendPartyCommand("formation " .. formationId)
-    DungeonBots:Print(string.format(L["HUD_MSG_FORMATION"], (labelText or formationId)))
+    DungeonBots:SendPartyCommand("formation " .. nextId)
+    local _, labelText = GetFormationCycleState()
+    DungeonBots:Print(string.format(L["HUD_MSG_FORMATION"], labelText))
+    UpdateFormationCycleButtonVisual()
 end
 
-local function ApplyDisperseSetting(yards)
-    if yards and yards > 0 then
-        if DungeonBotsDB then DungeonBotsDB.activeDisperse = yards end
-        DungeonBots:SendPartyCommand("disperse set " .. yards)
-        DungeonBots:Print(string.format(L["HUD_MSG_DISPERSE_ON"], tostring(yards)))
-    else
-        if DungeonBotsDB then DungeonBotsDB.activeDisperse = 0 end
-        DungeonBots:SendPartyCommand("disperse disable")
-        DungeonBots:Print(L["HUD_MSG_DISPERSE_OFF"])
+local function ShowHudButtonTooltip(btn, action)
+    GameTooltip:SetOwner(btn, "ANCHOR_TOP")
+    GameTooltip:AddLine(action.title, 1, 1, 1)
+    GameTooltip:AddLine(action.desc, 0.85, 0.85, 0.85, true)
+    if action.isFormationCycle then
+        local _, labelText = GetFormationCycleState()
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(string.format(L["HUD_FORM_CUR_FMT"], labelText), 1, 1, 1)
+    elseif action.isTalkPicker and DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
+        GameTooltip:AddLine(L["HUD_NOTE_VALID_NPC"], 1.0, 0.72, 0.25, true)
     end
-end
-
-local function ApplyWaitForAttackSeconds(seconds)
-    local secs = tonumber(seconds) or 0
-    if DungeonBotsDB then DungeonBotsDB.waitAttackSeconds = secs end
-    if secs > 0 then
-        DungeonBots:SendPartyCommand("co +wait for attack")
-        DungeonBots:SendPartyCommand("wait for attack time " .. secs)
-        DungeonBots:Print(string.format(L["HUD_MSG_WAIT_ON"], tostring(secs)))
-    else
-        DungeonBots:SendPartyCommand("wait for attack time 0")
-        DungeonBots:SendPartyCommand("co -wait for attack")
-        DungeonBots:Print(L["HUD_MSG_WAIT_OFF"])
-    end
-end
-
-local function HandleFormationActionClick(anchorBtn, action)
-    if action.cmd then
-        if CloseDropDownMenus then CloseDropDownMenus() end
-        if action.formationId then
-            ApplyFormationCommand(action.formationId, action.formationId)
-        else
-            DungeonBots:SendPartyCommand(action.cmd)
-            if action.cmd == "move from group" then
-                DungeonBots:Print(L["HUD_MSG_SPREAD_SENT"])
-            end
-        end
-        return
-    end
-
-    if action.actionKind == "formation_menu" then
-        local activeForm = (DungeonBotsDB and DungeonBotsDB.activeFormation) or "chaos"
-        local combatForm = (DungeonBotsDB and DungeonBotsDB.combatFormationActive) and true or false
-        OpenAnchoredHudMenu(anchorBtn, function(_, level)
-            AddHudMenuTitle(level, L["HUD_MENU_FORMATIONS"])
-            local list = {
-                { id = "chaos",  label = L["HUD_FORM_CHAOS"] },
-                { id = "shield", label = L["HUD_FORM_SHIELD"] },
-                { id = "circle", label = L["HUD_FORM_CIRCLE"] },
-                { id = "near",   label = L["HUD_FORM_NEAR"] },
-                { id = "line",   label = L["HUD_FORM_LINE"] },
-                { id = "queue",  label = L["HUD_FORM_QUEUE"] },
-                { id = "melee",  label = L["HUD_FORM_MELEE"] },
-            }
-            for _, f in ipairs(list) do
-                AddHudMenuAction(level, f.label, activeForm == f.id, function()
-                    ApplyFormationCommand(f.id, f.label)
-                end)
-            end
-            AddHudMenuTitle(level, L["HUD_MENU_COMBAT_MAP"])
-            AddHudMenuAction(level, L["HUD_KEEP_COMBAT_FORM"], combatForm, function()
-                local nextVal = not combatForm
-                if DungeonBotsDB then DungeonBotsDB.combatFormationActive = nextVal end
-                DungeonBots:SendPartyCommand(nextVal and "co +combat formation" or "co -combat formation")
-                DungeonBots:Print(L["HUD_MSG_COMBAT_FORM"] .. " " .. (nextVal and L["STATE_ENABLED_GREEN"] or L["STATE_DISABLED_AMBER"]))
-            end)
-            AddHudMenuAction(level, L["HUD_SHOW_MAP_POINTS"], nil, function()
-                DungeonBots:SendPartyCommand("formation show")
-            end)
-            AddHudMenuAction(level, L["HUD_QUERY_FORM"], nil, function()
-                DungeonBots:SendPartyCommand("formation ?")
-            end)
-        end)
-    elseif action.actionKind == "disperse_menu" then
-        local activeDisp = (DungeonBotsDB and DungeonBotsDB.activeDisperse) or 0
-        OpenAnchoredHudMenu(anchorBtn, function(_, level)
-            AddHudMenuTitle(level, L["HUD_MENU_DISPERSE"])
-            AddHudMenuAction(level, L["HUD_DISP_8"], activeDisp == 8, function()
-                ApplyDisperseSetting(8)
-            end)
-            AddHudMenuAction(level, L["HUD_DISP_12"], activeDisp == 12, function()
-                ApplyDisperseSetting(12)
-            end)
-            AddHudMenuAction(level, L["HUD_DISP_18"], activeDisp == 18, function()
-                ApplyDisperseSetting(18)
-            end)
-            AddHudMenuAction(level, L["HUD_DISP_OFF"], activeDisp == 0, function()
-                ApplyDisperseSetting(0)
-            end)
-        end)
-    elseif action.actionKind == "pull_wait_menu" then
-        local curWait = (DungeonBotsDB and DungeonBotsDB.waitAttackSeconds) or 0
-        local isPassive = (DungeonBotsDB and DungeonBotsDB.passiveModeActive) and true or false
-        OpenAnchoredHudMenu(anchorBtn, function(_, level)
-            AddHudMenuTitle(level, L["HUD_MENU_WAIT"])
-            AddHudMenuAction(level, L["HUD_WAIT_3"], curWait == 3, function()
-                ApplyWaitForAttackSeconds(3)
-            end)
-            AddHudMenuAction(level, L["HUD_WAIT_5"], curWait == 5, function()
-                ApplyWaitForAttackSeconds(5)
-            end)
-            AddHudMenuAction(level, L["HUD_WAIT_8"], curWait == 8, function()
-                ApplyWaitForAttackSeconds(8)
-            end)
-            AddHudMenuAction(level, L["HUD_WAIT_0"], curWait == 0, function()
-                ApplyWaitForAttackSeconds(0)
-            end)
-            AddHudMenuTitle(level, L["HUD_MENU_PULL_PASSIVE"])
-            AddHudMenuAction(level, L["HUD_PULL_BACK"], nil, function()
-                DungeonBots:SendPartyCommand("pull back")
-                DungeonBots:Print(L["HUD_MSG_PULL_BACK"])
-            end)
-            AddHudMenuAction(level, L["HUD_TANK_ATTACK"], nil, function()
-                DungeonBots:SendPartyCommand("tank attack")
-                DungeonBots:Print(L["HUD_MSG_TANK_ATTACK"])
-            end)
-            AddHudMenuAction(level, L["HUD_PASSIVE_MODE"], isPassive, function()
-                local nextPassive = not isPassive
-                if DungeonBotsDB then DungeonBotsDB.passiveModeActive = nextPassive end
-                DungeonBots:SendPartyCommand(nextPassive and "co +passive" or "co -passive")
-                DungeonBots:Print(L["HUD_MSG_PASSIVE_MODE"] .. " " .. (nextPassive and L["HUD_PASSIVE_ON"] or L["HUD_PASSIVE_OFF"]))
-            end)
-        end)
-    end
+    GameTooltip:Show()
 end
 
 local function HandleHudTalkClick(anchorBtn)
@@ -569,7 +425,6 @@ function DungeonBots:UpdateHUDVisibility()
     if ApplyBarVisibility(utilHudFrame, "utilHudVisible") then
         DungeonBots:UpdateHUDTalkButtonState()
     end
-    ApplyBarVisibility(formHudFrame, "formHudVisible")
 end
 
 function DungeonBots:IsHUDLocked()
@@ -581,7 +436,6 @@ function DungeonBots:SetHUDLocked(locked, silent)
     if DungeonBotsDB then
         DungeonBotsDB.hudLocked = isLocked
         DungeonBotsDB.utilHudLocked = isLocked
-        DungeonBotsDB.formHudLocked = isLocked
     end
     if DungeonBots.UpdateHUDLockButtonState then
         DungeonBots:UpdateHUDLockButtonState()
@@ -691,6 +545,9 @@ local function CreateFloatingToolbar(cfg)
         btn.actionDef = action
         if action.isTalkPicker then
             hudTalkBtn = btn
+        elseif action.isFormationCycle then
+            hudFormCycleBtn = btn
+            UpdateFormationCycleButtonVisual()
         end
 
         btn:SetScript("OnClick", function(self)
@@ -700,16 +557,13 @@ local function CreateFloatingToolbar(cfg)
             end
             PlaySound("igMainMenuOptionCheckBoxOn")
             cfg.onActionClick(self, action)
+            if action.isFormationCycle and GameTooltip and GameTooltip:IsShown() and GameTooltip:GetOwner() == self then
+                ShowHudButtonTooltip(self, action)
+            end
         end)
 
         btn:SetScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:AddLine(action.title, 1, 1, 1)
-            GameTooltip:AddLine(action.desc, 0.85, 0.85, 0.85, true)
-            if action.isTalkPicker and DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
-                GameTooltip:AddLine(L["HUD_NOTE_VALID_NPC"], 1.0, 0.72, 0.25, true)
-            end
-            GameTooltip:Show()
+            ShowHudButtonTooltip(self, action)
         end)
         btn:SetScript("OnLeave", function()
             GameTooltip:Hide()
@@ -750,7 +604,6 @@ function DungeonBots:InitHUD()
         local locked = DungeonBots:IsHUDLocked()
         DungeonBotsDB.hudLocked = locked
         DungeonBotsDB.utilHudLocked = locked
-        DungeonBotsDB.formHudLocked = locked
     end
 
     if not hudFrame then
@@ -762,7 +615,14 @@ function DungeonBots:InitHUD()
             btnPrefix = "DungeonBots_HUDExtBtn_",
             showMainPanelBtn = false,
             onActionClick = function(_, action)
+                if action.actionKind == "formation_cycle" then
+                    CycleFormationMode()
+                    return
+                end
                 DungeonBots:SendPartyCommand(action.cmd)
+                if action.cmd == "move from group" then
+                    DungeonBots:Print(L["HUD_MSG_SPREAD_SENT"])
+                end
             end,
         })
         DungeonBots.hudFrame = hudFrame
@@ -783,21 +643,7 @@ function DungeonBots:InitHUD()
         DungeonBots.utilHudFrame = utilHudFrame
     end
 
-    if not formHudFrame then
-        formHudFrame = CreateFloatingToolbar({
-            frameName = "DungeonBots_FormHUDFrame",
-            posKey = "formHudPosition",
-            defaultPos = { point = "BOTTOM", x = 0, y = 248 },
-            actions = FORMATION_ACTIONS,
-            btnPrefix = "DungeonBots_FormExtBtn_",
-            showMainPanelBtn = false,
-            onActionClick = function(btn, action)
-                HandleFormationActionClick(btn, action)
-            end,
-        })
-        DungeonBots.formHudFrame = formHudFrame
-    end
-
+    UpdateFormationCycleButtonVisual()
     DungeonBots:UpdateHUDTalkButtonState()
     DungeonBots:UpdateHUDVisibility()
     if DungeonBots.UpdateHUDLockButtonState then
@@ -809,7 +655,6 @@ function DungeonBots:ResetHUDPositions()
     if not DungeonBotsDB then return end
     DungeonBotsDB.hudPosition = { point = "BOTTOM", x = 0, y = 140 }
     DungeonBotsDB.utilHudPosition = { point = "BOTTOM", x = 0, y = 194 }
-    DungeonBotsDB.formHudPosition = { point = "BOTTOM", x = 0, y = 248 }
     if hudFrame then
         hudFrame:ClearAllPoints()
         hudFrame:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 140)
@@ -817,10 +662,6 @@ function DungeonBots:ResetHUDPositions()
     if utilHudFrame then
         utilHudFrame:ClearAllPoints()
         utilHudFrame:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 194)
-    end
-    if formHudFrame then
-        formHudFrame:ClearAllPoints()
-        formHudFrame:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 248)
     end
 end
 

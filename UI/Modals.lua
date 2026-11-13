@@ -52,15 +52,13 @@ function DungeonBots:UpdateSettingsDialog()
 
     local hudShow = (not DungeonBotsDB) or (DungeonBotsDB.hudVisible ~= false)
     local utilHudShow = (not DungeonBotsDB) or (DungeonBotsDB.utilHudVisible ~= false)
-    local formHudShow = (not DungeonBotsDB) or (DungeonBotsDB.formHudVisible ~= false)
-    local anyBarShow = hudShow or utilHudShow or formHudShow
+    local anyBarShow = hudShow or utilHudShow
     local hudDungeonOnly = (not DungeonBotsDB) or (DungeonBotsDB.hudOnlyInDungeon ~= false)
     local muteShow = (not DungeonBotsDB) or (DungeonBotsDB.whisperMuteMode ~= "off")
     local muteGroup = (DungeonBotsDB and DungeonBotsDB.muteBotGroupChat) and true or false
 
     sf.hudVisibleCheck:SetChecked(hudShow)
     sf.utilHudVisibleCheck:SetChecked(utilHudShow)
-    sf.formHudVisibleCheck:SetChecked(formHudShow)
     sf.hudDungeonCheck:SetChecked(hudDungeonOnly)
     sf.muteWhispersCheck:SetChecked(muteShow)
     sf.muteGroupCheck:SetChecked(muteGroup)
@@ -71,7 +69,7 @@ function DungeonBots:UpdateSettingsDialog()
         sf.muteWhispersCheck:SetPoint("TOPLEFT", sf.hudDungeonCheck, "BOTTOMLEFT", -18, -10)
     else
         sf.hudDungeonCheck:Hide()
-        sf.muteWhispersCheck:SetPoint("TOPLEFT", sf.formHudVisibleCheck, "BOTTOMLEFT", 0, -10)
+        sf.muteWhispersCheck:SetPoint("TOPLEFT", sf.utilHudVisibleCheck, "BOTTOMLEFT", 0, -10)
     end
 
     sf.themeLabel:ClearAllPoints()
@@ -101,7 +99,7 @@ function DungeonBots:UpdateSettingsDialog()
         StyleThemeChoice(sf.themeGoldBtn, curTheme == "gold", L["THEME_GOLD_LABEL"])
     end
 
-    local totalH = 258 + (anyBarShow and 26 or 0) + (muteShow and 26 or 0)
+    local totalH = 232 + (anyBarShow and 26 or 0) + (muteShow and 26 or 0)
     sf:SetHeight(totalH)
 end
 
@@ -168,16 +166,6 @@ function DungeonBots:BuildSettingsDialog()
     utilHudVisibleCheck:SetPoint("TOPLEFT", hudVisibleCheck, "BOTTOMLEFT", 0, -2)
     sf.utilHudVisibleCheck = utilHudVisibleCheck
 
-    -- Opción 1a2: Mostrar/Ocultar Barra de Formación
-    local formHudVisibleCheck = CreateSettingsCheckbox(
-        sf, "DungeonBots_FormHudVisibleCheck",
-        L["SET_SHOW_FORM_LABEL"],
-        L["SET_SHOW_FORM_TITLE"],
-        L["SET_SHOW_FORM_DESC"]
-    )
-    formHudVisibleCheck:SetPoint("TOPLEFT", utilHudVisibleCheck, "BOTTOMLEFT", 0, -2)
-    sf.formHudVisibleCheck = formHudVisibleCheck
-
     -- Opción 1b (dependiente): Solo en mazmorras de 5 jugadores
     local hudDungeonCheck = CreateSettingsCheckbox(
         sf, "DungeonBots_HudDungeonCheck",
@@ -185,7 +173,7 @@ function DungeonBots:BuildSettingsDialog()
         L["SET_DUNGEON_ONLY_TTL"],
         L["SET_DUNGEON_ONLY_DSC"]
     )
-    hudDungeonCheck:SetPoint("TOPLEFT", formHudVisibleCheck, "BOTTOMLEFT", 18, -2)
+    hudDungeonCheck:SetPoint("TOPLEFT", utilHudVisibleCheck, "BOTTOMLEFT", 18, -2)
     sf.hudDungeonCheck = hudDungeonCheck
 
     -- Opción 2: Ocultar susurros de bots
@@ -224,7 +212,6 @@ function DungeonBots:BuildSettingsDialog()
 
     BindBarVisibilityToggle(hudVisibleCheck, "hudVisible", "hudFrame", L["SET_BAR_HUD"])
     BindBarVisibilityToggle(utilHudVisibleCheck, "utilHudVisible", "utilHudFrame", L["SET_BAR_UTIL"])
-    BindBarVisibilityToggle(formHudVisibleCheck, "formHudVisible", "formHudFrame", L["SET_BAR_FORM"])
 
     hudDungeonCheck:SetScript("OnClick", function(self)
         local val = self:GetChecked() and true or false
