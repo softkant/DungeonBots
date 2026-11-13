@@ -613,6 +613,17 @@ function DungeonBots:BuildTab1(parent)
     local spacingX = 7
     local spacingY = 7
 
+    -- Subtle warm fill for class slots in Gold theme without altering dark/global panels
+    local function StyleClassSlotBg(tex)
+        local themeId = DB_Internal.GetThemeId and DB_Internal.GetThemeId()
+        if themeId == "gold" then
+            tex:SetTexture(0.15, 0.115, 0.075, 0.72)
+            tex:Show()
+        else
+            tex:Hide()
+        end
+    end
+
     for i, cls in ipairs(DungeonBots.CLASSES) do
         local col = ((i - 1) % 5)
         local row = math.floor((i - 1) / 5)
@@ -622,6 +633,14 @@ function DungeonBots:BuildTab1(parent)
         cBtn:SetSize(btnW, btnH)
         cBtn:SetPoint("TOPLEFT", classBox, "TOPLEFT", 10 + col * (btnW + spacingX), -32 - row * (btnH + spacingY))
         ApplyInsetPanelBackdrop(cBtn, 8)
+
+        local cSlotBg = cBtn:CreateTexture(nil, "BORDER")
+        cSlotBg:SetPoint("TOPLEFT", cBtn, "TOPLEFT", 3, -3)
+        cSlotBg:SetPoint("BOTTOMRIGHT", cBtn, "BOTTOMRIGHT", -3, 3)
+        StyleClassSlotBg(cSlotBg)
+        if DB_Internal.RegisterThemed then
+            DB_Internal.RegisterThemed(cSlotBg, StyleClassSlotBg)
+        end
 
         local cIcon = cBtn:CreateTexture(nil, "ARTWORK")
         cIcon:SetSize(32, 32)
