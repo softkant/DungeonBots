@@ -212,12 +212,11 @@ function DungeonBots:BuildQuestDialog()
     emptyLabel:SetText("Este bot no tiene misiones activas.")
     qf.emptyLabel = emptyLabel
 
-    -- Panel de Comprobación de Mazmorras (Foso de Saron y Cámaras de Reflexión)
+    -- Contenedor de Comprobación de Mazmorras (Foso de Saron y Cámaras de Reflexión)
     local checkPanel = CreateFrame("Frame", "DungeonBots_QuestDungeonCheckPanel", qf)
-    checkPanel:SetPoint("BOTTOMLEFT", qf, "BOTTOMLEFT", 10, 38)
-    checkPanel:SetPoint("BOTTOMRIGHT", qf, "BOTTOMRIGHT", -10, 38)
-    checkPanel:SetHeight(52)
-    ApplyBlizzardStonePanel(checkPanel, 0.62, 0.50, 0.28, 8, 0.26)
+    checkPanel:SetPoint("BOTTOMLEFT", qf, "BOTTOMLEFT", 10, 40)
+    checkPanel:SetPoint("BOTTOMRIGHT", qf, "BOTTOMRIGHT", -10, 40)
+    checkPanel:SetHeight(48)
     DungeonBots.dungeonCheckPanel = checkPanel
 
     DungeonBots.dungeonButtons = {}
@@ -225,7 +224,7 @@ function DungeonBots:BuildQuestDialog()
         {
             key = "foso",
             name = "Foso de Saron",
-            shortName = "1. Foso de Saron",
+            shortName = "Foso de Saron",
             icon = "Interface\\Icons\\achievement_dungeon_icecrown_pitofsaron",
             keywords = { "saron", "foso", "pit of saron" },
             excludeKeywords = { "forja", "forge", "reflex", "reflection" },
@@ -235,7 +234,7 @@ function DungeonBots:BuildQuestDialog()
         {
             key = "camaras",
             name = "Cámaras de Reflexión",
-            shortName = "2. Cámaras de Reflexión",
+            shortName = "Cámaras de Reflexión",
             icon = "Interface\\Icons\\achievement_dungeon_icecrown_hallsofreflection",
             keywords = { "reflexi", "reflection" },
             excludeKeywords = { "forja", "forge", "saron", "foso" },
@@ -247,11 +246,11 @@ function DungeonBots:BuildQuestDialog()
     local prevDungeonBtn = nil
     for _, def in ipairs(frozenHallsData) do
         local btn = CreateFrame("Button", "DungeonBots_QuestDungeonBtn_" .. def.key, checkPanel)
-        btn:SetSize(256, 44)
+        btn:SetSize(256, 46)
         if prevDungeonBtn then
-            btn:SetPoint("RIGHT", checkPanel, "RIGHT", -3, 0)
+            btn:SetPoint("RIGHT", checkPanel, "RIGHT", 0, 0)
         else
-            btn:SetPoint("LEFT", checkPanel, "LEFT", 3, 0)
+            btn:SetPoint("LEFT", checkPanel, "LEFT", 0, 0)
         end
         ApplyInsetPanelBackdrop(btn, 8)
         if DB_Internal.AddGoldWarmFill then

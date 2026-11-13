@@ -1300,7 +1300,7 @@ local FROZEN_HALLS_DATA = {
     {
         key = "foso",
         name = "Foso de Saron",
-        shortName = "1. Foso de Saron",
+        shortName = "Foso de Saron",
         icon = "Interface\\Icons\\achievement_dungeon_icecrown_pitofsaron",
         keywords = { "saron", "foso", "pit of saron" },
         excludeKeywords = { "forja", "forge", "reflex", "reflection" },
@@ -1312,7 +1312,7 @@ local FROZEN_HALLS_DATA = {
     {
         key = "camaras",
         name = "Cámaras de Reflexión",
-        shortName = "2. Cámaras de Reflexión",
+        shortName = "Cámaras de Reflexión",
         icon = "Interface\\Icons\\achievement_dungeon_icecrown_hallsofreflection",
         keywords = { "reflexi", "reflection" },
         excludeKeywords = { "forja", "forge", "saron", "foso" },
