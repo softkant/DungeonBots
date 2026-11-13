@@ -44,7 +44,7 @@ local TACTICAL_ACTIONS = {
     },
     {
         name = L["HUD_STAY_NAME"],
-        cmd = "stay",
+        cmds = { "reset", "stay" },
         icon = "Interface\\Icons\\Spell_Nature_TimeStop",
         title = L["HUD_STAY_TITLE"],
         desc = L["HUD_STAY_DESC"],
@@ -372,6 +372,7 @@ end
 
 local function ExecuteAttackTargetSequence()
     if CloseDropDownMenus then CloseDropDownMenus() end
+    DungeonBots:SendPartyCommand("reset")
     local secs = GetSavedSeconds("attackWaitSeconds", 0, ATTACK_WAIT_OPTIONS)
     ApplyDpsWaitStrategy(secs)
     DungeonBots:SendPartyCommand("@tank attack")
@@ -380,6 +381,7 @@ end
 
 local function ExecutePullBackSequence()
     if CloseDropDownMenus then CloseDropDownMenus() end
+    DungeonBots:SendPartyCommand("reset")
     local secs = GetSavedSeconds("pullWaitSeconds", 8, PULL_WAIT_OPTIONS)
     ApplyDpsWaitStrategy(secs)
     DungeonBots:SendPartyCommand("@tank pull back")
