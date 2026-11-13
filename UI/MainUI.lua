@@ -549,12 +549,32 @@ local function AddPanelDivider(panel, yOffset)
 end
 
 function DungeonBots:BuildTab1(parent)
+    local function StyleGoldWarmFill(tex)
+        local themeId = DB_Internal.GetThemeId and DB_Internal.GetThemeId()
+        local c = tex._dbGoldFill
+        if themeId == "gold" and c then
+            tex:SetTexture(c[1], c[2], c[3], c[4])
+            tex:Show()
+        else
+            tex:Hide()
+        end
+    end
+
     -- Caja 1: Acceso al Historial de bots (tira compacta clásica)
     local historyBox = CreateFrame("Frame", nil, parent)
     historyBox:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -2)
     historyBox:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -2)
     historyBox:SetHeight(52)
     ApplyBlizzardStonePanel(historyBox, 0.66, 0.54, 0.30, 12, 0.28)
+
+    local histWarmFill = historyBox:CreateTexture(nil, "ARTWORK")
+    histWarmFill:SetPoint("TOPLEFT", historyBox, "TOPLEFT", 3, -3)
+    histWarmFill:SetPoint("BOTTOMRIGHT", historyBox, "BOTTOMRIGHT", -3, 3)
+    histWarmFill._dbGoldFill = { 0.16, 0.12, 0.078, 0.48 }
+    StyleGoldWarmFill(histWarmFill)
+    if DB_Internal.RegisterThemed then
+        DB_Internal.RegisterThemed(histWarmFill, StyleGoldWarmFill)
+    end
 
     local histIconFrame = CreateFrame("Frame", nil, historyBox)
     histIconFrame:SetSize(28, 28)
@@ -613,17 +633,6 @@ function DungeonBots:BuildTab1(parent)
     local spacingX = 7
     local spacingY = 7
 
-    -- Subtle warm fill for class slots in Gold theme without altering dark/global panels
-    local function StyleClassSlotBg(tex)
-        local themeId = DB_Internal.GetThemeId and DB_Internal.GetThemeId()
-        if themeId == "gold" then
-            tex:SetTexture(0.15, 0.115, 0.075, 0.72)
-            tex:Show()
-        else
-            tex:Hide()
-        end
-    end
-
     for i, cls in ipairs(DungeonBots.CLASSES) do
         local col = ((i - 1) % 5)
         local row = math.floor((i - 1) / 5)
@@ -637,9 +646,10 @@ function DungeonBots:BuildTab1(parent)
         local cSlotBg = cBtn:CreateTexture(nil, "BORDER")
         cSlotBg:SetPoint("TOPLEFT", cBtn, "TOPLEFT", 3, -3)
         cSlotBg:SetPoint("BOTTOMRIGHT", cBtn, "BOTTOMRIGHT", -3, 3)
-        StyleClassSlotBg(cSlotBg)
+        cSlotBg._dbGoldFill = { 0.15, 0.115, 0.075, 0.72 }
+        StyleGoldWarmFill(cSlotBg)
         if DB_Internal.RegisterThemed then
-            DB_Internal.RegisterThemed(cSlotBg, StyleClassSlotBg)
+            DB_Internal.RegisterThemed(cSlotBg, StyleGoldWarmFill)
         end
 
         local cIcon = cBtn:CreateTexture(nil, "ARTWORK")
