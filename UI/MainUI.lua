@@ -1725,11 +1725,11 @@ local GUIDE_TOPICS = {
         title = "Hablar con PNJs e inspeccionar Inventario",
         category = "UTILIDADES DEL ADDON",
         icon = "Interface\\Icons\\INV_Misc_Bag_08",
-        summary = "El addon centraliza los diálogos con PNJs y la gestión de bolsas/equipo de tus bots ocultando los susurros automáticos del chat.",
+        summary = "El addon centraliza los diálogos con PNJs y la gestión de bolsas de tus bots ocultando los susurros automáticos del chat.",
         steps = {
             "Lleva al bot junto al PNJ con |cffffd200Follow|r o |cffffd200Summon|r y pulsa |cffffd200Hablar|r desde la barra HUD o desde Misiones.",
             "Desde el diálogo del PNJ puedes interactuar y aceptar o entregar misiones del bot con un clic.",
-            "En |cffffd200Inventario|r revisas equipamiento, bolsas, oro y durabilidad sin escribir comandos manuales.",
+            "En |cffffd200Inventario|r revisas los objetos en sus bolsas, el espacio disponible y puedes destruir algún ítem si necesitas liberar sitio.",
         },
     },
 }
