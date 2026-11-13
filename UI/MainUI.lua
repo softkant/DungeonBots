@@ -556,7 +556,7 @@ function DungeonBots:BuildTab1(parent)
     historyBox:SetHeight(52)
     ApplyBlizzardStonePanel(historyBox, 0.66, 0.54, 0.30, 12, 0.28)
     if DB_Internal.AddGoldWarmFill then
-        DB_Internal.AddGoldWarmFill(historyBox, "ARTWORK", 0.16, 0.12, 0.078, 0.48, 3)
+        DB_Internal.AddGoldWarmFill(historyBox, "ARTWORK", "warmFillPanel")
     end
 
     local histIconFrame = CreateFrame("Frame", nil, historyBox)
@@ -579,7 +579,7 @@ function DungeonBots:BuildTab1(parent)
     historySummary:SetText("Lista de bots invitados anteriormente: |cffffd2000|r")
     DungeonBots.historySummaryLabel = historySummary
 
-    local viewHistoryBtn = CreateRedIconButton(historyBox, 136, 26, "Ver Historial de bots", "Interface\\Icons\\INV_Misc_Note_01")
+    local viewHistoryBtn = CreateRedIconButton(historyBox, 136, 26, "Ver Historial bots", "Interface\\Icons\\INV_Misc_Note_01")
     viewHistoryBtn:SetPoint("RIGHT", historyBox, "RIGHT", -10, 0)
     if viewHistoryBtn.icon and viewHistoryBtn.text then
         viewHistoryBtn.icon:ClearAllPoints()
@@ -633,7 +633,7 @@ function DungeonBots:BuildTab1(parent)
         cBtn:SetPoint("TOPLEFT", classBox, "TOPLEFT", 10 + col * (btnW + spacingX), -32 - row * (btnH + spacingY))
         ApplyInsetPanelBackdrop(cBtn, 8)
         if DB_Internal.AddGoldWarmFill then
-            DB_Internal.AddGoldWarmFill(cBtn, "BORDER", 0.15, 0.115, 0.075, 0.72, 3)
+            DB_Internal.AddGoldWarmFill(cBtn, "BORDER", "warmFillSlot")
         end
 
         local cIcon = cBtn:CreateTexture(nil, "ARTWORK")
@@ -688,7 +688,7 @@ function DungeonBots:BuildTab1(parent)
     actionBox:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -6, 4)
     ApplyBlizzardStonePanel(actionBox, 0.66, 0.54, 0.30, 12, 0.28)
     if DB_Internal.AddGoldWarmFill then
-        DB_Internal.AddGoldWarmFill(actionBox, "ARTWORK", 0.16, 0.12, 0.078, 0.48, 3)
+        DB_Internal.AddGoldWarmFill(actionBox, "ARTWORK", "warmFillPanel")
     end
 
     local actionTitle = actionBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -962,7 +962,7 @@ function DungeonBots:BuildTab2(parent)
         card:SetPoint("TOPLEFT", cardContainer, "TOPLEFT", 6, -4 - (i - 1) * 88)
         ApplyBlizzardStonePanel(card, 0.62, 0.50, 0.28, 10, 0.28)
         if DB_Internal.AddGoldWarmFill then
-            DB_Internal.AddGoldWarmFill(card, "ARTWORK", 0.16, 0.12, 0.078, 0.48, 3)
+            DB_Internal.AddGoldWarmFill(card, "ARTWORK", "warmFillPanel")
         end
 
         local cIconHolder = CreateFrame("Button", "DungeonBots_BotPortraitBtn_" .. i, card, "SecureUnitButtonTemplate")

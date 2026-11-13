@@ -60,6 +60,9 @@ local THEME_PALETTES = {
         guideNoteBorder = { 0.70, 0.56, 0.28, 0.85 },
         guideNoteText = { 0.88, 0.84, 0.74 },
         guidePageText = { 0.82, 0.72, 0.48 },
+        warmFillPanel = { 0.16, 0.12, 0.078, 0.48 },
+        warmFillSlot = { 0.15, 0.115, 0.075, 0.72 },
+        warmFillActive = { 0.24, 0.18, 0.09, 0.80 },
     },
     dark = {
         id = "dark",
@@ -113,6 +116,9 @@ local THEME_PALETTES = {
         guideNoteBorder = { 0.36, 0.52, 0.74, 0.85 },
         guideNoteText = { 0.80, 0.87, 0.96 },
         guidePageText = { 0.65, 0.76, 0.90 },
+        warmFillPanel = { 0.085, 0.115, 0.175, 0.50 },
+        warmFillSlot = { 0.085, 0.115, 0.175, 0.72 },
+        warmFillActive = { 0.12, 0.23, 0.36, 0.82 },
     },
 }
 
@@ -242,8 +248,14 @@ end
 DB_Internal.ApplyInsetPanelBackdrop = ApplyInsetPanelBackdrop
 
 local function ApplyGoldWarmFill(tex)
-    local c = tex and tex._dbGoldFill
-    if GetThemeId() == "gold" and c then
+    local c
+    if tex and tex._dbFillKey then
+        local p = GetThemePalette()
+        c = p and p[tex._dbFillKey]
+    elseif tex and GetThemeId() == "gold" then
+        c = tex._dbGoldFill
+    end
+    if c then
         tex:SetTexture(c[1], c[2], c[3], c[4])
         tex:Show()
     else
@@ -252,12 +264,17 @@ local function ApplyGoldWarmFill(tex)
 end
 DB_Internal.ApplyGoldWarmFill = ApplyGoldWarmFill
 
-local function AddGoldWarmFill(frame, layer, r, g, b, a, pad)
-    local p = pad or 3
+local function AddGoldWarmFill(frame, layer, rOrKey, g, b, a, pad)
+    local isKey = (type(rOrKey) == "string")
+    local p = isKey and (g or 3) or (pad or 3)
     local tex = frame:CreateTexture(nil, layer or "BORDER")
     tex:SetPoint("TOPLEFT", frame, "TOPLEFT", p, -p)
     tex:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -p, p)
-    tex._dbGoldFill = { r, g, b, a }
+    if isKey then
+        tex._dbFillKey = rOrKey
+    else
+        tex._dbGoldFill = { rOrKey, g, b, a }
+    end
     ApplyGoldWarmFill(tex)
     RegisterThemed(tex, ApplyGoldWarmFill)
     return tex
