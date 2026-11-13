@@ -449,6 +449,19 @@ local function SafeShowLinkTooltip(owner, linkRef, displayLink, title, rawLine)
     if linkRef and linkRef ~= "" and SetItemRef then
         local ok = pcall(SetItemRef, linkRef, shownDisplay or title or linkRef, "LeftButton")
         if ok and ItemRefTooltip and ItemRefTooltip:IsShown() then
+            local qId = string.match(linkRef, "^quest:(%d+)")
+            if qId and _G.ItemRefTooltipTextLeft1 and DB_Internal.CleanScannedHyperlinkTitle then
+                local tipTitle = DB_Internal.CleanScannedHyperlinkTitle(linkRef, _G.ItemRefTooltipTextLeft1:GetText())
+                if tipTitle and tipTitle ~= "" then
+                    DungeonBots.localizedQuestTitles = DungeonBots.localizedQuestTitles or {}
+                    if DungeonBots.localizedQuestTitles[qId] ~= tipTitle then
+                        DungeonBots.localizedQuestTitles[qId] = tipTitle
+                        if DungeonBots.ApplyCachedLocaleToStoredDialogs then
+                            DungeonBots:ApplyCachedLocaleToStoredDialogs()
+                        end
+                    end
+                end
+            end
             return
         end
     end

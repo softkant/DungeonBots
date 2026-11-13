@@ -170,6 +170,13 @@ function DungeonBots:LocalizeServerSection(rawText)
     return clean
 end
 
+local function EscapeLuaPattern(str)
+    if DB_Internal.EscapeLuaPattern then
+        return DB_Internal.EscapeLuaPattern(str)
+    end
+    return string.gsub(str or "", "([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+end
+
 -- =========================================================================
 -- Tooltip Oculto de Consulta al Cliente / WDB y Cola Asíncrona
 -- =========================================================================
@@ -182,9 +189,25 @@ local RETRY_DELAYS = { 0.25, 0.50, 0.85, 1.30, 2.00, 3.00 }
 
 local function EnsureScanTooltip()
     if scanTip then return scanTip end
-    scanTip = CreateFrame("GameTooltip", "DungeonBots_LocaleScanTooltip", nil, "GameTooltipTemplate")
-    scanTip:SetOwner(WorldFrame or UIParent, "ANCHOR_NONE")
+    local host = UIParent or WorldFrame
+    scanTip = CreateFrame("GameTooltip", "DungeonBots_LocaleScanTooltip", host, "GameTooltipTemplate")
+    scanTip:SetOwner(host, "ANCHOR_NONE")
+    scanTip:Hide()
     return scanTip
+end
+
+local function ClearScanTooltipLines(tip)
+    local tipName = (tip and tip.GetName and tip:GetName()) or "DungeonBots_LocaleScanTooltip"
+    for i = 1, 8 do
+        local left = _G[tipName .. "TextLeft" .. i]
+        if left and left.SetText then
+            left:SetText("")
+        end
+        local right = _G[tipName .. "TextRight" .. i]
+        if right and right.SetText then
+            right:SetText("")
+        end
+    end
 end
 
 local function IsPlaceholderTooltipText(text)
@@ -206,27 +229,65 @@ local function IsPlaceholderTooltipText(text)
         or lower == "desconocido" then
         return true
     end
+    -- Descartar etiquetas sin título real (solo números, niveles, paréntesis o signos, p.ej. "(80)")
+    local nonPunct = string.gsub(trimmed, "[%s%d%p]+", "")
+    if nonPunct == "" then
+        return true
+    end
     return false
 end
 DB_Internal.IsPlaceholderTooltipText = IsPlaceholderTooltipText
 
+local function CleanScannedHyperlinkTitle(hyperlink, rawText)
+    local text = TrimText(rawText)
+    if text == "" then return nil end
+
+    -- Retirar etiquetas de nivel añadidas al tooltip por hooks externos (p.ej. "Título (80)" o "(80) Título")
+    local qLvl = hyperlink and string.match(hyperlink, "^quest:%d+:(-?%d+)")
+    if qLvl and tonumber(qLvl) and tonumber(qLvl) > 0 then
+        local lvlPat = EscapeLuaPattern(qLvl)
+        while true do
+            local nextText, nEnd = string.gsub(text, "%s*%(" .. lvlPat .. "%)%s*$", "")
+            if nEnd == 0 then
+                nextText, nEnd = string.gsub(text, "^%s*%(" .. lvlPat .. "%)%s*", "")
+            end
+            text = TrimText(nextText)
+            if nEnd == 0 or text == "" then
+                break
+            end
+        end
+    end
+
+    if IsPlaceholderTooltipText(text) then
+        return nil
+    end
+    return text
+end
+DB_Internal.CleanScannedHyperlinkTitle = CleanScannedHyperlinkTitle
+
 local function ScanHyperlinkTitle(hyperlink)
     if not hyperlink or hyperlink == "" then return nil end
     local tip = EnsureScanTooltip()
-    tip:SetOwner(WorldFrame or UIParent, "ANCHOR_NONE")
+    local host = UIParent or WorldFrame
+    tip:SetOwner(host, "ANCHOR_NONE")
     tip:ClearLines()
+    ClearScanTooltipLines(tip)
     local ok = pcall(tip.SetHyperlink, tip, hyperlink)
     if not ok then
+        ClearScanTooltipLines(tip)
+        tip:Hide()
+        return nil
+    end
+    if tip.NumLines and (tip:NumLines() or 0) <= 0 then
+        ClearScanTooltipLines(tip)
         tip:Hide()
         return nil
     end
     local left1 = _G["DungeonBots_LocaleScanTooltipTextLeft1"]
     local text = left1 and left1:GetText() or nil
+    ClearScanTooltipLines(tip)
     tip:Hide()
-    if IsPlaceholderTooltipText(text) then
-        return nil
-    end
-    return TrimText(text)
+    return CleanScannedHyperlinkTitle(hyperlink, text)
 end
 
 local function QueueLocaleResolve(kind, idStr, extra)
