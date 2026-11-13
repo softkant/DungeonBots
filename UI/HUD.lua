@@ -760,7 +760,7 @@ function DungeonBots:InitHUD()
             defaultPos = { point = "BOTTOM", x = 0, y = 140 },
             actions = TACTICAL_ACTIONS,
             btnPrefix = "DungeonBots_HUDExtBtn_",
-            showMainPanelBtn = true,
+            showMainPanelBtn = false,
             onActionClick = function(_, action)
                 DungeonBots:SendPartyCommand(action.cmd)
             end,
@@ -775,7 +775,7 @@ function DungeonBots:InitHUD()
             defaultPos = { point = "BOTTOM", x = 0, y = 194 },
             actions = UTIL_ACTIONS,
             btnPrefix = "DungeonBots_UtilExtBtn_",
-            showMainPanelBtn = false,
+            showMainPanelBtn = true,
             onActionClick = function(btn, action)
                 HandleUtilActionClick(btn, action)
             end,
