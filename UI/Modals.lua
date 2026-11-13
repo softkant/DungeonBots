@@ -490,9 +490,57 @@ function DungeonBots:BuildHistoryDialog()
     emptyLabel:SetText(L["HIST_EMPTY_TEXT"])
     hf.emptyLabel = emptyLabel
 
-    local footerHint = hf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    footerHint:SetPoint("BOTTOMLEFT", 14, 15)
-    footerHint:SetText(L["HIST_FOOTER_NOTE"])
+    local addNameLabel = hf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    addNameLabel:SetPoint("BOTTOMLEFT", hf, "BOTTOMLEFT", 14, 16)
+    addNameLabel:SetText(L["HIST_ADD_LABEL"])
+
+    local addNameBox = CreateFrame("EditBox", "DungeonBots_HistAddNameBox", hf, "InputBoxTemplate")
+    addNameBox:SetSize(175, 20)
+    addNameBox:SetPoint("LEFT", addNameLabel, "RIGHT", 10, 0)
+    addNameBox:SetAutoFocus(false)
+    addNameBox:SetMaxLetters(32)
+    hf.addNameBox = addNameBox
+
+    local addNameBtn = CreateFrame("Button", nil, hf, "UIPanelButtonTemplate")
+    addNameBtn:SetSize(92, 24)
+    addNameBtn:SetPoint("LEFT", addNameBox, "RIGHT", 8, 0)
+    addNameBtn:SetText(L["BTN_ADD_BOT"])
+    hf.addNameBtn = addNameBtn
+
+    local function SubmitManualBotAdd()
+        local raw = addNameBox:GetText() or ""
+        local trimmed = (DB_Internal.TrimText and DB_Internal.TrimText(raw)) or string.gsub(raw, "^%s*(.-)%s*$", "%1")
+        local cleanBot = (DB_Internal.NormalizePlayerName and DB_Internal.NormalizePlayerName(trimmed)) or trimmed
+        if not cleanBot or cleanBot == "" then
+            addNameBox:SetFocus()
+            return
+        end
+        if not string.find(cleanBot, "[\128-\255]") then
+            cleanBot = string.upper(string.sub(cleanBot, 1, 1)) .. string.lower(string.sub(cleanBot, 2))
+        end
+        PlaySound("igMainMenuOptionCheckBoxOn")
+        addNameBox:SetText("")
+        addNameBox:ClearFocus()
+        if DungeonBots.SummonAndInviteHistoryBot then
+            DungeonBots:SummonAndInviteHistoryBot(cleanBot)
+        elseif DungeonBots.AddBot then
+            DungeonBots:AddBot(cleanBot)
+        end
+        if DungeonBots.UpdateHistoryUI then
+            DungeonBots:UpdateHistoryUI()
+        end
+    end
+
+    addNameBox:SetScript("OnEnterPressed", SubmitManualBotAdd)
+    addNameBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    addNameBtn:SetScript("OnClick", SubmitManualBotAdd)
+    addNameBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine(L["BTN_ADD_BOT"], 1, 0.85, 0.2)
+        GameTooltip:AddLine(L["HIST_ADD_MANUAL_TIP"], 0.85, 0.85, 0.85, true)
+        GameTooltip:Show()
+    end)
+    addNameBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     local closeFooterBtn = CreateFrame("Button", nil, hf, "UIPanelButtonTemplate")
     closeFooterBtn:SetSize(90, 24)
