@@ -53,7 +53,7 @@ function DungeonBots:UpdateSettingsDialog()
     local hudShow = (not DungeonBotsDB) or (DungeonBotsDB.hudVisible ~= false)
     local utilHudShow = (not DungeonBotsDB) or (DungeonBotsDB.utilHudVisible ~= false)
     local anyBarShow = hudShow or utilHudShow
-    local hudDungeonOnly = (not DungeonBotsDB) or (DungeonBotsDB.hudOnlyInDungeon ~= false)
+    local hudDungeonOnly = (DungeonBotsDB and DungeonBotsDB.hudOnlyInDungeon == true) and true or false
     local muteShow = (not DungeonBotsDB) or (DungeonBotsDB.whisperMuteMode ~= "off")
     local muteGroup = (DungeonBotsDB and DungeonBotsDB.muteBotGroupChat) and true or false
 

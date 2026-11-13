@@ -541,7 +541,7 @@ local function ApplyBarVisibility(barFrame, visibleKey)
         barFrame:Hide()
         return false
     end
-    local onlyInDungeon = (not DungeonBotsDB) or (DungeonBotsDB.hudOnlyInDungeon ~= false)
+    local onlyInDungeon = (DungeonBotsDB and DungeonBotsDB.hudOnlyInDungeon == true) and true or false
     if onlyInDungeon and not DungeonBots:IsInFiveManDungeon() then
         barFrame:Hide()
         return false

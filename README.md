@@ -22,7 +22,7 @@
   * Single lock button next to the header gear icon controlling **both** floating bars together: **green** = unlocked (both bars can be dragged), **gray** = locked (both bars fixed in place).
 * **Settings Modal (Header Gear Icon):**
   * **Visual Theme:** Switch live between **Gold** (classic WotLK style, default on first launch) and **Slate Blue** (dark steel and silver).
-  * Independently show or hide the Floating Tactical Bar and the Floating Utility Bar (both enabled by default), and toggle showing floating bars only inside 5-player dungeons (`IsInInstance() == "party"`, enabled by default).
+  * Independently show or hide the Floating Tactical Bar and the Floating Utility Bar (both enabled by default), and toggle showing floating bars only inside 5-player dungeons (`IsInInstance() == "party"`, disabled by default).
   * **Hide Bot Whispers:** Toggle hiding all incoming and outgoing whispers with known bots (compatible with Blizzard chat and WIM without touching WIM's SavedVariables); when enabled, reveals an additional option to also hide bot messages in `/p`, `/y`, and `/s`. Real human players (`[PLAYER]` or unknown players) are never filtered.
 * **General Options:**
   * **`Resummon Party`:** Runs `.playerbots bot add *` + `/p summon` to recall absent bots still in your party.
