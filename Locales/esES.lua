@@ -547,7 +547,7 @@ L["SET_THEME_DARK_TITLE"]  = "Tema: Oscuro Azulado"
 L["SET_THEME_DARK_DESC"]   = "Variante oscura azulada y acero con textura de piedra Blizzard y bordes plateados."
 L["SET_THEME_GOLD_TITLE"]  = "Tema: Dorado"
 L["SET_THEME_GOLD_DESC"]   = "Estilo clásico Blizzard WotLK con bordes dorados tallados y paneles piedra/bronce cálidos."
-L["SETTINGS_FOOTER_VER"]   = "|cff71d5ff@Shahak|r |cff888888v%s|r"
+L["SETTINGS_FOOTER_VER"]   = "|cff888888v%s|r"
 L["SETTINGS_DISCORD_ERR"]  = "|cff999999Si hay algún error, puedes contactar con |r|cff71d5ff@Shahak|r|cff999999 por Discord.|r"
 
 L["CLEAR_HIST_CONFIRM"]    = "¿Seguro que quieres borrar todo el historial de bots guardados?"

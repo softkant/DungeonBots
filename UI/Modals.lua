@@ -99,7 +99,7 @@ function DungeonBots:UpdateSettingsDialog()
         StyleThemeChoice(sf.themeGoldBtn, curTheme == "gold", L["THEME_GOLD_LABEL"])
     end
 
-    local totalH = 252 + (anyBarShow and 26 or 0) + (muteShow and 26 or 0)
+    local totalH = 232 + (anyBarShow and 26 or 0) + (muteShow and 26 or 0)
     sf:SetHeight(totalH)
 end
 
@@ -138,6 +138,11 @@ function DungeonBots:BuildSettingsDialog()
     local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("LEFT", hIcon, "RIGHT", 6, 0)
     title:SetText(L["SETTINGS_MODAL_TITLE"])
+
+    local versionLabel = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    versionLabel:SetPoint("BOTTOMLEFT", title, "BOTTOMRIGHT", 6, 1)
+    versionLabel:SetText(string.format(L["SETTINGS_FOOTER_VER"], (DungeonBots.VERSION or "1.0.0")))
+    sf.versionLabel = versionLabel
 
     local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
     closeBtn:SetPoint("RIGHT", header, "RIGHT", -2, 0)
@@ -301,17 +306,6 @@ function DungeonBots:BuildSettingsDialog()
     themeGoldBtn:SetPoint("LEFT", themeDarkBtn, "RIGHT", 8, 0)
     sf.themeGoldBtn = themeGoldBtn
 
-    local contactLabel = sf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    contactLabel:SetPoint("BOTTOMLEFT", sf, "BOTTOMLEFT", 16, 44)
-    contactLabel:SetPoint("BOTTOMRIGHT", sf, "BOTTOMRIGHT", -16, 44)
-    contactLabel:SetJustifyH("LEFT")
-    contactLabel:SetText(L["SETTINGS_DISCORD_ERR"])
-
-    local versionLabel = sf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    versionLabel:SetPoint("BOTTOMLEFT", sf, "BOTTOMLEFT", 16, 17)
-    versionLabel:SetText(string.format(L["SETTINGS_FOOTER_VER"], (DungeonBots.VERSION or "1.0.0")))
-    sf.versionLabel = versionLabel
-
     local closeFooterBtn = CreateFrame("Button", nil, sf, "UIPanelButtonTemplate")
     closeFooterBtn:SetSize(90, 24)
     closeFooterBtn:SetPoint("BOTTOMRIGHT", sf, "BOTTOMRIGHT", -14, 12)
@@ -320,6 +314,13 @@ function DungeonBots:BuildSettingsDialog()
         PlaySound("igMainMenuOptionCheckBoxOff")
         sf:Hide()
     end)
+
+    local contactLabel = sf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    contactLabel:SetPoint("LEFT", sf, "BOTTOMLEFT", 16, 24)
+    contactLabel:SetPoint("RIGHT", closeFooterBtn, "LEFT", -10, 0)
+    contactLabel:SetJustifyH("LEFT")
+    contactLabel:SetText(L["SETTINGS_DISCORD_ERR"])
+    sf.contactLabel = contactLabel
 
     DungeonBots.settingsFrame = sf
     if DB_Internal.RegisterSubModalDimmer then
