@@ -1666,7 +1666,7 @@ local GUIDE_TOPICS = {
     {
         shortTitle = "2. Bot tarda en entrar",
         title = "Bot agregado que susurra, pero tarda en entrar",
-        category = "INVOCACIÓN E INGRESO",
+        category = "INVOCACIÓN",
         icon = "Interface\\Icons\\INV_Misc_GroupLooking",
         summary = "A veces agregas un bot y te susurra al aparecer, pero no entra de inmediato al grupo porque todavía está terminando de cargar en el servidor.",
         steps = {
@@ -1692,7 +1692,7 @@ local GUIDE_TOPICS = {
     {
         shortTitle = "4. Bot usado por otro",
         title = "Bots usados por otro jugador vs. \"ya conectado\"",
-        category = "DISPONIBILIDAD DE BOTS",
+        category = "DISPONIBILIDAD",
         icon = "Interface\\Icons\\Spell_Shadow_Charm",
         summary = "Un bot puede estar jugando con otro usuario en el servidor o simplemente terminando de desconectarse tras una sesión reciente.",
         steps = {
@@ -1702,12 +1702,12 @@ local GUIDE_TOPICS = {
         },
     },
     {
-        shortTitle = "5. No expulsar con WoW",
-        title = "Nunca expulses bots con \"Sacar del grupo\" de WoW",
+        shortTitle = "5. No expulses normal",
+        title = "Nunca expulses bots con \"Expulsar\"",
         category = "ADVERTENCIA IMPORTANTE",
         critical = true,
         icon = "Interface\\Icons\\Ability_Kick",
-        summary = "No |cffff3b30DEBES|r retirar a un bot usando clic derecho -> \"Sacar del grupo\" como harías con un jugador normal.",
+        summary = "No |cffff3b30DEBES|r retirar a un bot usando clic derecho -> \"Expulsar\" como harías con un jugador normal.",
         steps = {
             "Despídelos siempre desde el addon usando |cffffd200Despedir|r en su tarjeta o |cffffd200Despedir a Todos|r en Armar Grupo.",
             "Si los expulsas por el menú estándar de WoW, el bot quedará conectado alrededor de |cffffd2001 minuto|r y el sistema pensará que sigues teniendo ese bot ocupado.",
@@ -1726,7 +1726,7 @@ local GUIDE_TOPICS = {
             "Por ello, se recomienda dejar su armadura como está y buscar otro bot que ya cuente con el equipamiento acorde a los talentos que necesitas.",
             "Si el inventario del bot está lleno, es posible que no pueda cambiar el set correctamente al autoequipar por falta de espacio en las bolsas.",
         },
-        note = "Antes de autoequipar o cambiar de set, revisa sus bolsas en |cffffd200Inventario|r y libera espacio si están llenas.",
+        note = "Si despúes de autoequipar ves el mensaje de |cffffd200inventario|r lleno, puedes liberar espacio de las bolsas.",
     },
 }
 
@@ -1975,7 +1975,7 @@ function DungeonBots:BuildTab3(parent)
         rCat:SetPoint("RIGHT", row, "RIGHT", -4, 0)
         rCat:SetJustifyH("LEFT")
         if topic.critical then
-            rCat:SetText("|cffff6655Advertencia clave|r")
+            rCat:SetText("|cffff6655ADVERTENCIA|r")
         else
             rCat:SetText("|cff9d9585" .. (topic.category or "") .. "|r")
         end

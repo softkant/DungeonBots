@@ -459,7 +459,7 @@ end
 local function HandleHudTalkClick(anchorBtn)
     if DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
         PlaySound("igQuestFailed")
-        DungeonBots:Warn("Selecciona primero un PNJ válido (los bots no cuentan).")
+        DungeonBots:Warn("Selecciona primero un PNJ válido.")
         return
     end
     OpenHudBotDropdown(
@@ -706,7 +706,7 @@ local function CreateFloatingToolbar(cfg)
             GameTooltip:AddLine(action.title, 1, 1, 1)
             GameTooltip:AddLine(action.desc, 0.85, 0.85, 0.85, true)
             if action.isTalkPicker and DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
-                GameTooltip:AddLine("Nota: Haz clic primero en un PNJ válido (los bots no cuentan).", 1.0, 0.72, 0.25, true)
+                GameTooltip:AddLine("Nota: Haz clic primero en un PNJ válido.", 1.0, 0.72, 0.25, true)
             end
             GameTooltip:Show()
         end)
