@@ -7,6 +7,7 @@ DungeonBots.VERSION = "1.0.0"
 DungeonBots.Internal = DungeonBots.Internal or {}
 
 local DB_Internal = DungeonBots.Internal
+local L = DungeonBots.L or {}
 
 -- Configuración por defecto
 local DEFAULT_CONFIG = {
@@ -40,69 +41,69 @@ DungeonBots.botSpecs = {}
 
 -- Clases soportadas para .playerbots bot addclass [clase]
 DungeonBots.CLASSES = {
-    { id = "warrior", name = "Guerrero",       class = "WARRIOR",     icon = "Interface\\Icons\\Ability_Warrior_OffensiveStance" },
-    { id = "paladin", name = "Paladín",        class = "PALADIN",     icon = "Interface\\Icons\\Spell_Holy_HolyBolt" },
-    { id = "hunter",  name = "Cazador",        class = "HUNTER",      icon = "Interface\\Icons\\INV_Weapon_Bow_08" },
-    { id = "rogue",   name = "Pícaro",         class = "ROGUE",       icon = "Interface\\Icons\\Ability_Stealth" },
-    { id = "priest",  name = "Sacerdote",      class = "PRIEST",      icon = "Interface\\Icons\\Spell_Holy_PowerWordShield" },
-    { id = "dk",      name = "C. de la Muerte",class = "DEATHKNIGHT", icon = "Interface\\Icons\\Spell_Deathknight_ClassIcon" },
-    { id = "shaman",  name = "Chamán",         class = "SHAMAN",      icon = "Interface\\Icons\\Spell_Fire_FlameShock" },
-    { id = "mage",    name = "Mago",           class = "MAGE",        icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
-    { id = "warlock", name = "Brujo",          class = "WARLOCK",     icon = "Interface\\Icons\\Spell_Nature_Drowsy" },
-    { id = "druid",   name = "Druida",         class = "DRUID",       icon = "Interface\\Icons\\Ability_Druid_Maul" },
+    { id = "warrior", name = L["CLASS_WARRIOR"], class = "WARRIOR",     icon = "Interface\\Icons\\Ability_Warrior_OffensiveStance" },
+    { id = "paladin", name = L["CLASS_PALADIN"], class = "PALADIN",     icon = "Interface\\Icons\\Spell_Holy_HolyBolt" },
+    { id = "hunter",  name = L["CLASS_HUNTER"],  class = "HUNTER",      icon = "Interface\\Icons\\INV_Weapon_Bow_08" },
+    { id = "rogue",   name = L["CLASS_ROGUE"],   class = "ROGUE",       icon = "Interface\\Icons\\Ability_Stealth" },
+    { id = "priest",  name = L["CLASS_PRIEST"],  class = "PRIEST",      icon = "Interface\\Icons\\Spell_Holy_PowerWordShield" },
+    { id = "dk",      name = L["CLASS_DK"],      class = "DEATHKNIGHT", icon = "Interface\\Icons\\Spell_Deathknight_ClassIcon" },
+    { id = "shaman",  name = L["CLASS_SHAMAN"],  class = "SHAMAN",      icon = "Interface\\Icons\\Spell_Fire_FlameShock" },
+    { id = "mage",    name = L["CLASS_MAGE"],    class = "MAGE",        icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
+    { id = "warlock", name = L["CLASS_WARLOCK"], class = "WARLOCK",     icon = "Interface\\Icons\\Spell_Nature_Drowsy" },
+    { id = "druid",   name = L["CLASS_DRUID"],   class = "DRUID",       icon = "Interface\\Icons\\Ability_Druid_Maul" },
 }
 
 -- Ramas de talentos estándar por clase (para talents spec [rama])
 DungeonBots.SPECS = {
     WARRIOR = {
-        { id = "prot", name = "Protección (Tanque)", role = "TANK", icon = "Interface\\Icons\\Ability_Warrior_DefensiveStance" },
-        { id = "fury", name = "Furia (DPS)", role = "DPS", icon = "Interface\\Icons\\Ability_Warrior_InnerRage" },
-        { id = "arms", name = "Armas (DPS)", role = "DPS", icon = "Interface\\Icons\\Ability_Warrior_SavageBlow" },
+        { id = "prot", name = L["SPEC_PROT_TANK"], role = "TANK", icon = "Interface\\Icons\\Ability_Warrior_DefensiveStance" },
+        { id = "fury", name = L["SPEC_FURY_DPS"], role = "DPS", icon = "Interface\\Icons\\Ability_Warrior_InnerRage" },
+        { id = "arms", name = L["SPEC_ARMS_DPS"], role = "DPS", icon = "Interface\\Icons\\Ability_Warrior_SavageBlow" },
     },
     PALADIN = {
-        { id = "prot", name = "Protección (Tanque)", role = "TANK", icon = "Interface\\Icons\\Spell_Holy_DevotionAura" },
-        { id = "holy", name = "Sagrado (Healer)", role = "HEALER", icon = "Interface\\Icons\\Spell_Holy_HolyBolt" },
-        { id = "ret",  name = "Reprensión (DPS)", role = "DPS", icon = "Interface\\Icons\\Spell_Holy_AuraOfLight" },
+        { id = "prot", name = L["SPEC_PROT_TANK"], role = "TANK", icon = "Interface\\Icons\\Spell_Holy_DevotionAura" },
+        { id = "holy", name = L["SPEC_HOLY_HEAL"], role = "HEALER", icon = "Interface\\Icons\\Spell_Holy_HolyBolt" },
+        { id = "ret",  name = L["SPEC_RET_DPS"], role = "DPS", icon = "Interface\\Icons\\Spell_Holy_AuraOfLight" },
     },
     DEATHKNIGHT = {
-        { id = "blood", name = "Sangre (Tanque/DPS)", role = "TANK", icon = "Interface\\Icons\\Spell_Deathknight_BloodPresence" },
-        { id = "frost", name = "Escarcha (DPS/Tanque)", role = "DPS", icon = "Interface\\Icons\\Spell_Deathknight_FrostPresence" },
-        { id = "unholy",name = "Profano (DPS)", role = "DPS", icon = "Interface\\Icons\\Spell_Deathknight_UnholyPresence" },
+        { id = "blood", name = L["SPEC_BLOOD_TANK"], role = "TANK", icon = "Interface\\Icons\\Spell_Deathknight_BloodPresence" },
+        { id = "frost", name = L["SPEC_FROST_DK"], role = "DPS", icon = "Interface\\Icons\\Spell_Deathknight_FrostPresence" },
+        { id = "unholy",name = L["SPEC_UNHOLY_DPS"], role = "DPS", icon = "Interface\\Icons\\Spell_Deathknight_UnholyPresence" },
     },
     PRIEST = {
-        { id = "holy",   name = "Sagrado (Healer)", role = "HEALER", icon = "Interface\\Icons\\Spell_Holy_GuardianSpirit" },
-        { id = "disc",   name = "Disciplina (Healer)", role = "HEALER", icon = "Interface\\Icons\\Spell_Holy_PowerWordShield" },
-        { id = "shadow", name = "Sombras (DPS)", role = "DPS", icon = "Interface\\Icons\\Spell_Shadow_Shadowform" },
+        { id = "holy",   name = L["SPEC_HOLY_HEAL"], role = "HEALER", icon = "Interface\\Icons\\Spell_Holy_GuardianSpirit" },
+        { id = "disc",   name = L["SPEC_DISC_HEAL"], role = "HEALER", icon = "Interface\\Icons\\Spell_Holy_PowerWordShield" },
+        { id = "shadow", name = L["SPEC_SHADOW_DPS"], role = "DPS", icon = "Interface\\Icons\\Spell_Shadow_Shadowform" },
     },
     DRUID = {
-        { id = "feral",   name = "Feral (Tanque/DPS)", role = "TANK", icon = "Interface\\Icons\\Ability_Racial_BearForm" },
-        { id = "resto",   name = "Restauración (Healer)", role = "HEALER", icon = "Interface\\Icons\\Spell_Nature_HealingTouch" },
-        { id = "balance", name = "Equilibrio (DPS Caster)", role = "DPS", icon = "Interface\\Icons\\Spell_Nature_Starfall" },
+        { id = "feral",   name = L["SPEC_FERAL_TANK"], role = "TANK", icon = "Interface\\Icons\\Ability_Racial_BearForm" },
+        { id = "resto",   name = L["SPEC_RESTO_HEAL"], role = "HEALER", icon = "Interface\\Icons\\Spell_Nature_HealingTouch" },
+        { id = "balance", name = L["SPEC_BALANCE_DPS"], role = "DPS", icon = "Interface\\Icons\\Spell_Nature_Starfall" },
     },
     SHAMAN = {
-        { id = "resto", name = "Restauración (Healer)", role = "HEALER", icon = "Interface\\Icons\\Spell_Nature_MagicImmunity" },
-        { id = "elem",  name = "Elemental (DPS Caster)", role = "DPS", icon = "Interface\\Icons\\Spell_Nature_Lightning" },
-        { id = "enh",   name = "Mejora (DPS Melee)", role = "DPS", icon = "Interface\\Icons\\Spell_Nature_LightningShield" },
+        { id = "resto", name = L["SPEC_RESTO_HEAL"], role = "HEALER", icon = "Interface\\Icons\\Spell_Nature_MagicImmunity" },
+        { id = "elem",  name = L["SPEC_ELEM_DPS"], role = "DPS", icon = "Interface\\Icons\\Spell_Nature_Lightning" },
+        { id = "enh",   name = L["SPEC_ENH_DPS"], role = "DPS", icon = "Interface\\Icons\\Spell_Nature_LightningShield" },
     },
     MAGE = {
-        { id = "arcane", name = "Arcano (DPS)", role = "DPS", icon = "Interface\\Icons\\Spell_Nature_WispSplode" },
-        { id = "fire",   name = "Fuego (DPS)", role = "DPS", icon = "Interface\\Icons\\Spell_Fire_FlameBolt" },
-        { id = "frost",  name = "Escarcha (DPS)", role = "DPS", icon = "Interface\\Icons\\Spell_Frost_FrostBolt02" },
+        { id = "arcane", name = L["SPEC_ARCANE_DPS"], role = "DPS", icon = "Interface\\Icons\\Spell_Nature_WispSplode" },
+        { id = "fire",   name = L["SPEC_FIRE_DPS"], role = "DPS", icon = "Interface\\Icons\\Spell_Fire_FlameBolt" },
+        { id = "frost",  name = L["SPEC_FROST_DPS"], role = "DPS", icon = "Interface\\Icons\\Spell_Frost_FrostBolt02" },
     },
     WARLOCK = {
-        { id = "afflic", name = "Aflicción (DPS)", role = "DPS", icon = "Interface\\Icons\\Spell_Shadow_DeathCoil" },
-        { id = "demo",   name = "Demonología (DPS)", role = "DPS", icon = "Interface\\Icons\\Spell_Shadow_Metamorphosis" },
-        { id = "destro", name = "Destrucción (DPS)", role = "DPS", icon = "Interface\\Icons\\Spell_Shadow_RainOfFire" },
+        { id = "afflic", name = L["SPEC_AFFLIC_DPS"], role = "DPS", icon = "Interface\\Icons\\Spell_Shadow_DeathCoil" },
+        { id = "demo",   name = L["SPEC_DEMO_DPS"], role = "DPS", icon = "Interface\\Icons\\Spell_Shadow_Metamorphosis" },
+        { id = "destro", name = L["SPEC_DESTRO_DPS"], role = "DPS", icon = "Interface\\Icons\\Spell_Shadow_RainOfFire" },
     },
     HUNTER = {
-        { id = "mark",  name = "Puntería (DPS)", role = "DPS", icon = "Interface\\Icons\\Ability_Marksmanship" },
-        { id = "surv",  name = "Supervivencia (DPS)", role = "DPS", icon = "Interface\\Icons\\Ability_Hunter_Camouflage" },
-        { id = "beast", name = "Bestias (DPS)", role = "DPS", icon = "Interface\\Icons\\Ability_Hunter_BeastTaming" },
+        { id = "mark",  name = L["SPEC_MARK_DPS"], role = "DPS", icon = "Interface\\Icons\\Ability_Marksmanship" },
+        { id = "surv",  name = L["SPEC_SURV_DPS"], role = "DPS", icon = "Interface\\Icons\\Ability_Hunter_Camouflage" },
+        { id = "beast", name = L["SPEC_BEAST_DPS"], role = "DPS", icon = "Interface\\Icons\\Ability_Hunter_BeastTaming" },
     },
     ROGUE = {
-        { id = "combat", name = "Combate (DPS)", role = "DPS", icon = "Interface\\Icons\\Ability_BackStab" },
-        { id = "assas",  name = "Asesinato (DPS)", role = "DPS", icon = "Interface\\Icons\\Ability_Rogue_Eviscerate" },
-        { id = "subt",   name = "Sutileza (DPS)", role = "DPS", icon = "Interface\\Icons\\Ability_Stealth" },
+        { id = "combat", name = L["SPEC_COMBAT_DPS"], role = "DPS", icon = "Interface\\Icons\\Ability_BackStab" },
+        { id = "assas",  name = L["SPEC_ASSAS_DPS"], role = "DPS", icon = "Interface\\Icons\\Ability_Rogue_Eviscerate" },
+        { id = "subt",   name = L["SPEC_SUBT_DPS"], role = "DPS", icon = "Interface\\Icons\\Ability_Stealth" },
     },
 }
 
@@ -123,18 +124,18 @@ DungeonBots.DEFAULT_CLASS_SPECS = {
 -- Composiciones rápidas predeterminadas (1-click party)
 DungeonBots.PRESETS = {
     {
-        name = "Grupo Estándar",
-        desc = "Paladín (Tank), Sacerdote (Heal), Mago, Cazador, DK",
+        name = L["PRESET_STANDARD_NAME"],
+        desc = L["PRESET_STANDARD_DESC"],
         classes = { "paladin", "priest", "mage", "hunter", "dk" }
     },
     {
-        name = "Fuerza Bruta (Melee)",
-        desc = "Guerrero (Tank), Paladín (Heal), DK, Pícaro, Chamán",
+        name = L["PRESET_MELEE_NAME"],
+        desc = L["PRESET_MELEE_DESC"],
         classes = { "warrior", "paladin", "dk", "rogue", "shaman" }
     },
     {
-        name = "Casters & Rango",
-        desc = "Druida (Tank), Chamán (Heal), Mago, Brujo, Cazador",
+        name = L["PRESET_CASTER_NAME"],
+        desc = L["PRESET_CASTER_DESC"],
         classes = { "druid", "shaman", "mage", "warlock", "hunter" }
     },
 }
@@ -277,7 +278,7 @@ function DungeonBots:GetClassDisplayInfo(classToken, compactName)
             return localized, color, "Interface\\Icons\\INV_Misc_QuestionMark"
         end
     end
-    return classToken or "Desconocido", color, "Interface\\Icons\\INV_Misc_QuestionMark"
+    return classToken or L["UNKNOWN"], color, "Interface\\Icons\\INV_Misc_QuestionMark"
 end
 
 local PURE_DPS_CLASSES = {
@@ -416,9 +417,9 @@ function DB_Internal.GetBotBagFreeInfo(st)
 end
 
 function DB_Internal.FormatBotStatsDisplay(st, fallbackValueText)
-    local fallback = fallbackValueText or "|cff888888Consultando...|r"
+    local fallback = fallbackValueText or L["STATS_QUERYING_GRAY"]
     if not st then
-        return "Armadura: " .. fallback, "Bolsas: " .. fallback, nil
+        return L["STATS_ARMOR_PREFIX"] .. fallback, L["STATS_BAGS_PREFIX"] .. fallback, nil
     end
 
     -- En mod-playerbots 'stats' reporta 0% (0) Dur cuando toda la armadura esta al 100%;
@@ -443,9 +444,9 @@ function DB_Internal.FormatBotStatsDisplay(st, fallbackValueText)
         end
     end
 
-    local armorStr = "Armadura: " .. durColor .. armorPct .. "%|r"
+    local armorStr = L["STATS_ARMOR_PREFIX"] .. durColor .. armorPct .. "%|r"
     local freeSlots, totalSlots, bagColor = DB_Internal.GetBotBagFreeInfo(st)
-    local bagStr = "Bolsas: " .. bagColor .. tostring(freeSlots) .. "/" .. tostring(totalSlots) .. "|r"
+    local bagStr = L["STATS_BAGS_PREFIX"] .. bagColor .. tostring(freeSlots) .. "/" .. tostring(totalSlots) .. "|r"
     return armorStr, bagStr, st
 end
 

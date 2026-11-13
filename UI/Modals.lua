@@ -6,6 +6,7 @@ DungeonBots = DungeonBots or {}
 DungeonBots.Internal = DungeonBots.Internal or {}
 
 local DB_Internal = DungeonBots.Internal
+local L = DungeonBots.L or {}
 
 local function ApplyBlizzardGoldWindow(frame, edgeSize)
     return DB_Internal.ApplyBlizzardGoldWindow(frame, edgeSize)
@@ -89,15 +90,15 @@ function DungeonBots:UpdateSettingsDialog()
             if isSelected then
                 btn:SetBackdropColor(p.specActiveBg[1], p.specActiveBg[2], p.specActiveBg[3], p.specActiveBg[4])
                 btn:SetBackdropBorderColor(p.specActiveBorder[1], p.specActiveBorder[2], p.specActiveBorder[3], p.specActiveBorder[4])
-                btn.label:SetText(p.specActiveHex .. displayName .. " (Activo)|r")
+                btn.label:SetText(p.specActiveHex .. displayName .. L["MODAL_ACTIVE_SUFFIX"])
             else
                 btn:SetBackdropColor(p.insetBg[1], p.insetBg[2], p.insetBg[3], p.insetBg[4])
                 btn:SetBackdropBorderColor(p.insetBorder[1], p.insetBorder[2], p.insetBorder[3], p.insetBorder[4])
                 btn.label:SetText(p.specInactiveHex .. displayName .. "|r")
             end
         end
-        StyleThemeChoice(sf.themeDarkBtn, curTheme == "dark", "Oscuro Azulado")
-        StyleThemeChoice(sf.themeGoldBtn, curTheme == "gold", "Dorado")
+        StyleThemeChoice(sf.themeDarkBtn, curTheme == "dark", L["THEME_DARK_LABEL"])
+        StyleThemeChoice(sf.themeGoldBtn, curTheme == "gold", L["THEME_GOLD_LABEL"])
     end
 
     local totalH = 258 + (anyBarShow and 26 or 0) + (muteShow and 26 or 0)
@@ -138,7 +139,7 @@ function DungeonBots:BuildSettingsDialog()
 
     local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("LEFT", hIcon, "RIGHT", 6, 0)
-    title:SetText("|cff00ccffConfiguración|r |cff888888DungeonBots|r")
+    title:SetText(L["SETTINGS_MODAL_TITLE"])
 
     local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
     closeBtn:SetPoint("RIGHT", header, "RIGHT", -2, 0)
@@ -150,9 +151,9 @@ function DungeonBots:BuildSettingsDialog()
     -- Opción 1: Mostrar/Ocultar HUD Táctico
     local hudVisibleCheck = CreateSettingsCheckbox(
         sf, "DungeonBots_HudVisibleCheck",
-        "Mostrar Barra Táctica flotante (HUD)",
-        "Barra Táctica Flotante (HUD)",
-        "Muestra la barra rápida flotante de comandos de combate.\n\nDesmarca esta opción para ocultar esta barra por completo."
+        L["SET_SHOW_HUD_LABEL"],
+        L["SET_SHOW_HUD_TITLE"],
+        L["SET_SHOW_HUD_DESC"]
     )
     hudVisibleCheck:SetPoint("TOPLEFT", sf, "TOPLEFT", 16, -46)
     sf.hudVisibleCheck = hudVisibleCheck
@@ -160,9 +161,9 @@ function DungeonBots:BuildSettingsDialog()
     -- Opción 1a: Mostrar/Ocultar Barra de Utilidades
     local utilHudVisibleCheck = CreateSettingsCheckbox(
         sf, "DungeonBots_UtilHudVisibleCheck",
-        "Mostrar Barra de Utilidades flotante (PNJ / Grupo / Bolsas / Personaje / Misiones)",
-        "Barra de Utilidades Flotante",
-        "Muestra la segunda barra flotante con accesos rápidos para Hablar con PNJ, abrir Bots en el grupo, inspeccionar bolsas, ver Información del Personaje y ver sus misiones.\n\nDesmarca esta opción para ocultar esta barra por completo."
+        L["SET_SHOW_UTIL_LABEL"],
+        L["SET_SHOW_UTIL_TITLE"],
+        L["SET_SHOW_UTIL_DESC"]
     )
     utilHudVisibleCheck:SetPoint("TOPLEFT", hudVisibleCheck, "BOTTOMLEFT", 0, -2)
     sf.utilHudVisibleCheck = utilHudVisibleCheck
@@ -170,9 +171,9 @@ function DungeonBots:BuildSettingsDialog()
     -- Opción 1a2: Mostrar/Ocultar Barra de Formación
     local formHudVisibleCheck = CreateSettingsCheckbox(
         sf, "DungeonBots_FormHudVisibleCheck",
-        "Mostrar Barra de Formación flotante (Arrow / Far / Disperse / Separarse / Espera)",
-        "Barra de Formación Flotante",
-        "Muestra la tercera barra flotante especializada en formación (arrow, far y otras), disperse, move from group y control de pull/espera.\n\nDesmarca esta opción para ocultar esta barra por completo."
+        L["SET_SHOW_FORM_LABEL"],
+        L["SET_SHOW_FORM_TITLE"],
+        L["SET_SHOW_FORM_DESC"]
     )
     formHudVisibleCheck:SetPoint("TOPLEFT", utilHudVisibleCheck, "BOTTOMLEFT", 0, -2)
     sf.formHudVisibleCheck = formHudVisibleCheck
@@ -180,9 +181,9 @@ function DungeonBots:BuildSettingsDialog()
     -- Opción 1b (dependiente): Solo en mazmorras de 5 jugadores
     local hudDungeonCheck = CreateSettingsCheckbox(
         sf, "DungeonBots_HudDungeonCheck",
-        "Mostrar barras flotantes solo dentro de mazmorras de 5 jugadores",
-        "Solo en Mazmorras de 5 Jugadores",
-        "Cuando está activa, las barras flotantes (Táctica, Utilidades y Formación) se ocultan fuera de mazmorras de 5 jugadores y aparecen automáticamente al entrar."
+        L["SET_DUNGEON_ONLY_LBL"],
+        L["SET_DUNGEON_ONLY_TTL"],
+        L["SET_DUNGEON_ONLY_DSC"]
     )
     hudDungeonCheck:SetPoint("TOPLEFT", formHudVisibleCheck, "BOTTOMLEFT", 18, -2)
     sf.hudDungeonCheck = hudDungeonCheck
@@ -190,18 +191,18 @@ function DungeonBots:BuildSettingsDialog()
     -- Opción 2: Ocultar susurros de bots
     local muteWhispersCheck = CreateSettingsCheckbox(
         sf, "DungeonBots_MuteWhispersCheck",
-        "Ocultar susurros de bots en el chat",
-        "Ocultar Susurros de Bots",
-        "Oculta todos los susurros entrantes y salientes con cualquier personaje identificado como bot.\n\nLos jugadores humanos reales ([JUGADOR] o desconocidos) NUNCA se ocultan."
+        L["SET_MUTE_WHISPER_LBL"],
+        L["SET_MUTE_WHISPER_TTL"],
+        L["SET_MUTE_WHISPER_DSC"]
     )
     sf.muteWhispersCheck = muteWhispersCheck
 
     -- Opción 2b (dependiente): Ocultar mensajes de bots en Grupo/Grito/Decir
     local muteGroupCheck = CreateSettingsCheckbox(
         sf, "DungeonBots_MuteGroupChatCheck",
-        "Ocultar también mensajes de bots en Grupo (/p), Grito (/y) y Decir (/s)",
-        "Ocultar Chat de Grupo/Decir de Bots",
-        "También filtra los mensajes públicos de bots en canales de Grupo (/p), Grito (/y) y Decir (/s)."
+        L["SET_MUTE_GROUP_LBL"],
+        L["SET_MUTE_GROUP_TTL"],
+        L["SET_MUTE_GROUP_DSC"]
     )
     muteGroupCheck:SetPoint("TOPLEFT", muteWhispersCheck, "BOTTOMLEFT", 18, -2)
     sf.muteGroupCheck = muteGroupCheck
@@ -217,13 +218,13 @@ function DungeonBots:BuildSettingsDialog()
                 DungeonBots:UpdateHUDVisibility()
             end
             DungeonBots:UpdateSettingsDialog()
-            DungeonBots:Print(labelText .. ": " .. (val and "|cff34c759Activada|r" or "|cffff3b30Oculta|r"))
+            DungeonBots:Print(labelText .. ": " .. (val and L["STATE_VISIBLE_GREEN"] or L["STATE_HIDDEN_RED"]))
         end)
     end
 
-    BindBarVisibilityToggle(hudVisibleCheck, "hudVisible", "hudFrame", "Barra táctica (HUD)")
-    BindBarVisibilityToggle(utilHudVisibleCheck, "utilHudVisible", "utilHudFrame", "Barra de Utilidades")
-    BindBarVisibilityToggle(formHudVisibleCheck, "formHudVisible", "formHudFrame", "Barra de Formación")
+    BindBarVisibilityToggle(hudVisibleCheck, "hudVisible", "hudFrame", L["SET_BAR_HUD"])
+    BindBarVisibilityToggle(utilHudVisibleCheck, "utilHudVisible", "utilHudFrame", L["SET_BAR_UTIL"])
+    BindBarVisibilityToggle(formHudVisibleCheck, "formHudVisible", "formHudFrame", L["SET_BAR_FORM"])
 
     hudDungeonCheck:SetScript("OnClick", function(self)
         local val = self:GetChecked() and true or false
@@ -232,7 +233,7 @@ function DungeonBots:BuildSettingsDialog()
         if DungeonBots.UpdateHUDVisibility then
             DungeonBots:UpdateHUDVisibility()
         end
-        DungeonBots:Print("Barras flotantes solo en mazmorra (5j): " .. (val and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
+        DungeonBots:Print(string.format(L["SET_MSG_DUNG_ONLY"], (val and L["STATE_ENABLED_GREEN"] or L["STATE_DISABLED_AMBER"])))
     end)
 
     muteWhispersCheck:SetScript("OnClick", function(self)
@@ -245,19 +246,19 @@ function DungeonBots:BuildSettingsDialog()
             DungeonBots:CloseBotWIMWindows()
         end
         DungeonBots:UpdateSettingsDialog()
-        DungeonBots:Print("Ocultar susurros de bots: " .. (val and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
+        DungeonBots:Print(string.format(L["SET_MSG_MUTE_WHISP"], (val and L["STATE_ENABLED_GREEN"] or L["STATE_DISABLED_AMBER"])))
     end)
 
     muteGroupCheck:SetScript("OnClick", function(self)
         local val = self:GetChecked() and true or false
         if DungeonBotsDB then DungeonBotsDB.muteBotGroupChat = val end
         PlaySound(val and "igMainMenuOptionCheckBoxOn" or "igMainMenuOptionCheckBoxOff")
-        DungeonBots:Print("Ocultar chat de bots en Grupo/Decir: " .. (val and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
+        DungeonBots:Print(string.format(L["SET_MSG_MUTE_GROUP"], (val and L["STATE_ENABLED_GREEN"] or L["STATE_DISABLED_AMBER"])))
     end)
 
     -- Opción 3: Selector de Tema visual (Oscuro Azulado / Dorado)
     local themeLabel = sf:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    themeLabel:SetText("|cffffd200Tema visual:|r")
+    themeLabel:SetText(L["SET_THEME_LABEL"])
     sf.themeLabel = themeLabel
 
     local function CreateThemeChoiceBtn(name, themeId, tipTitle, tipBody)
@@ -277,8 +278,8 @@ function DungeonBots:BuildSettingsDialog()
             if DungeonBots.SetUITheme then
                 DungeonBots:SetUITheme(themeId)
             end
-            local labelText = (themeId == "dark") and "|cff66d4ffOscuro Azulado|r" or "|cffffd100Dorado|r"
-            DungeonBots:Print("Tema de interfaz cambiado a: " .. labelText)
+            local labelText = (themeId == "dark") and ("|cff66d4ff" .. L["THEME_DARK_LABEL"] .. "|r") or ("|cffffd100" .. L["THEME_GOLD_LABEL"] .. "|r")
+            DungeonBots:Print(string.format(L["SET_THEME_CHANGED"], labelText))
         end)
         btn:SetScript("OnEnter", function(self)
             local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
@@ -299,29 +300,29 @@ function DungeonBots:BuildSettingsDialog()
 
     local themeDarkBtn = CreateThemeChoiceBtn(
         "DungeonBots_ThemeDarkBtn", "dark",
-        "Tema: Oscuro Azulado",
-        "Variante oscura azulada y acero con textura de piedra Blizzard y bordes plateados."
+        L["SET_THEME_DARK_TITLE"],
+        L["SET_THEME_DARK_DESC"]
     )
     themeDarkBtn:SetPoint("LEFT", themeLabel, "RIGHT", 12, 0)
     sf.themeDarkBtn = themeDarkBtn
 
     local themeGoldBtn = CreateThemeChoiceBtn(
         "DungeonBots_ThemeGoldBtn", "gold",
-        "Tema: Dorado",
-        "Estilo clásico Blizzard WotLK con bordes dorados tallados y paneles piedra/bronce cálidos."
+        L["SET_THEME_GOLD_TITLE"],
+        L["SET_THEME_GOLD_DESC"]
     )
     themeGoldBtn:SetPoint("LEFT", themeDarkBtn, "RIGHT", 8, 0)
     sf.themeGoldBtn = themeGoldBtn
 
     local versionLabel = sf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     versionLabel:SetPoint("BOTTOMLEFT", sf, "BOTTOMLEFT", 16, 17)
-    versionLabel:SetText("|cff71d5ffAsistente de Mazmorras|r |cff888888v" .. (DungeonBots.VERSION or "1.0.0") .. "|r")
+    versionLabel:SetText(string.format(L["SETTINGS_FOOTER_VER"], (DungeonBots.VERSION or "1.0.0")))
     sf.versionLabel = versionLabel
 
     local closeFooterBtn = CreateFrame("Button", nil, sf, "UIPanelButtonTemplate")
     closeFooterBtn:SetSize(90, 24)
     closeFooterBtn:SetPoint("BOTTOMRIGHT", sf, "BOTTOMRIGHT", -14, 12)
-    closeFooterBtn:SetText("Cerrar")
+    closeFooterBtn:SetText(L["BTN_CLOSE"])
     closeFooterBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOff")
         sf:Hide()
@@ -357,9 +358,9 @@ end
 local historyRows = {}
 
 StaticPopupDialogs["DUNGEONBOTS_CLEAR_HISTORY"] = {
-    text = "¿Seguro que quieres borrar todo el historial de bots guardados?",
-    button1 = "Sí, limpiar",
-    button2 = "Cancelar",
+    text = L["CLEAR_HIST_CONFIRM"],
+    button1 = L["CLEAR_HIST_YES"],
+    button2 = L["BTN_CANCEL"],
     OnAccept = function()
         DungeonBots:ClearBotHistory()
     end,
@@ -372,7 +373,7 @@ function DungeonBots:UpdateHistorySummary()
     if not DungeonBots.historySummaryLabel then return end
     local count = DungeonBots.GetBotHistoryCount and DungeonBots:GetBotHistoryCount() or 0
     DungeonBots.historySummaryLabel:SetText(
-        "Lista de bots invitados anteriormente: |cffffd200" .. count .. "|r"
+        string.format(L["HIST_BOX_COUNT_FMT"], count)
     )
 end
 
@@ -407,8 +408,8 @@ local function CreateHistoryRow(parent, idx)
     row.removeBtn:SetText("X")
     row.removeBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Eliminar del historial", 1, 0.3, 0.3)
-        GameTooltip:AddLine("Borra este bot de la lista guardada.", 0.8, 0.8, 0.8)
+        GameTooltip:AddLine(L["DEL_HIST_TIP_TITLE"], 1, 0.3, 0.3)
+        GameTooltip:AddLine(L["DEL_HIST_TIP_DESC"], 0.8, 0.8, 0.8)
         GameTooltip:Show()
     end)
     row.removeBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -459,7 +460,7 @@ function DungeonBots:BuildHistoryDialog()
 
     local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("LEFT", 10, 0)
-    title:SetText("|cff00ccffHistorial de|r |cffffd200bots|r")
+    title:SetText(L["HIST_MODAL_TITLE"])
 
     local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
     closeBtn:SetPoint("RIGHT", header, "RIGHT", -2, 0)
@@ -470,13 +471,13 @@ function DungeonBots:BuildHistoryDialog()
 
     local countLabel = hf:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     countLabel:SetPoint("TOPLEFT", 14, -44)
-    countLabel:SetText("Total guardados: |cffffd2000|r")
+    countLabel:SetText(L["HIST_TOTAL_ZERO"])
     hf.countLabel = countLabel
 
     local clearBtn = CreateFrame("Button", nil, hf, "UIPanelButtonTemplate")
     clearBtn:SetSize(105, 22)
     clearBtn:SetPoint("TOPRIGHT", hf, "TOPRIGHT", -14, -40)
-    clearBtn:SetText("Limpiar Todo")
+    clearBtn:SetText(L["HIST_CLEAR_ALL"])
     clearBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOff")
         StaticPopup_Show("DUNGEONBOTS_CLEAR_HISTORY")
@@ -499,17 +500,17 @@ function DungeonBots:BuildHistoryDialog()
     local emptyLabel = scrollBg:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     emptyLabel:SetPoint("CENTER", scrollBg, "CENTER", -8, 0)
     emptyLabel:SetWidth(420)
-    emptyLabel:SetText("Aún no tienes bots registrados en el historial.\n\nInvoca bots con 'Armar Grupo' y cambia sus talentos en 'Bots en el grupo' para verlos guardados aquí.")
+    emptyLabel:SetText(L["HIST_EMPTY_TEXT"])
     hf.emptyLabel = emptyLabel
 
     local footerHint = hf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     footerHint:SetPoint("BOTTOMLEFT", 14, 15)
-    footerHint:SetText("|cffaaaaaaLos talentos mostrados corresponden a la última rama asignada.|r")
+    footerHint:SetText(L["HIST_FOOTER_NOTE"])
 
     local closeFooterBtn = CreateFrame("Button", nil, hf, "UIPanelButtonTemplate")
     closeFooterBtn:SetSize(90, 24)
     closeFooterBtn:SetPoint("BOTTOMRIGHT", hf, "BOTTOMRIGHT", -12, 10)
-    closeFooterBtn:SetText("Cerrar")
+    closeFooterBtn:SetText(L["BTN_CLOSE"])
     closeFooterBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOff")
         hf:Hide()
@@ -526,7 +527,7 @@ function DungeonBots:UpdateHistoryUI()
     if not hf then return end
 
     local list = DungeonBots:GetSortedBotHistory()
-    hf.countLabel:SetText("Total guardados: |cffffd200" .. #list .. "|r")
+    hf.countLabel:SetText(string.format(L["HIST_TOTAL_FMT"], #list))
 
     for _, row in ipairs(historyRows) do
         row:Hide()
@@ -557,7 +558,7 @@ function DungeonBots:UpdateHistoryUI()
         local botName = entry.name
         local inParty = (DungeonBots:FindPartyUnitByName(botName) ~= nil)
         if inParty then
-            row.nameText:SetText(botName .. "  |cff34c759[En Grupo]|r")
+            row.nameText:SetText(botName .. L["HIST_IN_PARTY_TAG"])
         else
             row.nameText:SetText(botName)
         end
@@ -567,21 +568,21 @@ function DungeonBots:UpdateHistoryUI()
         local displaySpec = (cleanSpec ~= "")
             and ((DungeonBots.LocalizeSpecText and DungeonBots:LocalizeSpecText(cleanSpec)) or cleanSpec)
             or ""
-        local specText = (displaySpec ~= "") and ("|cff71d5ff" .. displaySpec .. "|r") or "|cff999999Talentos por defecto|r"
+        local specText = (displaySpec ~= "") and ("|cff71d5ff" .. displaySpec .. "|r") or L["HIST_DEFAULT_TALENTS"]
         row.detailText:SetText(className .. " - " .. specText)
 
         if inParty then
-            row.inviteBtn:SetText("En Grupo")
+            row.inviteBtn:SetText(L["HIST_IN_PARTY_BTN"])
             row.inviteBtn:Disable()
             row.inviteBtn:SetScript("OnClick", nil)
             row.inviteBtn:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                GameTooltip:AddLine("Ya está en tu grupo", 0.3, 1.0, 0.5)
-                GameTooltip:AddLine(botName .. " ya se encuentra unido al grupo actual.", 0.8, 0.8, 0.8)
+                GameTooltip:AddLine(L["HIST_ALREADY_TITLE"], 0.3, 1.0, 0.5)
+                GameTooltip:AddLine(string.format(L["HIST_ALREADY_DESC"], botName), 0.8, 0.8, 0.8)
                 GameTooltip:Show()
             end)
         else
-            row.inviteBtn:SetText("Invitar")
+            row.inviteBtn:SetText(L["BTN_INVITE"])
             row.inviteBtn:Enable()
             row.inviteBtn:SetScript("OnClick", function()
                 PlaySound("igMainMenuOptionCheckBoxOn")
@@ -589,8 +590,8 @@ function DungeonBots:UpdateHistoryUI()
             end)
             row.inviteBtn:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                GameTooltip:AddLine("Invitar a " .. botName, 1, 1, 1)
-                GameTooltip:AddLine("Invoca a " .. botName .. " y lo invita a tu grupo automáticamente.", 0.7, 0.8, 1.0, true)
+                GameTooltip:AddLine(string.format(L["HIST_INVITE_TITLE"], botName), 1, 1, 1)
+                GameTooltip:AddLine(string.format(L["HIST_INVITE_DESC"], botName), 0.7, 0.8, 1.0, true)
                 GameTooltip:Show()
             end)
         end

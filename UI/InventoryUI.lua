@@ -6,6 +6,7 @@ DungeonBots = DungeonBots or {}
 DungeonBots.Internal = DungeonBots.Internal or {}
 
 local DB_Internal = DungeonBots.Internal
+local L = DungeonBots.L or {}
 
 local function ApplyBlizzardGoldWindow(frame, edgeSize)
     return DB_Internal.ApplyBlizzardGoldWindow(frame, edgeSize)
@@ -24,9 +25,9 @@ local function CreateRedIconButton(parent, width, height, text, iconPath, center
 end
 
 StaticPopupDialogs["DUNGEONBOTS_DESTROY_BOT_ITEM"] = {
-    text = "¿Seguro que quieres ordenar a |cffffd200%s|r destruir este objeto?\n\n%s\n\n|cffff3b30Esta acción no se puede deshacer.|r",
-    button1 = "Destruir",
-    button2 = "Cancelar",
+    text = L["INV_DESTROY_CONFIRM"],
+    button1 = L["BTN_DESTROY"],
+    button2 = L["BTN_CANCEL"],
     OnAccept = function(self, data)
         if data and data.botName and data.item and DungeonBots.DestroyBotItem then
             DungeonBots:DestroyBotItem(data.botName, data.item)
@@ -42,7 +43,7 @@ local function ConfirmDestroyBotItem(botName, itemEntry)
     if not botName or not itemEntry then return end
     local itemDisplay = (itemEntry.displayLink and itemEntry.displayLink ~= "")
         and itemEntry.displayLink
-        or ("[" .. (itemEntry.name or itemEntry.rawName or "Objeto") .. "]")
+        or ("[" .. (itemEntry.name or itemEntry.rawName or L["ITEM_DEFAULT"]) .. "]")
     if (itemEntry.count or 1) > 1 then
         itemDisplay = itemDisplay .. " |cffffffffx" .. itemEntry.count .. "|r"
     end
@@ -168,17 +169,18 @@ local function CreateInventorySlotButton(parent, idx)
         if not ok or GameTooltip:NumLines() == 0 then
             GameTooltip:ClearLines()
             local r, g, b = GetQualityColor(item.rarity)
-            GameTooltip:AddLine(item.name or item.rawName or "Objeto", r, g, b)
-            GameTooltip:AddLine("Esperando información del servidor...", 0.7, 0.7, 0.7)
+            GameTooltip:AddLine(item.name or item.rawName or L["ITEM_DEFAULT"], r, g, b)
+            GameTooltip:AddLine(L["INV_TIP_WAIT_SRV"], 0.7, 0.7, 0.7)
         end
         GameTooltip:AddLine(" ")
         if (item.count or 1) > 1 then
-            GameTooltip:AddLine("Cantidad en bolsa: |cffffffff" .. item.count .. "|r", 0.75, 0.85, 0.95)
+            GameTooltip:AddLine(string.format(L["INV_TIP_QTY_FMT"], tostring(item.count)), 0.75, 0.85, 0.95)
         end
-        if item.category and item.category ~= "" and item.category ~= "General" then
-            GameTooltip:AddLine("Sección: |cffaaaaaa" .. item.category .. "|r", 0.75, 0.75, 0.75)
+        if item.category and item.category ~= "" and item.category ~= "General" and item.category ~= L["CAT_GENERAL"] then
+            local dispCat = DungeonBots.LocalizeServerSection and DungeonBots:LocalizeServerSection(item.category) or item.category
+            GameTooltip:AddLine(string.format(L["INV_TIP_SEC_FMT"], dispCat), 0.75, 0.75, 0.75)
         end
-        GameTooltip:AddLine("Clic izquierdo: |cffffffffSeleccionar|r  |  Clic derecho: |cffff3b30Destruir|r", 0.8, 0.8, 0.8)
+        GameTooltip:AddLine(L["INV_TIP_ACTIONS"], 0.8, 0.8, 0.8)
         GameTooltip:Show()
     end)
     btn:SetScript("OnLeave", function()
@@ -251,7 +253,7 @@ function DungeonBots:BuildInventoryDialog()
 
     local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("LEFT", hIcon, "RIGHT", 6, 0)
-    title:SetText("|cff00ccffInventario:|r |cffffd200Bot|r")
+    title:SetText(L["INV_WIN_DEFAULT"])
     inv.title = title
 
     local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
@@ -263,7 +265,7 @@ function DungeonBots:BuildInventoryDialog()
 
     local searchLabel = inv:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     searchLabel:SetPoint("TOPLEFT", inv, "TOPLEFT", 14, -44)
-    searchLabel:SetText("Buscar:")
+    searchLabel:SetText(L["SEARCH_LABEL"])
 
     local searchBox = CreateFrame("EditBox", "DungeonBots_InvSearchBox", inv, "InputBoxTemplate")
     searchBox:SetSize(165, 20)
@@ -285,7 +287,7 @@ function DungeonBots:BuildInventoryDialog()
     local refreshBtn = CreateFrame("Button", nil, inv, "UIPanelButtonTemplate")
     refreshBtn:SetSize(102, 22)
     refreshBtn:SetPoint("TOPRIGHT", inv, "TOPRIGHT", -12, -39)
-    refreshBtn:SetText("Actualizar")
+    refreshBtn:SetText(L["BTN_REFRESH"])
     refreshBtn:SetScript("OnClick", function()
         if not inv.currentBot then return end
         local pendingCap = DungeonBots.pendingInventoryCapture and DungeonBots.pendingInventoryCapture[inv.currentBot]
@@ -312,7 +314,7 @@ function DungeonBots:BuildInventoryDialog()
     bagSpaceLabel:SetPoint("RIGHT", refreshBtn, "LEFT", -8, 0)
     bagSpaceLabel:SetJustifyH("LEFT")
     bagSpaceLabel:SetWordWrap(false)
-    bagSpaceLabel:SetText("Bolsas: |cff888888Consultando...|r")
+    bagSpaceLabel:SetText(L["INV_BAGS_QUERYING"])
     inv.bagSpaceLabel = bagSpaceLabel
 
     local bagBg = CreateFrame("Frame", nil, inv)
@@ -332,13 +334,13 @@ function DungeonBots:BuildInventoryDialog()
     local emptyLabel = bagBg:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     emptyLabel:SetPoint("CENTER", bagBg, "CENTER", -8, 0)
     emptyLabel:SetWidth(420)
-    emptyLabel:SetText("Esperando respuesta del bot...")
+    emptyLabel:SetText(L["WAIT_BOT_RESPONSE"])
     inv.emptyLabel = emptyLabel
 
     local nextBotBtn = CreateFrame("Button", nil, inv, "UIPanelButtonTemplate")
     nextBotBtn:SetSize(120, 24)
     nextBotBtn:SetPoint("BOTTOMLEFT", inv, "BOTTOMLEFT", 12, 10)
-    nextBotBtn:SetText("Siguiente Bot")
+    nextBotBtn:SetText(L["BTN_NEXT_BOT"])
     nextBotBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
         inv.selectedItem = nil
@@ -348,8 +350,8 @@ function DungeonBots:BuildInventoryDialog()
     end)
     nextBotBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Siguiente Bot", 1, 0.82, 0)
-        GameTooltip:AddLine("Pasa al siguiente bot del grupo para ver su inventario.", 0.85, 0.85, 0.85, true)
+        GameTooltip:AddLine(L["BTN_NEXT_BOT"], 1, 0.82, 0)
+        GameTooltip:AddLine(L["INV_NEXT_BOT_TIP"], 0.85, 0.85, 0.85, true)
         GameTooltip:Show()
     end)
     nextBotBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -365,14 +367,14 @@ function DungeonBots:BuildInventoryDialog()
     local closeFooterBtn = CreateFrame("Button", nil, inv, "UIPanelButtonTemplate")
     closeFooterBtn:SetSize(90, 24)
     closeFooterBtn:SetPoint("BOTTOMRIGHT", inv, "BOTTOMRIGHT", -12, 10)
-    closeFooterBtn:SetText("Cerrar")
+    closeFooterBtn:SetText(L["BTN_CLOSE"])
     closeFooterBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOff")
         inv:Hide()
     end)
     inv.closeFooterBtn = closeFooterBtn
 
-    local destroyBtn = CreateRedIconButton(inv, 112, 24, "Destruir", "Interface\\Icons\\Spell_ChargeNegative")
+    local destroyBtn = CreateRedIconButton(inv, 112, 24, L["BTN_DESTROY"], "Interface\\Icons\\Spell_ChargeNegative")
     destroyBtn:SetPoint("RIGHT", closeFooterBtn, "LEFT", -8, 0)
     destroyBtn:Disable()
     destroyBtn:SetAlpha(0.45)
@@ -382,8 +384,8 @@ function DungeonBots:BuildInventoryDialog()
     end)
     destroyBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Destruir objeto seleccionado", 1, 0.35, 0.35)
-        GameTooltip:AddLine("Ordena al bot destruir el objeto seleccionado tras confirmar.", 0.85, 0.85, 0.85, true)
+        GameTooltip:AddLine(L["INV_DESTROY_TIP_TITLE"], 1, 0.35, 0.35)
+        GameTooltip:AddLine(L["INV_DESTROY_TIP_DESC"], 0.85, 0.85, 0.85, true)
         GameTooltip:Show()
     end)
     destroyBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -412,7 +414,7 @@ function DungeonBots:UpdateInventoryDialog(botName)
             classHex = string.format("|cff%02x%02x%02x", math.floor(c.r * 255), math.floor(c.g * 255), math.floor(c.b * 255))
         end
     end
-    inv.title:SetText("|cff00ccffInventario:|r " .. classHex .. targetBot .. "|r")
+    inv.title:SetText(string.format(L["INV_WIN_FMT"], classHex, targetBot))
 
     local data = DungeonBots.inventoryDialogData and DungeonBots.inventoryDialogData[targetBot]
     local allItems = (data and data.items) or {}
@@ -450,14 +452,14 @@ function DungeonBots:UpdateInventoryDialog(botName)
         if DB_Internal.GetBotBagFreeInfo and st then
             local freeSlots, totalSlots, bagColor = DB_Internal.GetBotBagFreeInfo(st)
             if freeSlots ~= nil then
-                inv.bagSpaceLabel:SetText("Bolsas: " .. bagColor .. tostring(freeSlots) .. "/" .. tostring(totalSlots) .. "|r libres")
+                inv.bagSpaceLabel:SetText(string.format(L["INV_BAGS_FREE_FMT"], bagColor, tonumber(freeSlots) or 0, tonumber(totalSlots) or 0))
             else
-                inv.bagSpaceLabel:SetText("Bolsas: |cff888888Consultando...|r")
+                inv.bagSpaceLabel:SetText(L["INV_BAGS_QUERYING"])
             end
         elseif data and data.slotsText and data.slotsText ~= "" then
             inv.bagSpaceLabel:SetText("|cffe6ecf5" .. data.slotsText .. "|r")
         else
-            inv.bagSpaceLabel:SetText("Bolsas: |cff888888Consultando...|r")
+            inv.bagSpaceLabel:SetText(L["INV_BAGS_QUERYING"])
         end
     end
 
@@ -465,23 +467,23 @@ function DungeonBots:UpdateInventoryDialog(botName)
         local isCapPending = DungeonBots.pendingInventoryCapture and DungeonBots.pendingInventoryCapture[targetBot] ~= nil
         if isCapPending or (data and data.loading) then
             inv.refreshBtn:Disable()
-            inv.refreshBtn:SetText("Consultando...")
+            inv.refreshBtn:SetText(L["BTN_QUERYING"])
         else
             inv.refreshBtn:Enable()
-            inv.refreshBtn:SetText("Actualizar")
+            inv.refreshBtn:SetText(L["BTN_REFRESH"])
         end
     end
 
     if #visibleItems == 0 then
         inv.emptyLabel:Show()
         if data and data.loading then
-            inv.emptyLabel:SetText("Consultando el inventario de |cffffd200" .. targetBot .. "|r...")
+            inv.emptyLabel:SetText(string.format(L["INV_STATUS_QUERY_FMT"], targetBot))
         elseif data and data.timedOut and #allItems == 0 then
-            inv.emptyLabel:SetText("No se recibió respuesta de |cffffd200" .. targetBot .. "|r al consultar su inventario.")
+            inv.emptyLabel:SetText(string.format(L["INV_STATUS_NORESP_FMT"], targetBot))
         elseif #allItems == 0 then
-            inv.emptyLabel:SetText("|cffffd200" .. targetBot .. "|r no tiene objetos visibles en sus bolsas.")
+            inv.emptyLabel:SetText(string.format(L["INV_STATUS_EMPTY_FMT"], targetBot))
         else
-            inv.emptyLabel:SetText("Ningún objeto coincide con \"" .. filterRaw .. "\".")
+            inv.emptyLabel:SetText(string.format(L["INV_STATUS_NOMATCH_FMT"], filterRaw))
         end
     else
         inv.emptyLabel:Hide()

@@ -6,6 +6,7 @@ DungeonBots = DungeonBots or {}
 DungeonBots.Internal = DungeonBots.Internal or {}
 
 local DB_Internal = DungeonBots.Internal
+local L = DungeonBots.L or {}
 
 local NowTime = DB_Internal.NowTime
 local NormalizePlayerName = DB_Internal.NormalizePlayerName
@@ -17,12 +18,12 @@ DungeonBots.pendingSpellsCapture = DungeonBots.pendingSpellsCapture or {}
 DungeonBots.pendingSpellDetailCapture = DungeonBots.pendingSpellDetailCapture or {}
 
 local DIFFICULTY_INFO = {
-    gray   = { key = "gray",   label = "Gris",     colorHex = "|cff9d9d9d", r = 0.62, g = 0.62, b = 0.62 },
-    grey   = { key = "gray",   label = "Gris",     colorHex = "|cff9d9d9d", r = 0.62, g = 0.62, b = 0.62 },
-    green  = { key = "green",  label = "Verde",    colorHex = "|cff40bf40", r = 0.25, g = 0.75, b = 0.25 },
-    yellow = { key = "yellow", label = "Amarillo", colorHex = "|cffffff00", r = 1.00, g = 1.00, b = 0.00 },
-    orange = { key = "orange", label = "Naranja",  colorHex = "|cffff8040", r = 1.00, g = 0.50, b = 0.25 },
-    red    = { key = "red",    label = "Rojo",     colorHex = "|cffff4040", r = 1.00, g = 0.25, b = 0.25 },
+    gray   = { key = "gray",   label = L["DIFF_GRAY"],   colorHex = "|cff9d9d9d", r = 0.62, g = 0.62, b = 0.62 },
+    grey   = { key = "gray",   label = L["DIFF_GRAY"],   colorHex = "|cff9d9d9d", r = 0.62, g = 0.62, b = 0.62 },
+    green  = { key = "green",  label = L["DIFF_GREEN"],  colorHex = "|cff40bf40", r = 0.25, g = 0.75, b = 0.25 },
+    yellow = { key = "yellow", label = L["DIFF_YELLOW"], colorHex = "|cffffff00", r = 1.00, g = 1.00, b = 0.00 },
+    orange = { key = "orange", label = L["DIFF_ORANGE"], colorHex = "|cffff8040", r = 1.00, g = 0.50, b = 0.25 },
+    red    = { key = "red",    label = L["DIFF_RED"],    colorHex = "|cffff4040", r = 1.00, g = 0.25, b = 0.25 },
 }
 
 local MODE_COMMANDS = {
@@ -419,7 +420,7 @@ local function ParseSpellDetailWhisper(cleanSender, message, now)
 
     local rec = GetOrCreateBotSpellsRecord(cleanSender)
     rec.spellDetail = {
-        title = (cap.spellEntry and (cap.spellEntry.name or cap.spellEntry.rawName)) or "Hechizo",
+        title = (cap.spellEntry and (cap.spellEntry.name or cap.spellEntry.rawName)) or (DungeonBots.L and DungeonBots.L["SPELL_DEFAULT"]) or "Spell",
         spellId = cap.spellEntry and cap.spellEntry.spellId or nil,
         lines = cap.lines,
         updatedAt = now,
@@ -439,9 +440,9 @@ local function ParseGlyphEntriesFromLine(line, cleanLine, tab)
     local lowerPrefix = string.lower(TrimText(prefixRaw or ""))
     local categoryTag = nil
     if string.find(lowerPrefix, "major", 1, true) or string.find(lowerPrefix, "sublim", 1, true) then
-        categoryTag = L["GLYPH_MAJOR"] or "Sublime"
+        categoryTag = L["GLYPH_MAJOR"] or "Major"
     elseif string.find(lowerPrefix, "minor", 1, true) or string.find(lowerPrefix, "menor", 1, true) then
-        categoryTag = L["GLYPH_MINOR"] or "Menor"
+        categoryTag = L["GLYPH_MINOR"] or "Minor"
     end
 
     local lineLinks = ExtractOrderedHyperlinks(line)
@@ -716,9 +717,9 @@ function DB_Internal.TickSpellsCapture(now)
                 DungeonBots.pendingSpellDetailCapture[botName] = nil
                 if cap.gotAnyLine and #cap.lines > 0 then
                     local summary = table.concat(cap.lines, " | ")
-                    DungeonBots:Print("|cffffd200" .. botName .. "|r (" .. ((cap.spellEntry and (cap.spellEntry.name or cap.spellEntry.rawName)) or "Hechizo") .. "): " .. summary)
+                    DungeonBots:Print("|cffffd200" .. botName .. "|r (" .. ((cap.spellEntry and (cap.spellEntry.name or cap.spellEntry.rawName)) or L["SPELL_DEFAULT"]) .. "): " .. summary)
                 else
-                    DungeonBots:Warn(botName .. " no devolvió detalles para ese hechizo.")
+                    DungeonBots:Warn(string.format(L["SPELL_NO_DETAIL_FMT"], botName))
                 end
             else
                 hasAny = true
@@ -733,7 +734,7 @@ function DungeonBots:QueryBotSpells(botName, mode, filterText, isSilent)
     local cleanBot = NormalizePlayerName(botName)
     if not cleanBot then
         if not isSilent then
-            DungeonBots:Warn("No hay ningún bot seleccionado para consultar sus poderes.")
+            DungeonBots:Warn(L["SPELL_NO_BOT_SEL"])
         end
         return
     end
@@ -842,8 +843,8 @@ function DungeonBots:CastBotSpell(botName, spellEntry)
 
     local display = (spellEntry.displayLink and spellEntry.displayLink ~= "")
         and spellEntry.displayLink
-        or ("|cff71d5ff[" .. (spellEntry.name or spellEntry.rawName or "Hechizo") .. "]|r")
-    DungeonBots:Print("Orden enviada a |cffffd200" .. cleanBot .. "|r -> lanzar " .. display)
+        or ("|cff71d5ff[" .. (spellEntry.name or spellEntry.rawName or L["SPELL_DEFAULT"]) .. "]|r")
+    DungeonBots:Print(string.format(L["SPELL_ORDER_CAST_FMT"], cleanBot, display))
 end
 
 function DungeonBots:CancelBotSpell(botName)
@@ -852,7 +853,7 @@ function DungeonBots:CancelBotSpell(botName)
 
     DungeonBots:SendWhisperCommand(cleanBot, "reset")
     PlaySound("igMainMenuOptionCheckBoxOn")
-    DungeonBots:Print("Orden enviada a |cffffd200" .. cleanBot .. "|r -> cancelar hechizo.")
+    DungeonBots:Print(string.format(L["SPELL_ORDER_CANCEL"], cleanBot))
 end
 
 function DungeonBots:CycleNextSpellsBot(currentBot, activeMode, serverFilter)

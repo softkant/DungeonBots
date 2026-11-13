@@ -7,12 +7,14 @@
 ## Version: 1.0.0
 ## SavedVariables: DungeonBotsDB
 
+# Locales (Base strings first so Core and UI tables can use L)
+Locales\enUS.lua
+Locales\esES.lua
+
 # Core
 Core\Core.lua
 
-# Locales
-Locales\enUS.lua
-Locales\esES.lua
+# Localization Helpers
 Locales\Locale.lua
 
 # Core Systems & Events

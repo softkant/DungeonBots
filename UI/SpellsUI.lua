@@ -6,6 +6,7 @@ DungeonBots = DungeonBots or {}
 DungeonBots.Internal = DungeonBots.Internal or {}
 
 local DB_Internal = DungeonBots.Internal
+local L = DungeonBots.L or {}
 
 local function ApplyDarkBackdrop(frame, edgeSize)
     return DB_Internal.ApplyDarkBackdrop(frame, edgeSize)
@@ -45,9 +46,9 @@ local function SafeShowLinkTooltip(owner, linkRef, displayLink, title, rawLine)
 end
 
 local MODE_TABS = {
-    { id = "gear",   label = "Equipo",   icon = "Interface\\Icons\\INV_Chest_Plate01" },
-    { id = "spells", label = "Hechizos", icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
-    { id = "glyphs", label = "Glifos",   icon = "Interface\\Icons\\INV_Inscription_Tradeskill01" },
+    { id = "gear",   label = L["CHAR_TAB_GEAR"],   icon = "Interface\\Icons\\INV_Chest_Plate01" },
+    { id = "spells", label = L["CHAR_TAB_SPELLS"], icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
+    { id = "glyphs", label = L["CHAR_TAB_GLYPHS"], icon = "Interface\\Icons\\INV_Inscription_Tradeskill01" },
 }
 
 local function BuildGearPanel(sp)
@@ -73,11 +74,11 @@ local function BuildGearPanel(sp)
 
     local specTitle = specCard:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     specTitle:SetPoint("LEFT", specHeaderIcon, "RIGHT", 7, 0)
-    specTitle:SetText("|cff71d5ffRama de Talentos|r")
+    specTitle:SetText(L["CHAR_SPEC_SECTION"])
 
     local specSubLabel = specCard:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     specSubLabel:SetPoint("TOPLEFT", specCard, "TOPLEFT", 12, -33)
-    specSubLabel:SetText("|cff9aa5b4Elige la especialización que utilizará el bot:|r")
+    specSubLabel:SetText(L["CHAR_SPEC_SUB"])
 
     gearPanel.specButtons = {}
     local btnW, btnH = 164, 26
@@ -115,7 +116,7 @@ local function BuildGearPanel(sp)
     local emptySpecsLabel = specCard:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     emptySpecsLabel:SetPoint("CENTER", specCard, "CENTER", 0, -18)
     emptySpecsLabel:SetWidth(460)
-    emptySpecsLabel:SetText("|cff888888Sin ramas cargadas todavía.|r")
+    emptySpecsLabel:SetText(L["CHAR_SPEC_EMPTY"])
     emptySpecsLabel:Hide()
     gearPanel.emptySpecsLabel = emptySpecsLabel
 
@@ -135,13 +136,13 @@ local function BuildGearPanel(sp)
 
     local gearTitle = autogearCard:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     gearTitle:SetPoint("LEFT", gearHeaderIcon, "RIGHT", 7, 0)
-    gearTitle:SetText("|cffffd200Gestión de Equipo|r")
+    gearTitle:SetText(L["CHAR_GEAR_SECTION"])
 
     local gearSubLabel = autogearCard:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     gearSubLabel:SetPoint("TOPLEFT", autogearCard, "TOPLEFT", 12, -33)
     gearSubLabel:SetPoint("TOPRIGHT", autogearCard, "TOPRIGHT", -12, -33)
     gearSubLabel:SetJustifyH("LEFT")
-    gearSubLabel:SetText("|cff9aa5b4Ajuste rápido del equipamiento actual del bot:|r")
+    gearSubLabel:SetText(L["CHAR_GEAR_SUB"])
 
     local autogearBox = CreateFrame("Frame", nil, autogearCard)
     autogearBox:SetPoint("TOPLEFT", autogearCard, "TOPLEFT", 14, -56)
@@ -154,7 +155,7 @@ local function BuildGearPanel(sp)
     local autogearBtn = CreateFrame("Button", "DungeonBots_GearAutogearBtn", autogearBox, "UIPanelButtonTemplate")
     autogearBtn:SetSize(120, 30)
     autogearBtn:SetPoint("LEFT", autogearBox, "LEFT", 16, 0)
-    autogearBtn:SetText("Autoequipar")
+    autogearBtn:SetText(L["CHAR_AUTOGEAR_BTN"])
     gearPanel.autogearBtn = autogearBtn
 
     local autogearDesc = autogearBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -164,7 +165,7 @@ local function BuildGearPanel(sp)
     autogearDesc:SetPoint("BOTTOM", autogearBox, "BOTTOM", 0, 10)
     autogearDesc:SetJustifyH("LEFT")
     autogearDesc:SetJustifyV("MIDDLE")
-    autogearDesc:SetText("|cffff5555Advertencia:|r Si usas esta opción, la armadura actual del bot se degradará.\n\n|cffffd200Recomendación:|r Es mejor dejar su equipo como está y buscar otro bot que ya tenga el equipamiento acorde a los talentos que necesita.")
+    autogearDesc:SetText(L["CHAR_AUTOGEAR_DESC"])
 end
 
 local SPELL_ROW_HEIGHT = 40
@@ -206,16 +207,16 @@ local function FormatReagentsSummary(reagents)
     end
     local parts = {}
     for _, reg in ipairs(reagents) do
-        local label = reg.displayLink or ("[" .. (reg.name or reg.rawName or "Objeto") .. "]")
+        local label = reg.displayLink or ("[" .. (reg.name or reg.rawName or L["ITEM_DEFAULT"]) .. "]")
         if reg.count and reg.count > 1 then
             label = label .. " x" .. reg.count
         end
         if reg.buyable then
-            label = label .. " |cff34c759(compra)|r"
+            label = label .. L["SPELL_BUY_TAG"]
         end
         table.insert(parts, label)
     end
-    return "|cffaaaaaaMat.:|r " .. table.concat(parts, ", ")
+    return L["SPELL_MAT_PREFIX"] .. table.concat(parts, ", ")
 end
 
 local function FormatPowerAndCastMeta(entry)
@@ -223,24 +224,24 @@ local function FormatPowerAndCastMeta(entry)
     local parts = {}
     if entry.cost and entry.cost > 0 then
         local powerLabels = {
-            [0] = "maná",
-            [1] = "ira",
-            [2] = "enfoque",
-            [3] = "energía",
-            [6] = "poder rúnico",
+            [0] = L["SPELL_MANA"],
+            [1] = L["SPELL_RAGE"],
+            [2] = L["SPELL_FOCUS"],
+            [3] = L["SPELL_ENERGY"],
+            [6] = L["SPELL_RUNIC"],
         }
-        local unitTxt = powerLabels[entry.powerType] or "coste"
+        local unitTxt = powerLabels[entry.powerType] or L["SPELL_COST"]
         table.insert(parts, entry.cost .. " " .. unitTxt)
     end
     if entry.castTime ~= nil then
         if entry.castTime == 0 then
-            table.insert(parts, "Instantáneo")
+            table.insert(parts, L["SPELL_INSTANT"])
         else
-            table.insert(parts, string.format("%.1f s", entry.castTime / 1000))
+            table.insert(parts, string.format(L["SPELL_CAST_SEC_FMT"], entry.castTime / 1000))
         end
     end
     if entry.maxRange and entry.maxRange > 0 then
-        table.insert(parts, string.format("%d m", entry.maxRange))
+        table.insert(parts, string.format(L["SPELL_RANGE_YD_FMT"], entry.maxRange))
     end
     if #parts == 0 then return nil end
     return "|cff8899aa" .. table.concat(parts, "  |  ") .. "|r"
@@ -414,7 +415,7 @@ local function CreateSpellRowButton(parent, idx)
         if not entry or not DB_Internal.ResolveSpellEntryVisuals then return end
         if DB_Internal.ResolveSpellEntryVisuals(entry, false) then
             self.icon:SetTexture(entry.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
-            local titleTxt = entry.name or entry.rawName or (entry.kind == "glyph" and "Glifo" or "Hechizo")
+            local titleTxt = entry.name or entry.rawName or (entry.kind == "glyph" and L["GLYPH_DEFAULT"] or L["SPELL_DEFAULT"])
             if entry.rank and entry.rank ~= "" then
                 titleTxt = titleTxt .. " |cff888888(" .. entry.rank .. ")|r"
             end
@@ -445,7 +446,7 @@ local function CreateSpellRowButton(parent, idx)
         end
         if not loadedRich or (GameTooltip.NumLines and GameTooltip:NumLines() == 0) then
             GameTooltip:ClearLines()
-            local fallbackTitle = entry.name or entry.rawName or (isGlyph and "Glifo" or "Hechizo")
+            local fallbackTitle = entry.name or entry.rawName or (isGlyph and L["GLYPH_DEFAULT"] or L["SPELL_DEFAULT"])
             GameTooltip:AddLine(fallbackTitle, 0.45, 0.85, 1.0)
         end
 
@@ -453,34 +454,34 @@ local function CreateSpellRowButton(parent, idx)
 
         if isGlyph then
             if entry.categoryTag then
-                GameTooltip:AddLine("Tipo: " .. entry.categoryTag, 0.44, 0.84, 1.0)
+                GameTooltip:AddLine(string.format(L["SPELL_TIP_TYPE_FMT"], entry.categoryTag), 0.44, 0.84, 1.0)
             end
             GameTooltip:AddLine(" ")
-            GameTooltip:AddLine("Shift + Clic: |cffffffffInsertar enlace en el chat|r", 0.8, 0.8, 0.8)
+            GameTooltip:AddLine(L["SPELL_TIP_SHIFT_CHAT"], 0.8, 0.8, 0.8)
             GameTooltip:Show()
             return
         end
 
         if entry.reagents and #entry.reagents > 0 then
             GameTooltip:AddLine(" ")
-            GameTooltip:AddLine("Materiales:", 1, 0.82, 0)
+            GameTooltip:AddLine(L["SPELL_TIP_MATS"], 1, 0.82, 0)
             for _, reg in ipairs(entry.reagents) do
-                local lineTxt = reg.name or reg.rawName or "Material"
+                local lineTxt = reg.name or reg.rawName or L["ITEM_DEFAULT"]
                 if reg.count and reg.count > 1 then
                     lineTxt = lineTxt .. " x" .. reg.count
                 end
                 if reg.buyable then
-                    lineTxt = lineTxt .. " (vendedor)"
+                    lineTxt = lineTxt .. L["SPELL_TIP_VENDOR"]
                 end
                 GameTooltip:AddLine("  - " .. lineTxt, 0.9, 0.9, 0.9)
             end
         end
 
         if entry.difficulty then
-            GameTooltip:AddLine("Dificultad: " .. entry.difficulty.label, entry.difficulty.r, entry.difficulty.g, entry.difficulty.b)
+            GameTooltip:AddLine(string.format(L["SPELL_TIP_DIFF_FMT"], entry.difficulty.label), entry.difficulty.r, entry.difficulty.g, entry.difficulty.b)
         end
         GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("Clic izquierdo: |cffffffffSeleccionar|r  |  Shift + Clic: |cff71d5ffEnlazar|r", 0.8, 0.8, 0.8)
+        GameTooltip:AddLine(L["SPELL_TIP_ACTIONS"], 0.8, 0.8, 0.8)
         GameTooltip:Show()
     end)
     row:SetScript("OnLeave", function(self)
@@ -550,7 +551,7 @@ function DungeonBots:BuildSpellsDialog()
 
     local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("LEFT", hIcon, "RIGHT", 6, 0)
-    title:SetText("|cffb266ffPersonaje:|r")
+    title:SetText(L["CHAR_WIN_DEFAULT"])
     sp.title = title
 
     local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
@@ -604,7 +605,7 @@ function DungeonBots:BuildSpellsDialog()
 
     local localLbl = filterBar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     localLbl:SetPoint("LEFT", filterBar, "LEFT", 2, 0)
-    localLbl:SetText("Buscar:")
+    localLbl:SetText(L["SEARCH_LABEL"])
 
     local localSearchBox = CreateFrame("EditBox", "DungeonBots_SpellsLocalSearchBox", filterBar, "InputBoxTemplate")
     localSearchBox:SetSize(468, 20)
@@ -637,7 +638,7 @@ function DungeonBots:BuildSpellsDialog()
     local emptyLabel = listBg:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     emptyLabel:SetPoint("CENTER", listBg, "CENTER", -8, 0)
     emptyLabel:SetWidth(430)
-    emptyLabel:SetText("Esperando respuesta del bot...")
+    emptyLabel:SetText(L["WAIT_BOT_RESPONSE"])
     sp.emptyLabel = emptyLabel
 
     BuildGearPanel(sp)
@@ -646,7 +647,7 @@ function DungeonBots:BuildSpellsDialog()
     local nextBotBtn = CreateFrame("Button", nil, sp, "UIPanelButtonTemplate")
     nextBotBtn:SetSize(118, 24)
     nextBotBtn:SetPoint("BOTTOMLEFT", sp, "BOTTOMLEFT", 12, 10)
-    nextBotBtn:SetText("Siguiente Bot")
+    nextBotBtn:SetText(L["BTN_NEXT_BOT"])
     nextBotBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
         sp.selectedSpell = nil
@@ -666,14 +667,14 @@ function DungeonBots:BuildSpellsDialog()
     local closeFooterBtn = CreateFrame("Button", "DungeonBots_SpellsCloseFooterBtn", sp, "UIPanelButtonTemplate")
     closeFooterBtn:SetSize(90, 24)
     closeFooterBtn:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", -12, 10)
-    closeFooterBtn:SetText("Cerrar")
+    closeFooterBtn:SetText(L["BTN_CLOSE"])
     closeFooterBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOff")
         sp:Hide()
     end)
     sp.closeFooterBtn = closeFooterBtn
 
-    local castBtn = CreateRedIconButton(sp, 98, 24, "Lanzar", "Interface\\Icons\\Spell_Holy_MagicalSentry")
+    local castBtn = CreateRedIconButton(sp, 98, 24, L["SPELL_BTN_CAST"], "Interface\\Icons\\Spell_Holy_MagicalSentry")
     castBtn:SetPoint("RIGHT", closeFooterBtn, "LEFT", -8, 0)
     castBtn:Disable()
     castBtn:SetAlpha(0.45)
@@ -685,14 +686,14 @@ function DungeonBots:BuildSpellsDialog()
     end)
     castBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Lanzar hechizo", 0.45, 0.85, 1.0)
-        GameTooltip:AddLine("Ordena al bot seleccionado lanzar el hechizo elegido.", 0.85, 0.85, 0.85, true)
+        GameTooltip:AddLine(L["SPELL_CAST_TIP_TITLE"], 0.45, 0.85, 1.0)
+        GameTooltip:AddLine(L["SPELL_CAST_TIP_DESC"], 0.85, 0.85, 0.85, true)
         GameTooltip:Show()
     end)
     castBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
     sp.castBtn = castBtn
 
-    local cancelBtn = CreateRedIconButton(sp, 98, 24, "Cancelar", "Interface\\Icons\\Ability_Kick")
+    local cancelBtn = CreateRedIconButton(sp, 98, 24, L["BTN_CANCEL"], "Interface\\Icons\\Ability_Kick")
     cancelBtn:SetPoint("RIGHT", castBtn, "LEFT", -8, 0)
     cancelBtn:Disable()
     cancelBtn:SetAlpha(0.45)
@@ -707,12 +708,12 @@ function DungeonBots:BuildSpellsDialog()
     end)
     local function RefreshCancelTooltip(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Cancelar hechizo", 1.0, 0.45, 0.35)
+        GameTooltip:AddLine(L["SPELL_CANCEL_TIP_TTL"], 1.0, 0.45, 0.35)
         if self.activeCastSpell then
-            GameTooltip:AddLine("Casteando ahora: |cffffd200" .. self.activeCastSpell .. "|r", 1, 1, 1, true)
-            GameTooltip:AddLine("Haz clic para detener el lanzamiento actual del bot.", 0.85, 0.85, 0.85, true)
+            GameTooltip:AddLine(string.format(L["SPELL_CANCEL_NOW_FMT"], self.activeCastSpell), 1, 1, 1, true)
+            GameTooltip:AddLine(L["SPELL_CANCEL_CLICK"], 0.85, 0.85, 0.85, true)
         else
-            GameTooltip:AddLine("Detiene el lanzamiento actual del bot (se ilumina y habilita cuando está casteando o canalizando).", 0.85, 0.85, 0.85, true)
+            GameTooltip:AddLine(L["SPELL_CANCEL_IDLE"], 0.85, 0.85, 0.85, true)
         end
         GameTooltip:Show()
     end
@@ -840,7 +841,7 @@ local function RenderGearPanel(sp, targetBot, classToken)
             local isActive = (activeSpec and string.lower(specName) == string.lower(activeSpec)) and true or false
             local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
             if isActive then
-                sBtn.label:SetText((p and p.specActiveHex or "|cffffd100") .. displaySpec .. " (Activa)|r")
+                sBtn.label:SetText(string.format(L["CHAR_SPEC_ACTIVE_FMT"], (p and p.specActiveHex or "|cffffd100"), displaySpec))
                 if p then
                     sBtn:SetBackdropColor(p.specActiveBg[1], p.specActiveBg[2], p.specActiveBg[3], p.specActiveBg[4])
                     sBtn:SetBackdropBorderColor(p.specActiveBorder[1], p.specActiveBorder[2], p.specActiveBorder[3], p.specActiveBorder[4])
@@ -875,8 +876,8 @@ local function RenderGearPanel(sp, targetBot, classToken)
             end)
             sBtn:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                GameTooltip:AddLine("Cambiar rama a " .. displaySpec, 0.45, 0.85, 1.0)
-                GameTooltip:AddLine("Cambia la especialización activa de " .. targetBot .. " a " .. displaySpec .. ".", 0.85, 0.85, 0.85, true)
+                GameTooltip:AddLine(string.format(L["CHAR_SPEC_TIP_TITLE"], displaySpec), 0.45, 0.85, 1.0)
+                GameTooltip:AddLine(string.format(L["CHAR_SPEC_TIP_DESC"], targetBot, displaySpec), 0.85, 0.85, 0.85, true)
                 GameTooltip:Show()
             end)
             sBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -896,9 +897,9 @@ local function RenderGearPanel(sp, targetBot, classToken)
     end)
     gp.autogearBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Autoequipar", 1, 0.8, 0.2)
-        GameTooltip:AddLine("Aplica el autoequipamiento al bot actual.", 1, 1, 1, true)
-        GameTooltip:AddLine("\nAdvertencia: La armadura actual se degradará. Se recomienda dejar su equipo como está y buscar otro bot que ya cuente con el equipamiento de los talentos que necesitas.", 1, 0.35, 0.35, true)
+        GameTooltip:AddLine(L["CHAR_AUTOGEAR_BTN"], 1, 0.8, 0.2)
+        GameTooltip:AddLine(L["CHAR_AUTOGEAR_TIP_DESC"], 1, 1, 1, true)
+        GameTooltip:AddLine(L["CHAR_AUTOGEAR_TIP_WARN"], 1, 0.35, 0.35, true)
         GameTooltip:Show()
     end)
     gp.autogearBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -928,7 +929,7 @@ function DungeonBots:UpdateSpellsDialog(botName)
             classHex = string.format("|cff%02x%02x%02x", math.floor(c.r * 255), math.floor(c.g * 255), math.floor(c.b * 255))
         end
     end
-    sp.title:SetText("|cffb266ffPersonaje:|r " .. classHex .. targetBot .. "|r")
+    sp.title:SetText(string.format(L["CHAR_WIN_FMT"], classHex, targetBot))
 
     for tabId, mBtn in pairs(sp.modeButtons) do
         if tabId == mode then
@@ -1027,19 +1028,19 @@ function DungeonBots:UpdateSpellsDialog(botName)
     if #visibleEntries == 0 then
         sp.emptyLabel:Show()
         if tab and tab.loading then
-            local what = (mode == "glyphs" and "glifos") or "hechizos"
-            sp.emptyLabel:SetText("Consultando " .. what .. " de |cffffd200" .. targetBot .. "|r...")
+            local what = (mode == "glyphs" and L["SPELL_TYPE_GLYPHS"]) or L["SPELL_TYPE_SPELLS"]
+            sp.emptyLabel:SetText(string.format(L["SPELL_QUERYING_FMT"], what, targetBot))
         elseif tab and tab.emptyHint then
             local hintText = (DungeonBots.LocalizeServerHint and DungeonBots:LocalizeServerHint(tab.emptyHint, mode)) or tab.emptyHint
             sp.emptyLabel:SetText(hintText)
         elseif #allItems == 0 then
             if mode == "glyphs" then
-                sp.emptyLabel:SetText("No se recibieron glifos para |cffffd200" .. targetBot .. "|r.")
+                sp.emptyLabel:SetText(string.format(L["SPELL_NO_GLYPHS_FMT"], targetBot))
             else
-                sp.emptyLabel:SetText("No se recibieron poderes para |cffffd200" .. targetBot .. "|r.")
+                sp.emptyLabel:SetText(string.format(L["SPELL_NO_SPELLS_FMT"], targetBot))
             end
         else
-            sp.emptyLabel:SetText("Ningún poder coincide con \"" .. filterRaw .. "\".")
+            sp.emptyLabel:SetText(string.format(L["SPELL_NOMATCH_FMT"], filterRaw))
         end
     else
         sp.emptyLabel:Hide()
@@ -1051,16 +1052,16 @@ function DungeonBots:UpdateSpellsDialog(botName)
         row.icon:SetTexture(entry.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
 
         local isGlyph = (entry.kind == "glyph")
-        local titleTxt = entry.name or entry.rawName or (isGlyph and "Glifo" or "Hechizo")
+        local titleTxt = entry.name or entry.rawName or (isGlyph and L["GLYPH_DEFAULT"] or L["SPELL_DEFAULT"])
         if entry.rank and entry.rank ~= "" then
             titleTxt = titleTxt .. " |cff888888(" .. entry.rank .. ")|r"
         end
         row.nameLabel:SetText(titleTxt)
 
         if isGlyph then
-            local glyphType = entry.categoryTag or "Glifo"
+            local glyphType = entry.categoryTag or L["GLYPH_DEFAULT"]
             row.diffBadge:SetText("|cff71d5ff" .. glyphType .. " #" .. i .. "|r")
-            row.subLabel:SetText("|cff8899aaGlifo equipado  |  Pasa el ratón para ver detalles|r")
+            row.subLabel:SetText(L["GLYPH_EQUIPPED_HINT"])
         else
             local badgeParts = {}
             if entry.difficulty then
@@ -1070,7 +1071,7 @@ function DungeonBots:UpdateSpellsDialog(botName)
 
             local regText = FormatReagentsSummary(entry.reagents)
             local metaText = FormatPowerAndCastMeta(entry)
-            row.subLabel:SetText(regText or metaText or "|cff667788Clic izq.: seleccionar  |  Shift + Clic: enlazar|r")
+            row.subLabel:SetText(regText or metaText or L["SPELL_ROW_HINT"])
         end
         row:Show()
     end

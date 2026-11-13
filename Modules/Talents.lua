@@ -6,6 +6,7 @@ DungeonBots = DungeonBots or {}
 DungeonBots.Internal = DungeonBots.Internal or {}
 
 local DB_Internal = DungeonBots.Internal
+local L = DungeonBots.L or {}
 
 local function NowTime()
     return DB_Internal.NowTime()
@@ -1077,11 +1078,11 @@ function DungeonBots:SetBotSpec(botName, specId)
 
     local unit = DungeonBots:FindPartyUnitByName(cleanBot)
     if not unit or not UnitIsConnected(unit) then
-        DungeonBots:Warn("No se pudo cambiar la rama de |cffffd200" .. cleanBot .. "|r porque no está en grupo o está desconectado.")
+        DungeonBots:Warn(string.format(L["SPEC_SET_OFFLINE_FMT"], cleanBot))
         return
     end
     if not DungeonBots:ShouldTreatAsBot(cleanBot) then
-        DungeonBots:Warn("|cffffd200" .. cleanBot .. "|r está marcado como jugador humano; no se enviará cambio de talentos.")
+        DungeonBots:Warn(string.format(L["SPEC_SET_HUMAN_FMT"], cleanBot))
         return
     end
 
@@ -1122,14 +1123,14 @@ function DungeonBots:SetBotSpec(botName, specId)
         DungeonBots:UpdateSpellsDialog(cleanBot)
     end
     local displaySpec = DungeonBots.LocalizeSpecText and DungeonBots:LocalizeSpecText(cleanSpec) or cleanSpec
-    DungeonBots:Print("Cambiando talentos de |cffffd200" .. cleanBot .. "|r a |cff71d5ff" .. displaySpec .. "|r...")
+    DungeonBots:Print(string.format(L["SPEC_CHANGING_FMT"], cleanBot, displaySpec))
     DungeonBots:SendWhisperCommand(cleanBot, "talents spec " .. cleanSpec)
 end
 
 -- Autoequipar equipo del bot (d autogear)
 function DungeonBots:Autogear(botName)
     if not botName then return end
-    DungeonBots:Print("Enviando orden de autoequipar equipo a |cffffd200" .. botName .. "|r...")
+    DungeonBots:Print(string.format(L["AUTOGEAR_SENDING_FMT"], botName))
     DungeonBots:SendWhisperCommand(botName, "d autogear")
     DungeonBots:QueueWhisperCommand(botName, "stats")
 end

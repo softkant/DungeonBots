@@ -6,6 +6,7 @@ DungeonBots = DungeonBots or {}
 DungeonBots.Internal = DungeonBots.Internal or {}
 
 local DB_Internal = DungeonBots.Internal
+local L = DungeonBots.L or {}
 local hudFrame = nil
 local utilHudFrame = nil
 local formHudFrame = nil
@@ -17,149 +18,149 @@ local hudMenuMouseWasDown = false
 
 local TACTICAL_ACTIONS = {
     {
-        name = "Focus Target",
+        name = L["HUD_FOCUS_NAME"],
         cmd = "do attack my target",
         icon = "Interface\\Icons\\Ability_Warrior_OffensiveStance",
-        title = "|cffff2020¡Atacar Mi Objetivo!|r",
-        desc = "Fuerza a todos los bots a cambiar de objetivo de inmediato hacia tu objetivo actual.\n\n|cff71d5ffIdeal para adds prioritarios o emergencias.|r",
+        title = L["HUD_FOCUS_TITLE"],
+        desc = L["HUD_FOCUS_DESC"],
         color = { 1.0, 0.2, 0.2 }
     },
     {
-        name = "Pull Tanque",
+        name = L["HUD_PULL_NAME"],
         cmd = "pull my target",
         icon = "Interface\\Icons\\Ability_Hunter_AimedShot",
-        title = "|cffff9900Pull con Tanque|r",
-        desc = "Ordena al bot tanque jalar al objetivo seleccionado usando disparo a distancia, lanzamiento heroico o taunt sin que el resto del grupo se lance antes de tiempo.\n\n|cff71d5ffEsencial para no atraer patrullas en mazmorras.|r",
+        title = L["HUD_PULL_TITLE"],
+        desc = L["HUD_PULL_DESC"],
         color = { 1.0, 0.6, 0.1 }
     },
     {
-        name = "Quedarse",
+        name = L["HUD_STAY_NAME"],
         cmd = "stay",
         icon = "Interface\\Icons\\Spell_Nature_TimeStop",
-        title = "|cffffff00Quedarse|r",
-        desc = "Ordena a los bots frenar en seco y mantener su posición actual.\n\n|cff71d5ffÚtil antes de que jalen patrullas o para posicionar el grupo.|r",
+        title = L["HUD_STAY_TITLE"],
+        desc = L["HUD_STAY_DESC"],
         color = { 1.0, 0.9, 0.2 }
     },
     {
-        name = "Seguir",
+        name = L["HUD_FOLLOW_NAME"],
         cmd = "follow",
         icon = "Interface\\Icons\\Ability_Tracking",
-        title = "|cff00ff00Seguir|r",
-        desc = "Ordena a todos los bots reanudar el seguimiento normal tras de ti.",
+        title = L["HUD_FOLLOW_TITLE"],
+        desc = L["HUD_FOLLOW_DESC"],
         color = { 0.2, 1.0, 0.2 }
     },
     {
-        name = "Summon",
+        name = L["HUD_SUMMON_NAME"],
         cmd = "summon",
         icon = "Interface\\Icons\\Spell_Nature_AstralRecalGroup",
-        title = "|cff00ccffTeletransportar a Mí|r",
-        desc = "Teletransporta a todos los bots directamente a tu posición.\n\n|cff71d5ffSalva a bots atascados en el suelo, rampas o puertas.|r",
+        title = L["HUD_SUMMON_TITLE"],
+        desc = L["HUD_SUMMON_DESC"],
         color = { 0.2, 0.8, 1.0 }
     },
     {
-        name = "¡Huir!",
+        name = L["HUD_FLEE_NAME"],
         cmd = "flee",
         icon = "Interface\\Icons\\Spell_Magic_LesserInvisibilty",
-        title = "|cffff3b30¡HUIR!|r",
-        desc = "¡Botón de pánico! Fuerza a los bots a romper el combate y correr hacia ti.\n\n|cff71d5ffPerfecto para salvar un wipe o hacer un pull tras una esquina.|r",
+        title = L["HUD_FLEE_TITLE"],
+        desc = L["HUD_FLEE_DESC"],
         color = { 1.0, 0.3, 0.3 }
     },
 }
 
 local UTIL_ACTIONS = {
     {
-        name = "Hablar PNJ",
+        name = L["HUD_TALK_NAME"],
         actionKind = "talk",
         isTalkPicker = true,
         icon = "Interface\\Icons\\Achievement_Reputation_01",
-        title = "|cff00e5ffHablar con PNJ|r",
-        desc = "Consulta los diálogos y misiones del PNJ seleccionado mediante un bot.\n\n|cff71d5ffSi hay varios bots en grupo abre un menú para elegir cuál; si solo hay uno, lo envía directo.|r",
+        title = L["HUD_TALK_TITLE"],
+        desc = L["HUD_TALK_DESC"],
         color = { 0.2, 0.8, 1.0 }
     },
     {
-        name = "Misiones de Bot",
+        name = L["HUD_QUESTS_NAME"],
         actionKind = "quests",
         icon = "Interface\\Icons\\INV_Misc_Book_09",
         texCoord = { 0.13, 0.87, 0.13, 0.87 },
-        title = "|cffffd200Misiones de Bot|r",
-        desc = "Abre las misiones activas del bot del grupo (o un menú si hay 2 o más bots).\n\n|cff71d5ffPermite consultar los detalles de cada misión o abandonarla.|r",
+        title = L["HUD_QUESTS_TITLE"],
+        desc = L["HUD_QUESTS_DESC"],
         color = { 1.0, 0.62, 0.15 }
     },
     {
-        name = "Bots en el Grupo",
+        name = L["HUD_PARTY_NAME"],
         actionKind = "party_tab",
         icon = "Interface\\Icons\\INV_Misc_GroupLooking",
-        title = "|cffffd200Bots en el Grupo|r",
-        desc = "Abre directamente la pestaña de gestión del grupo actual (talentos, equipo y misiones).\n\n|cff71d5ffAtajo rápido a la segunda pestaña de DungeonBots.|r",
+        title = L["HUD_PARTY_TITLE"],
+        desc = L["HUD_PARTY_DESC"],
         color = { 0.95, 0.78, 0.25 }
     },
     {
-        name = "Inventario de Bot",
+        name = L["HUD_INV_NAME"],
         actionKind = "inventory",
         icon = "Interface\\Icons\\INV_Misc_Bag_08",
-        title = "|cff34c759Inventario y Bolsas de Bot|r",
-        desc = "Abre las bolsas del bot del grupo (o un menú si hay 2 o más bots).\n\n|cff71d5ffPermite inspeccionar sus objetos y destruir los que no necesites.|r",
+        title = L["HUD_INV_TITLE"],
+        desc = L["HUD_INV_DESC"],
         color = { 0.35, 0.88, 0.45 }
     },
     {
-        name = "Información del Personaje",
+        name = L["HUD_CHAR_NAME"],
         actionKind = "spells",
         icon = "Interface\\Icons\\Achievement_Character_Human_Male",
-        title = "|cffb266ffInformación del Personaje|r",
-        desc = "Abre la ventana del personaje (o un menú si hay 2 o más bots) para gestionar equipo, hechizos y glifos.\n\n|cff71d5ffPermite cambiar rama/equipo, consultar sus poderes y lanzar sus hechizos.|r",
+        title = L["HUD_CHAR_TITLE"],
+        desc = L["HUD_CHAR_DESC"],
         color = { 0.68, 0.45, 1.0 }
     },
 }
 
 local FORMATION_ACTIONS = {
     {
-        name = "Formación Arrow",
+        name = L["HUD_FORM_ARROW_NAME"],
         cmd = "formation arrow",
         formationId = "arrow",
         icon = "Interface\\Icons\\Ability_TrueShot",
-        title = "|cff33d9ffFormación: Flecha|r",
-        desc = "Coloca a tus bots en punta de flecha detrás de ti al moverse.\n\n|cff71d5ffIdeal para avanzar ordenado por pasillos de mazmorra.|r",
+        title = L["HUD_FORM_ARROW_TITLE"],
+        desc = L["HUD_FORM_ARROW_DESC"],
         color = { 0.20, 0.85, 1.0 }
     },
     {
-        name = "Formación Far",
+        name = L["HUD_FORM_FAR_NAME"],
         cmd = "formation far",
         formationId = "far",
         icon = "Interface\\Icons\\Ability_Hunter_EagleEye",
-        title = "|cff60b3ffFormación: Lejos|r",
-        desc = "Mantiene a tus bots posicionados más atrás de ti.\n\n|cff71d5ffÚtil para asomarte a esquinas o pasillos sin que el grupo jale patrullas por error.|r",
+        title = L["HUD_FORM_FAR_TITLE"],
+        desc = L["HUD_FORM_FAR_DESC"],
         color = { 0.38, 0.70, 1.0 }
     },
     {
-        name = "Otras Formaciones",
+        name = L["HUD_FORM_OTHER_NAME"],
         actionKind = "formation_menu",
         icon = "Interface\\Icons\\Ability_Hunter_HuntingParty",
-        title = "|cffffd200Otras Formaciones y Combate|r",
-        desc = "Cambia entre el resto de formaciones (caos por defecto, escudo, círculo, cerca, fila, etc.), consulta la actual o fija la formación durante el combate.",
+        title = L["HUD_FORM_OTHER_TITLE"],
+        desc = L["HUD_FORM_OTHER_DESC"],
         color = { 0.95, 0.78, 0.25 }
     },
     {
-        name = "Disperse",
+        name = L["HUD_DISPERSE_NAME"],
         actionKind = "disperse_menu",
         icon = "Interface\\Icons\\Spell_Arcane_Blink",
-        title = "|cffc673ffDispersión (Separación mínima)|r",
-        desc = "Fija una distancia mínima en metros entre cada bot para que NO se queden apilados encima uno de otro.\n\n|cff71d5ffCómo usarlo:|r Actívalo (p. ej. 12m) antes de jefes con bombas, cadenas o daño AoE, y desactívalo al terminar.",
+        title = L["HUD_DISPERSE_TITLE"],
+        desc = L["HUD_DISPERSE_DESC"],
         color = { 0.78, 0.45, 1.0 }
     },
     {
-        name = "Move From Group",
+        name = L["HUD_MOVEGRP_NAME"],
         cmd = "move from group",
         icon = "Interface\\Icons\\Ability_Rogue_Sprint",
-        title = "|cff57d98cSepararse del Grupo|r",
-        desc = "Orden puntual e inmediata para que los bots se aparten del montón en ese instante.\n\n|cff71d5ffIdeal en emergencias cuando cae un charco o mecánica AoE justo donde están parados.|r",
+        title = L["HUD_MOVEGRP_TITLE"],
+        desc = L["HUD_MOVEGRP_DESC"],
         color = { 0.34, 0.85, 0.55 }
     },
     {
-        name = "Control de Pull y Espera",
+        name = L["HUD_PULLWAIT_NAME"],
         actionKind = "pull_wait_menu",
         icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",
-        title = "|cffff9e26Control de Pull y Espera|r",
-        desc = "Configura cuántos segundos esperan los DPS/Healers antes de atacar al iniciar combate, además de pull hacia atrás, ataque solo del tanque y modo pasivo.",
+        title = L["HUD_PULLWAIT_TITLE"],
+        desc = L["HUD_PULLWAIT_DESC"],
         color = { 1.0, 0.62, 0.15 }
     },
 }
@@ -270,7 +271,7 @@ local function OpenHudBotDropdown(anchorBtn, headerTitle, emptyWarnMsg, onSelect
 
     OpenAnchoredHudMenu(anchorBtn, function(self, level)
         local infoTitle = UIDropDownMenu_CreateInfo()
-        infoTitle.text = headerTitle or "-- Elegir Bot --"
+        infoTitle.text = headerTitle or L["HUD_PICK_BOT"]
         infoTitle.isTitle = true
         infoTitle.notCheckable = true
         UIDropDownMenu_AddButton(infoTitle, level)
@@ -327,18 +328,18 @@ local function ApplyFormationCommand(formationId, labelText)
         DungeonBotsDB.activeFormation = formationId
     end
     DungeonBots:SendPartyCommand("formation " .. formationId)
-    DungeonBots:Print("Formación del grupo: |cff33d9ff" .. (labelText or formationId) .. "|r.")
+    DungeonBots:Print(string.format(L["HUD_MSG_FORMATION"], (labelText or formationId)))
 end
 
 local function ApplyDisperseSetting(yards)
     if yards and yards > 0 then
         if DungeonBotsDB then DungeonBotsDB.activeDisperse = yards end
         DungeonBots:SendPartyCommand("disperse set " .. yards)
-        DungeonBots:Print("Disperse activado: separación mínima de |cffc673ff" .. yards .. " metros|r entre bots.")
+        DungeonBots:Print(string.format(L["HUD_MSG_DISPERSE_ON"], tostring(yards)))
     else
         if DungeonBotsDB then DungeonBotsDB.activeDisperse = 0 end
         DungeonBots:SendPartyCommand("disperse disable")
-        DungeonBots:Print("Disperse desactivado (los bots vuelven a agruparse normalmente).")
+        DungeonBots:Print(L["HUD_MSG_DISPERSE_OFF"])
     end
 end
 
@@ -348,11 +349,11 @@ local function ApplyWaitForAttackSeconds(seconds)
     if secs > 0 then
         DungeonBots:SendPartyCommand("co +wait for attack")
         DungeonBots:SendPartyCommand("wait for attack time " .. secs)
-        DungeonBots:Print("Espera de pull activada: los bots esperarán |cffffd200" .. secs .. " seg|r antes de atacar.")
+        DungeonBots:Print(string.format(L["HUD_MSG_WAIT_ON"], tostring(secs)))
     else
         DungeonBots:SendPartyCommand("wait for attack time 0")
         DungeonBots:SendPartyCommand("co -wait for attack")
-        DungeonBots:Print("Espera de pull desactivada (|cff34c759atacar de inmediato|r).")
+        DungeonBots:Print(L["HUD_MSG_WAIT_OFF"])
     end
 end
 
@@ -364,7 +365,7 @@ local function HandleFormationActionClick(anchorBtn, action)
         else
             DungeonBots:SendPartyCommand(action.cmd)
             if action.cmd == "move from group" then
-                DungeonBots:Print("Orden enviada: |cff57d98cSepararse del grupo|r.")
+                DungeonBots:Print(L["HUD_MSG_SPREAD_SENT"])
             end
         end
         return
@@ -374,49 +375,49 @@ local function HandleFormationActionClick(anchorBtn, action)
         local activeForm = (DungeonBotsDB and DungeonBotsDB.activeFormation) or "chaos"
         local combatForm = (DungeonBotsDB and DungeonBotsDB.combatFormationActive) and true or false
         OpenAnchoredHudMenu(anchorBtn, function(_, level)
-            AddHudMenuTitle(level, "-- Formaciones --")
+            AddHudMenuTitle(level, L["HUD_MENU_FORMATIONS"])
             local list = {
-                { id = "chaos",  label = "Chaos (Por defecto)" },
-                { id = "shield", label = "Shield (Tanques delante, resto detrás)" },
-                { id = "circle", label = "Circle (Rodear objetivo)" },
-                { id = "near",   label = "Near (Quietos cerca)" },
-                { id = "line",   label = "Line (En fila)" },
-                { id = "queue",  label = "Queue (En cola)" },
-                { id = "melee",  label = "Melee (Pegados al líder)" },
+                { id = "chaos",  label = L["HUD_FORM_CHAOS"] },
+                { id = "shield", label = L["HUD_FORM_SHIELD"] },
+                { id = "circle", label = L["HUD_FORM_CIRCLE"] },
+                { id = "near",   label = L["HUD_FORM_NEAR"] },
+                { id = "line",   label = L["HUD_FORM_LINE"] },
+                { id = "queue",  label = L["HUD_FORM_QUEUE"] },
+                { id = "melee",  label = L["HUD_FORM_MELEE"] },
             }
             for _, f in ipairs(list) do
                 AddHudMenuAction(level, f.label, activeForm == f.id, function()
                     ApplyFormationCommand(f.id, f.label)
                 end)
             end
-            AddHudMenuTitle(level, "-- Combate y Mapa --")
-            AddHudMenuAction(level, "Mantener formación en combate", combatForm, function()
+            AddHudMenuTitle(level, L["HUD_MENU_COMBAT_MAP"])
+            AddHudMenuAction(level, L["HUD_KEEP_COMBAT_FORM"], combatForm, function()
                 local nextVal = not combatForm
                 if DungeonBotsDB then DungeonBotsDB.combatFormationActive = nextVal end
                 DungeonBots:SendPartyCommand(nextVal and "co +combat formation" or "co -combat formation")
-                DungeonBots:Print("Mantener formación en combate: " .. (nextVal and "|cff34c759Activado|r" or "|cffffb020Desactivado|r"))
+                DungeonBots:Print(L["HUD_MSG_COMBAT_FORM"] .. " " .. (nextVal and L["STATE_ENABLED_GREEN"] or L["STATE_DISABLED_AMBER"]))
             end)
-            AddHudMenuAction(level, "Mostrar puntos en mapa", nil, function()
+            AddHudMenuAction(level, L["HUD_SHOW_MAP_POINTS"], nil, function()
                 DungeonBots:SendPartyCommand("formation show")
             end)
-            AddHudMenuAction(level, "Consultar formación actual", nil, function()
+            AddHudMenuAction(level, L["HUD_QUERY_FORM"], nil, function()
                 DungeonBots:SendPartyCommand("formation ?")
             end)
         end)
     elseif action.actionKind == "disperse_menu" then
         local activeDisp = (DungeonBotsDB and DungeonBotsDB.activeDisperse) or 0
         OpenAnchoredHudMenu(anchorBtn, function(_, level)
-            AddHudMenuTitle(level, "-- Disperse (Distancia mínima) --")
-            AddHudMenuAction(level, "Dispersar 8 metros (Evitar cleaves)", activeDisp == 8, function()
+            AddHudMenuTitle(level, L["HUD_MENU_DISPERSE"])
+            AddHudMenuAction(level, L["HUD_DISP_8"], activeDisp == 8, function()
                 ApplyDisperseSetting(8)
             end)
-            AddHudMenuAction(level, "Dispersar 12 metros (AoE / Bombas)", activeDisp == 12, function()
+            AddHudMenuAction(level, L["HUD_DISP_12"], activeDisp == 12, function()
                 ApplyDisperseSetting(12)
             end)
-            AddHudMenuAction(level, "Dispersar 18 metros (Separación amplia)", activeDisp == 18, function()
+            AddHudMenuAction(level, L["HUD_DISP_18"], activeDisp == 18, function()
                 ApplyDisperseSetting(18)
             end)
-            AddHudMenuAction(level, "Desactivar Disperse (Volver a juntarse)", activeDisp == 0, function()
+            AddHudMenuAction(level, L["HUD_DISP_OFF"], activeDisp == 0, function()
                 ApplyDisperseSetting(0)
             end)
         end)
@@ -424,33 +425,33 @@ local function HandleFormationActionClick(anchorBtn, action)
         local curWait = (DungeonBotsDB and DungeonBotsDB.waitAttackSeconds) or 0
         local isPassive = (DungeonBotsDB and DungeonBotsDB.passiveModeActive) and true or false
         OpenAnchoredHudMenu(anchorBtn, function(_, level)
-            AddHudMenuTitle(level, "-- Espera antes de atacar --")
-            AddHudMenuAction(level, "Esperar 3 seg (Pull rápido)", curWait == 3, function()
+            AddHudMenuTitle(level, L["HUD_MENU_WAIT"])
+            AddHudMenuAction(level, L["HUD_WAIT_3"], curWait == 3, function()
                 ApplyWaitForAttackSeconds(3)
             end)
-            AddHudMenuAction(level, "Esperar 5 seg (Recomendado mazmorra)", curWait == 5, function()
+            AddHudMenuAction(level, L["HUD_WAIT_5"], curWait == 5, function()
                 ApplyWaitForAttackSeconds(5)
             end)
-            AddHudMenuAction(level, "Esperar 8 seg (Pull lento / LoS)", curWait == 8, function()
+            AddHudMenuAction(level, L["HUD_WAIT_8"], curWait == 8, function()
                 ApplyWaitForAttackSeconds(8)
             end)
-            AddHudMenuAction(level, "Sin espera / Atacar ya (0 seg)", curWait == 0, function()
+            AddHudMenuAction(level, L["HUD_WAIT_0"], curWait == 0, function()
                 ApplyWaitForAttackSeconds(0)
             end)
-            AddHudMenuTitle(level, "-- Control de Pull y Pasivo --")
-            AddHudMenuAction(level, "Pull hacia atrás", nil, function()
+            AddHudMenuTitle(level, L["HUD_MENU_PULL_PASSIVE"])
+            AddHudMenuAction(level, L["HUD_PULL_BACK"], nil, function()
                 DungeonBots:SendPartyCommand("pull back")
-                DungeonBots:Print("Orden enviada: |cffff9e26Pull hacia atrás|r.")
+                DungeonBots:Print(L["HUD_MSG_PULL_BACK"])
             end)
-            AddHudMenuAction(level, "Solo Tanque ataca mi objetivo", nil, function()
+            AddHudMenuAction(level, L["HUD_TANK_ATTACK"], nil, function()
                 DungeonBots:SendPartyCommand("tank attack")
-                DungeonBots:Print("Orden enviada: |cffff9e26Solo el tanque ataca tu objetivo|r.")
+                DungeonBots:Print(L["HUD_MSG_TANK_ATTACK"])
             end)
-            AddHudMenuAction(level, "Modo Pasivo (No atacar / para skips)", isPassive, function()
+            AddHudMenuAction(level, L["HUD_PASSIVE_MODE"], isPassive, function()
                 local nextPassive = not isPassive
                 if DungeonBotsDB then DungeonBotsDB.passiveModeActive = nextPassive end
                 DungeonBots:SendPartyCommand(nextPassive and "co +passive" or "co -passive")
-                DungeonBots:Print("Modo Pasivo de bots: " .. (nextPassive and "|cffff3b30ACTIVADO (no atacarán)|r" or "|cff34c759DESACTIVADO (combate normal)|r"))
+                DungeonBots:Print(L["HUD_MSG_PASSIVE_MODE"] .. " " .. (nextPassive and L["HUD_PASSIVE_ON"] or L["HUD_PASSIVE_OFF"]))
             end)
         end)
     end
@@ -459,13 +460,13 @@ end
 local function HandleHudTalkClick(anchorBtn)
     if DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
         PlaySound("igQuestFailed")
-        DungeonBots:Warn("Selecciona primero un PNJ válido.")
+        DungeonBots:Warn(L["HUD_SELECT_VALID_NPC"])
         return
     end
     OpenHudBotDropdown(
         anchorBtn,
-        "-- Elegir Bot --",
-        "No hay bots detectados en el grupo para hablar con el PNJ.",
+        L["HUD_PICK_BOT"],
+        L["HUD_NO_BOTS_TALK"],
         function(chosenName)
             DungeonBots:SendTalkCommand(chosenName, "talk")
         end,
@@ -485,8 +486,8 @@ local function HandleUtilActionClick(anchorBtn, action)
     elseif action.actionKind == "inventory" then
         OpenHudBotDropdown(
             anchorBtn,
-            "-- Elegir Bot (Inventario) --",
-            "No hay bots detectados en el grupo para abrir su inventario.",
+            L["HUD_PICK_BOT_INV"],
+            L["HUD_NO_BOTS_INV"],
             function(chosenName)
                 if DungeonBots.QueryBotInventory then
                     DungeonBots:QueryBotInventory(chosenName)
@@ -497,8 +498,8 @@ local function HandleUtilActionClick(anchorBtn, action)
     elseif action.actionKind == "spells" then
         OpenHudBotDropdown(
             anchorBtn,
-            "-- Información del Personaje --",
-            "No hay bots detectados en el grupo para ver su información.",
+            L["HUD_PICK_BOT_CHAR"],
+            L["HUD_NO_BOTS_CHAR"],
             function(chosenName)
                 if DungeonBots.QueryBotSpells then
                     DungeonBots:QueryBotSpells(chosenName, "gear", "", false)
@@ -510,8 +511,8 @@ local function HandleUtilActionClick(anchorBtn, action)
     elseif action.actionKind == "quests" then
         OpenHudBotDropdown(
             anchorBtn,
-            "-- Elegir Bot (Misiones) --",
-            "No hay bots detectados en el grupo para ver sus misiones.",
+            L["HUD_PICK_BOT_QUESTS"],
+            L["HUD_NO_BOTS_QUESTS"],
             function(chosenName)
                 if DungeonBots.QueryQuests then
                     DungeonBots:QueryQuests(chosenName)
@@ -587,9 +588,9 @@ function DungeonBots:SetHUDLocked(locked, silent)
     end
     if not silent then
         if isLocked then
-            DungeonBots:Print("Barras flotantes: |cff9d9d9dBloqueadas|r (fijadas en su posición).")
+            DungeonBots:Print(L["HUD_BARS_LOCKED"])
         else
-            DungeonBots:Print("Barras flotantes: |cff34c759Desbloqueadas|r (puedes mover todas las barras).")
+            DungeonBots:Print(L["HUD_BARS_UNLOCKED"])
         end
     end
 end
@@ -706,7 +707,7 @@ local function CreateFloatingToolbar(cfg)
             GameTooltip:AddLine(action.title, 1, 1, 1)
             GameTooltip:AddLine(action.desc, 0.85, 0.85, 0.85, true)
             if action.isTalkPicker and DungeonBots.HasValidNpcTarget and not DungeonBots:HasValidNpcTarget() then
-                GameTooltip:AddLine("Nota: Haz clic primero en un PNJ válido.", 1.0, 0.72, 0.25, true)
+                GameTooltip:AddLine(L["HUD_NOTE_VALID_NPC"], 1.0, 0.72, 0.25, true)
             end
             GameTooltip:Show()
         end)
@@ -734,8 +735,8 @@ local function CreateFloatingToolbar(cfg)
         end)
         mainBtn:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:AddLine("Abrir Panel DungeonBots", 1, 1, 1)
-            GameTooltip:AddLine("Abre la ventana completa de configuración, clases y talentos.", 0.7, 0.7, 0.7)
+            GameTooltip:AddLine(L["HUD_TIP_OPEN_TITLE"], 1, 1, 1)
+            GameTooltip:AddLine(L["HUD_TIP_OPEN_DESC"], 0.7, 0.7, 0.7)
             GameTooltip:Show()
         end)
         mainBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -830,14 +831,14 @@ function DungeonBots:ToggleHUD()
     if hudFrame:IsShown() then
         hudFrame:Hide()
         if DungeonBotsDB then DungeonBotsDB.hudVisible = false end
-        DungeonBots:Print("HUD Táctico ocultado. Escribe |cffffd200/db hud|r para mostrarlo.")
+        DungeonBots:Print(L["HUD_HIDDEN_MSG"])
     else
         if DungeonBotsDB then DungeonBotsDB.hudVisible = true end
         DungeonBots:UpdateHUDVisibility()
         if hudFrame:IsShown() then
-            DungeonBots:Print("HUD Táctico visible.")
+            DungeonBots:Print(L["HUD_VISIBLE_MSG"])
         else
-            DungeonBots:Print("HUD Táctico activado (aparecerá automáticamente al entrar a una mazmorra de 5 jugadores). Puedes cambiar esto en Configuración (el engranaje).")
+            DungeonBots:Print(L["HUD_ARMED_DUNGEON_MSG"])
         end
     end
     if DungeonBots.UpdateSettingsDialog then

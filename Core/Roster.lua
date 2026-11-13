@@ -6,6 +6,7 @@ DungeonBots = DungeonBots or {}
 DungeonBots.Internal = DungeonBots.Internal or {}
 
 local DB_Internal = DungeonBots.Internal
+local L = DungeonBots.L or {}
 
 local function NowTime()
     return DB_Internal.NowTime()
@@ -194,10 +195,10 @@ function DungeonBots:GetBotProximityInfo(botName)
             isFar = true,
             canTalkRange = false,
             canInspectRange = false,
-            shortLabel = "Fuera del grupo",
-            badgeText = "|cff9d9d9d[No está en grupo]|r",
+            shortLabel = L["PROX_MISSING_SHORT"],
+            badgeText = L["PROX_MISSING_BADGE"],
             colorHex = "|cff9d9d9d",
-            detailMsg = cleanName .. " no está en tu grupo actual.",
+            detailMsg = string.format(L["PROX_MISSING_DETAIL"], cleanName),
         }
     end
     if UnitIsConnected and not UnitIsConnected(unit) then
@@ -207,10 +208,10 @@ function DungeonBots:GetBotProximityInfo(botName)
             isFar = true,
             canTalkRange = false,
             canInspectRange = false,
-            shortLabel = "Desconectado",
-            badgeText = "|cff9d9d9d[Desconectado]|r",
+            shortLabel = L["PROX_OFFLINE_SHORT"],
+            badgeText = L["PROX_OFFLINE_BADGE"],
             colorHex = "|cff9d9d9d",
-            detailMsg = cleanName .. " está desconectado.",
+            detailMsg = string.format(L["PROX_OFFLINE_DETAIL"], cleanName),
         }
     end
     if UnitIsDeadOrGhost and UnitIsDeadOrGhost(unit) then
@@ -220,10 +221,10 @@ function DungeonBots:GetBotProximityInfo(botName)
             isFar = true,
             canTalkRange = false,
             canInspectRange = false,
-            shortLabel = "Muerto",
-            badgeText = "|cffff5544[Muerto]|r",
+            shortLabel = L["PROX_DEAD_SHORT"],
+            badgeText = L["PROX_DEAD_BADGE"],
             colorHex = "|cffff5544",
-            detailMsg = cleanName .. " está muerto o en espíritu.",
+            detailMsg = string.format(L["PROX_DEAD_DETAIL"], cleanName),
         }
     end
     if UnitIsVisible and not UnitIsVisible(unit) then
@@ -233,10 +234,10 @@ function DungeonBots:GetBotProximityInfo(botName)
             isFar = true,
             canTalkRange = false,
             canInspectRange = false,
-            shortLabel = "Muy lejos / otra zona",
-            badgeText = "|cffff5544[Muy lejos]|r",
+            shortLabel = L["PROX_OOS_SHORT"],
+            badgeText = L["PROX_OOS_BADGE"],
             colorHex = "|cffff5544",
-            detailMsg = cleanName .. " está muy lejos (más de 100 m) o en otra zona.",
+            detailMsg = string.format(L["PROX_OOS_DETAIL"], cleanName),
         }
     end
 
@@ -257,8 +258,8 @@ function DungeonBots:GetBotProximityInfo(botName)
                 isFar = false,
                 canTalkRange = true,
                 canInspectRange = true,
-                shortLabel = "Cerca",
-                badgeText = "|cff34c759[Cerca]|r",
+                shortLabel = L["PROX_CLOSE_SHORT"],
+                badgeText = L["PROX_CLOSE_BADGE"],
                 colorHex = "|cff34c759",
                 detailMsg = nil,
             }
@@ -269,10 +270,10 @@ function DungeonBots:GetBotProximityInfo(botName)
                 isFar = false,
                 canTalkRange = true,
                 canInspectRange = true,
-                shortLabel = "< 28 m",
-                badgeText = "|cffffd200[< 28 m]|r",
+                shortLabel = L["PROX_MID_SHORT"],
+                badgeText = L["PROX_MID_BADGE"],
                 colorHex = "|cffffd200",
-                detailMsg = cleanName .. " está a media distancia (12-28 m). Si no responde al PNJ, acércalo un poco más.",
+                detailMsg = string.format(L["PROX_MID_DETAIL"], cleanName),
             }
         elseif inPartyRange then
             return {
@@ -281,10 +282,10 @@ function DungeonBots:GetBotProximityInfo(botName)
                 isFar = true,
                 canTalkRange = false,
                 canInspectRange = false,
-                shortLabel = "Lejos (> 28 m)",
-                badgeText = "|cffff7b30[Lejos (> 28 m)]|r",
+                shortLabel = L["PROX_FAR28_SHORT"],
+                badgeText = L["PROX_FAR28_BADGE"],
                 colorHex = "|cffff7b30",
-                detailMsg = cleanName .. " está lejos (a más de 28 m de ti).",
+                detailMsg = string.format(L["PROX_FAR28_DETAIL"], cleanName),
             }
         else
             return {
@@ -293,10 +294,10 @@ function DungeonBots:GetBotProximityInfo(botName)
                 isFar = true,
                 canTalkRange = false,
                 canInspectRange = false,
-                shortLabel = "Muy lejos (> 40 m)",
-                badgeText = "|cffff5544[Muy lejos (> 40 m)]|r",
+                shortLabel = L["PROX_FAR40_SHORT"],
+                badgeText = L["PROX_FAR40_BADGE"],
                 colorHex = "|cffff5544",
-                detailMsg = cleanName .. " está muy lejos (a más de 40 m de ti).",
+                detailMsg = string.format(L["PROX_FAR40_DETAIL"], cleanName),
             }
         end
     end
@@ -308,8 +309,8 @@ function DungeonBots:GetBotProximityInfo(botName)
             isFar = false,
             canTalkRange = true,
             canInspectRange = true,
-            shortLabel = "Cerca",
-            badgeText = "|cff34c759[Cerca]|r",
+            shortLabel = L["PROX_CLOSE_SHORT"],
+            badgeText = L["PROX_CLOSE_BADGE"],
             colorHex = "|cff34c759",
             detailMsg = nil,
         }
@@ -320,10 +321,10 @@ function DungeonBots:GetBotProximityInfo(botName)
         isFar = true,
         canTalkRange = false,
         canInspectRange = false,
-        shortLabel = inPartyRange and "Lejos (> 28 m)" or "Muy lejos (> 40 m)",
-        badgeText = inPartyRange and "|cffff7b30[Lejos (> 28 m)]|r" or "|cffff5544[Muy lejos (> 40 m)]|r",
+        shortLabel = inPartyRange and L["PROX_FAR28_SHORT"] or L["PROX_FAR40_SHORT"],
+        badgeText = inPartyRange and L["PROX_FAR28_BADGE"] or L["PROX_FAR40_BADGE"],
         colorHex = inPartyRange and "|cffff7b30" or "|cffff5544",
-        detailMsg = cleanName .. (inPartyRange and " está lejos (a más de 28 m de ti)." or " está muy lejos (a más de 40 m de ti)."),
+        detailMsg = string.format(inPartyRange and L["PROX_FAR28_DETAIL"] or L["PROX_FAR40_DETAIL"], cleanName),
     }
 end
 
@@ -337,7 +338,7 @@ function DungeonBots:ToggleUnitBotStatus(name)
         DungeonBots.sessionQueriedBots[name] = nil
         DungeonBots.confirmedBots[name] = true
         DungeonBots:MarkRecentBot(name, 120)
-        DungeonBots:Print("|cffffd200" .. name .. "|r marcado como: |cff00e5ff[ BOT ]|r.")
+        DungeonBots:Print(string.format(L["MARKED_BOT"], name))
         if DungeonBots.RecordBotHistory then
             DungeonBots:RecordBotHistory(name)
         end
@@ -349,7 +350,7 @@ function DungeonBots:ToggleUnitBotStatus(name)
         DungeonBots.confirmedBots[name] = nil
         DungeonBots.recentBots[name] = nil
         DungeonBots.sessionQueriedBots[name] = nil
-        DungeonBots:Print("|cffffd200" .. name .. "|r marcado como: |cffffb020[ JUGADOR HUMANO ]|r.")
+        DungeonBots:Print(string.format(L["MARKED_HUMAN"], name))
         if DungeonBotsDB and DungeonBotsDB.botHistory then
             DungeonBotsDB.botHistory[name] = nil
         end
@@ -369,7 +370,7 @@ end
 function DungeonBots:ScanPartyBots()
     local count = GetNumPartyMembers()
     if count == 0 then
-        DungeonBots:Warn("No hay miembros en tu grupo para comprobar.")
+        DungeonBots:Warn(L["NO_MEMBERS_CHECK"])
         return
     end
 
@@ -388,13 +389,13 @@ function DungeonBots:ScanPartyBots()
     end
 
     if #checkedNames == 0 then
-        DungeonBots:Print("Todos los bots actuales del grupo ya respondieron y están confirmados.")
+        DungeonBots:Print(L["ALL_BOTS_CONFIRMED"])
     else
         local muteMode = (DungeonBotsDB and DungeonBotsDB.whisperMuteMode) or "auto"
         if muteMode ~= "off" then
-            DungeonBots:Print("Comprobación silenciosa de bots en: |cffffd200" .. table.concat(checkedNames, ", ") .. "|r...")
+            DungeonBots:Print(string.format(L["SCAN_SILENT_FMT"], table.concat(checkedNames, ", ")))
         else
-            DungeonBots:Print("Comprobando quién es bot en: |cffffd200" .. table.concat(checkedNames, ", ") .. "|r (los bots responderán automáticamente en el chat).")
+            DungeonBots:Print(string.format(L["SCAN_VISIBLE_FMT"], table.concat(checkedNames, ", ")))
         end
     end
 end
@@ -408,13 +409,13 @@ function DungeonBots:AddClass(classId)
     if not classId then return end
     local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
     if (GetNumRaidMembers and GetNumRaidMembers() > 0) or numParty >= 4 then
-        DungeonBots:Warn("Tu grupo ya está completo (5/5). No puedes agregar más bots.")
+        DungeonBots:Warn(L["GROUP_FULL_CANT_ADD"])
         return
     end
     DungeonBots:MarkPendingClassSummon(classId)
     local classToken = DB_Internal.CLASS_TOKEN_BY_ID and DB_Internal.CLASS_TOKEN_BY_ID[classId]
     local classDisplay = classToken and DungeonBots:GetClassDisplayInfo(classToken) or classId
-    DungeonBots:Print("Bot agregado: |cffffd200" .. classDisplay .. "|r.")
+    DungeonBots:Print(string.format(L["BOT_ADDED_FMT"], classDisplay))
     DungeonBots:SendDotCommand(".playerbots bot addclass " .. classId)
 end
 
@@ -424,7 +425,7 @@ function DungeonBots:AddBot(botName)
     if not cleanName or cleanName == "" then return end
     local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
     if (GetNumRaidMembers and GetNumRaidMembers() > 0) or numParty >= 4 then
-        DungeonBots:Warn("Tu grupo ya está completo (5/5). No puedes agregar más bots.")
+        DungeonBots:Warn(L["GROUP_FULL_CANT_ADD"])
         return
     end
     DungeonBots.lastBotCallAttempt = DungeonBots.lastBotCallAttempt or {}
@@ -436,7 +437,7 @@ function DungeonBots:AddBot(botName)
     DungeonBots:MarkRecentBot(cleanName, 120)
     DungeonBots:RegisterBot(cleanName, true)
     DungeonBots:RecordBotHistory(cleanName)
-    DungeonBots:Print("Bot agregado: |cffffd200" .. cleanName .. "|r.")
+    DungeonBots:Print(string.format(L["BOT_ADDED_FMT"], cleanName))
     DungeonBots:SendDotCommand(".playerbots bot add " .. cleanName)
     if DungeonBots.SchedulePartyInviteRetry then
         DungeonBots:SchedulePartyInviteRetry(cleanName, 1.4, 3)
@@ -463,20 +464,20 @@ function DungeonBots:AddAllBots()
             DungeonBots:SendDotCommand(".playerbots bot add " .. botName)
         end
         DungeonBots:SendPartyCommand("summon")
-        DungeonBots:Print("Bots del grupo reinvocados (" .. #partyBots .. ").")
+        DungeonBots:Print(string.format(L["BOTS_RESUMMONED_N"], #partyBots))
     elseif numParty > 0 then
         DungeonBots:SendDotCommand(".playerbots bot add *")
         DungeonBots:SendPartyCommand("summon")
-        DungeonBots:Print("Bots del grupo reinvocados.")
+        DungeonBots:Print(L["BOTS_RESUMMONED"])
     else
-        DungeonBots:Warn("No hay bots en tu grupo para reinvocar.")
+        DungeonBots:Warn(L["NO_BOTS_TO_RESUMMON"])
     end
 end
 
 -- Remover un bot específico y sacarlo del grupo
 function DungeonBots:RemoveBot(botName)
     if not botName or botName == "" then return end
-    DungeonBots:Print("Despidiendo a bot: |cffffd200" .. botName .. "|r...")
+    DungeonBots:Print(string.format(L["DISMISSING_BOT_FMT"], botName))
     DungeonBots:SendDotCommand(".playerbots bot remove " .. botName)
     if GetNumPartyMembers() > 0 and IsPartyLeader() and DungeonBots:FindPartyUnitByName(botName) then
         UninviteUnit(botName)
@@ -485,7 +486,7 @@ end
 
 -- Remover a todos los bots y sacarlos del grupo (preservando humanos)
 function DungeonBots:RemoveAllBots()
-    DungeonBots:Print("Despidiendo a todos los bots del grupo...")
+    DungeonBots:Print(L["DISMISSING_ALL_BOTS"])
     DungeonBots:SendDotCommand(".playerbots bot remove *")
 
     if GetNumPartyMembers() > 0 then
@@ -520,7 +521,7 @@ end
 -- =========================================================================
 StaticPopupDialogs["DUNGEONBOTS_BOT_BUSY_ALERT"] = {
     text = "%s",
-    button1 = "Entendido",
+    button1 = L["BTN_UNDERSTOOD"],
     timeout = 0,
     whileDead = 1,
     hideOnEscape = 1,
@@ -653,13 +654,13 @@ function DungeonBots:WarnCannotAutoInvite(botName)
     end
     DungeonBots.inviteRetryLastWarn[cleanName] = now + 10.0
 
-    local reason = "no eres el líder del grupo"
+    local reason = L["REASON_NOT_LEADER"]
     if GetNumRaidMembers and GetNumRaidMembers() > 0 then
-        reason = "estás en banda"
+        reason = L["REASON_IN_RAID"]
     elseif (GetNumPartyMembers and GetNumPartyMembers() or 0) >= 4 then
-        reason = "tu grupo está completo (5/5)"
+        reason = L["REASON_GROUP_FULL"]
     end
-    DungeonBots:Warn("No se pudo auto-invitar a |cffffd200" .. cleanName .. "|r: " .. reason .. ".")
+    DungeonBots:Warn(string.format(L["AUTO_INVITE_FAIL_FMT"], cleanName, reason))
 end
 
 function DungeonBots:NotifyBotInstanceMismatch(botName, whoInfo)
@@ -677,9 +678,9 @@ function DungeonBots:NotifyBotInstanceMismatch(botName, whoInfo)
         hadZone = hasZone,
     }
     if hasZone then
-        DungeonBots:Warn("|cffff9900[Estancia/Fase]|r |cffffd200" .. cleanName .. "|r está en \"|cffffd200" .. whoInfo.zone .. "|r\" pero no en tu estancia/fase. Utiliza Summon, sal un momento de la mazmorra o reloguea.")
+        DungeonBots:Warn(string.format(L["INSTANCE_MISMATCH_Z"], cleanName, whoInfo.zone))
     else
-        DungeonBots:Warn("|cffff9900[Estancia/Fase]|r |cffffd200" .. cleanName .. "|r no está en tu estancia o quedó faseado. Utiliza Summon o sal un momento de la mazmorra para reagruparse con los bots o reloguea.")
+        DungeonBots:Warn(string.format(L["INSTANCE_MISMATCH"], cleanName))
     end
 end
 
@@ -698,13 +699,14 @@ function DungeonBots:NotifyBotAlreadyOnline(botName, whoInfo)
         expiresAt = now + 6.0,
         hadWho = hasWho,
     }
-    local zoneSuffix = (whoInfo and whoInfo.zone and whoInfo.zone ~= "") and (" (en |cffffd200" .. whoInfo.zone .. "|r)") or ""
+    local zoneSuffix = (whoInfo and whoInfo.zone and whoInfo.zone ~= "")
+        and string.format(L["ZONE_PAREN_FMT"], whoInfo.zone) or ""
     if whoInfo and whoInfo.playingWith and myName and whoInfo.playingWith == myName then
-        DungeonBots:Warn("|cffffd200" .. cleanName .. "|r ya está conectado y vinculado contigo" .. zoneSuffix .. ". Reintentando invitación al grupo...")
+        DungeonBots:Warn(string.format(L["BOT_ONLINE_LINKED"], cleanName, zoneSuffix))
     elseif whoInfo then
-        DungeonBots:Warn("|cffffd200" .. cleanName .. "|r ya está conectado libremente" .. zoneSuffix .. ". Intentando invitar al grupo...")
+        DungeonBots:Warn(string.format(L["BOT_ONLINE_FREE"], cleanName, zoneSuffix))
     else
-        DungeonBots:Warn("|cffffd200" .. cleanName .. "|r ya estaba conectado en el servidor (puede estar desconectándose o en otro grupo). Reintenta en unos segundos.")
+        DungeonBots:Warn(string.format(L["BOT_ONLINE_UNKNOWN"], cleanName))
     end
 end
 
@@ -791,7 +793,7 @@ function DungeonBots:NotifyExternalBotBusy(botName, ownerName, sourceTag, forceA
     if (not resolvedZone or resolvedZone == "") and DungeonBots.botWhoInfo and DungeonBots.botWhoInfo[cleanName] then
         resolvedZone = DungeonBots.botWhoInfo[cleanName].zone
     end
-    local zoneSuffix = (resolvedZone and resolvedZone ~= "") and (" en |cffffd200" .. resolvedZone .. "|r") or ""
+    local zoneSuffix = (resolvedZone and resolvedZone ~= "") and string.format(L["ZONE_IN_FMT"], resolvedZone) or ""
 
     DungeonBots.busyExternalBots[cleanName] = {
         owner = resolvedOwner,
@@ -821,11 +823,11 @@ function DungeonBots:NotifyExternalBotBusy(botName, ownerName, sourceTag, forceA
     local chatMsg
     local plainMsg
     if resolvedOwner and resolvedOwner ~= "" then
-        chatMsg = "¡ALERTA! El bot |cffffd200" .. cleanName .. "|r ya está en uso por otro jugador (en grupo con |cffffd200" .. resolvedOwner .. "|r" .. zoneSuffix .. "). No puedes invocarlo ahora."
-        plainMsg = "¡ALERTA! El bot " .. cleanName .. " ya pertenece a otro jugador (en grupo con " .. resolvedOwner .. ")."
+        chatMsg = string.format(L["ALERT_BOT_OWNER_CHAT"], cleanName, resolvedOwner, zoneSuffix)
+        plainMsg = string.format(L["ALERT_BOT_OWNER_UI"], cleanName, resolvedOwner)
     else
-        chatMsg = "¡ALERTA! El bot |cffffd200" .. cleanName .. "|r ya está en otro grupo" .. zoneSuffix .. ". No puedes invocarlo ahora."
-        plainMsg = "¡ALERTA! El bot " .. cleanName .. " ya está en otro grupo."
+        chatMsg = string.format(L["ALERT_BOT_GROUP_CHAT"], cleanName, zoneSuffix)
+        plainMsg = string.format(L["ALERT_BOT_GROUP_UI"], cleanName)
     end
 
     DungeonBots:Warn(chatMsg)
@@ -991,23 +993,23 @@ function DungeonBots:ClearBotHistory()
     if DungeonBots.UpdatePartyUI then
         DungeonBots:UpdatePartyUI()
     end
-    DungeonBots:Print("Historial de bots limpiado.")
+    DungeonBots:Print(L["BOT_HISTORY_CLEARED"])
 end
 
 function DungeonBots:SummonAndInviteHistoryBot(botName)
     local cleanBot = NormalizePlayerName(botName)
     if not cleanBot or cleanBot == "" then return end
     if DungeonBots:FindPartyUnitByName(cleanBot, true) then
-        DungeonBots:Print("|cffffd200" .. cleanBot .. "|r ya forma parte de tu grupo actual.")
+        DungeonBots:Print(string.format(L["ALREADY_IN_PARTY_FMT"], cleanBot))
         return
     end
     local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
     if (GetNumRaidMembers and GetNumRaidMembers() > 0) or numParty >= 4 then
-        DungeonBots:Warn("Tu grupo ya está lleno (5/5). No se puede invitar a |cffffd200" .. cleanBot .. "|r.")
+        DungeonBots:Warn(string.format(L["PARTY_FULL_INVITE_FMT"], cleanBot))
         return
     end
     if numParty > 0 and IsPartyLeader and not IsPartyLeader() then
-        DungeonBots:Warn("Debes ser el líder del grupo para invitar a |cffffd200" .. cleanBot .. "|r.")
+        DungeonBots:Warn(string.format(L["MUST_BE_LEADER_FMT"], cleanBot))
         return
     end
     DungeonBots:AddBot(cleanBot)

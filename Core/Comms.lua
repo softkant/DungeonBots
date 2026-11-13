@@ -6,6 +6,7 @@ DungeonBots = DungeonBots or {}
 DungeonBots.Internal = DungeonBots.Internal or {}
 
 local DB_Internal = DungeonBots.Internal
+local L = DungeonBots.L or {}
 
 local function NowTime()
     return DB_Internal.NowTime()
@@ -490,7 +491,7 @@ function DungeonBots:EvaluateWhisperSender(cleanSender, message, allowPromote)
             DungeonBots:RegisterBot(cleanSender, true)
             DungeonBots:RecordBotHistory(cleanSender)
             DungeonBots.justPromotedBotWhisper[cleanSender] = NowTime() + 1.0
-            DungeonBots:Print("Bot confirmado: |cff00e5ff" .. cleanSender .. "|r (respondió automáticamente como bot).")
+            DungeonBots:Print(string.format(L["BOT_CONFIRMED_FMT"], cleanSender))
             if DungeonBots.UpdatePartyUI then
                 DungeonBots:UpdatePartyUI()
             end

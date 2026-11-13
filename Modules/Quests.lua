@@ -6,6 +6,7 @@ DungeonBots = DungeonBots or {}
 DungeonBots.Internal = DungeonBots.Internal or {}
 
 local DB_Internal = DungeonBots.Internal
+local L = DungeonBots.L or {}
 
 local function NowTime()
     return DB_Internal.NowTime()
@@ -135,7 +136,7 @@ function DungeonBots:QueryQuests(botName, isSilent, suppressDialog, retriedSilen
     if not isSilent then
         local muteMode = (DungeonBotsDB and DungeonBotsDB.whisperMuteMode) or "auto"
         if muteMode == "off" then
-            DungeonBots:Print("Consultando misiones de |cffffd200" .. cleanBot .. "|r...")
+            DungeonBots:Print(string.format(L["QUEST_QUERYING_FMT"], cleanBot))
         end
     end
     lastQuestCountQueryAt[cleanBot] = now
@@ -279,7 +280,7 @@ function DungeonBots:DropBotQuest(botName, questEntry, fromTalkDialog)
     local qDisplay = DungeonBots.LocalizeHyperlinksInText and DungeonBots:LocalizeHyperlinksInText(rawDisplay) or rawDisplay
     PlaySound("igQuestFailed")
     DungeonBots:SendWhisperCommand(cleanBot, "drop " .. target)
-    DungeonBots:Print("|cffffd200" .. cleanBot .. "|r abandonó la misión: " .. qDisplay)
+    DungeonBots:Print(string.format(L["QUEST_DROPPED_FMT"], cleanBot, qDisplay))
 
     if DB_Internal.IsQuestDialogOpenFor(cleanBot) and DungeonBots.UpdateQuestDialog then
         DungeonBots:UpdateQuestDialog(cleanBot)
@@ -316,7 +317,7 @@ function DungeonBots:ShareBotQuest(botName, questEntry)
         targetLink = "|cffffff00|Hquest:" .. qId .. ":" .. qLvl .. "|h[" .. qName .. "]|h|r"
     end
     if not targetLink or targetLink == "" then
-        DungeonBots:Print("|cffff5544No se puede compartir:|r falta el enlace de la misión.")
+        DungeonBots:Print(L["QUEST_CANT_SHARE"])
         return
     end
 
@@ -345,9 +346,9 @@ function DB_Internal.ParseQuestShareWhisper(cleanSender, message)
             DungeonBots.pendingQuestShare[cleanSender] = nil
         end
         if pending and (pending.expiresAt or 0) >= NowTime() and pending.display then
-            DungeonBots:Print("|cffffd200" .. cleanSender .. "|r compartió la misión: " .. pending.display)
+            DungeonBots:Print(string.format(L["QUEST_SHARED_FMT"], cleanSender, pending.display))
         else
-            DungeonBots:Print("|cffffd200" .. cleanSender .. "|r compartió la misión.")
+            DungeonBots:Print(string.format(L["QUEST_SHARED_PLAIN"], cleanSender))
         end
         return true
     end
@@ -549,7 +550,7 @@ end
 function DungeonBots:SendTalkCommand(botName, cmd)
     local cleanBot = NormalizePlayerName(botName) or DungeonBots:FindDefaultTalkBot()
     if not cleanBot then
-        DungeonBots:Warn("No hay ningún bot en el grupo para hablar con el PNJ.")
+        DungeonBots:Warn(L["NO_BOT_FOR_NPC"])
         return
     end
     local cleanCmd = TrimText(cmd or "talk")
@@ -563,9 +564,9 @@ end
 -- =========================================================================
 function DungeonBots:DalaranPrep()
     if not UnitExists("target") then
-        DungeonBots:Warn("¡Atención! Selecciona primero al PNJ que da la misión en Dalaran.")
+        DungeonBots:Warn(L["DALARAN_SELECT_NPC"])
     end
-    DungeonBots:Print("Ejecutando preparación en Dalaran (Summon + Aceptar misiones)...")
+    DungeonBots:Print(L["DALARAN_PREP_START"])
     DungeonBots:SendPartyCommand("summon")
     DungeonBots:SendPartyCommand("accept *")
     DungeonBots:StartDalaranTimer(60)
@@ -591,14 +592,14 @@ function DungeonBots:DungeonReenter()
         DungeonBots:SendDotCommand(".playerbots bot add *")
     end
     DungeonBots:SendPartyCommand("summon")
-    DungeonBots:Print("Grupo reinvocado dentro de la mazmorra.")
+    DungeonBots:Print(L["DUNGEON_REENTERED"])
 end
 
 function DungeonBots:DungeonTurnInAndAccept()
     if not UnitExists("target") then
-        DungeonBots:Warn("Selecciona al PNJ de la misión dentro de la mazmorra.")
+        DungeonBots:Warn(L["DUNGEON_SELECT_NPC"])
     end
-    DungeonBots:Print("Entregando y aceptando misiones del PNJ seleccionado...")
+    DungeonBots:Print(L["DUNGEON_TURNIN_ACCEPT"])
     DungeonBots:SendPartyCommand("accept *")
 end
 
@@ -611,7 +612,7 @@ function DungeonBots:StartDalaranTimer(seconds)
     timerFrame.lastUpdate = 0
     timerFrame:Show()
     PlaySound("RaidWarning")
-    DungeonBots:Print("|cffff3b30¡Temporizador de Dalaran iniciado (60s)!|r Los bots desaparecerán al llegar a 0.")
+    DungeonBots:Print(L["DALARAN_TIMER_START"])
     if DungeonBots.UpdateDalaranTimerUI then
         DungeonBots:UpdateDalaranTimerUI(DungeonBots.dalaranTimeRemaining)
     end
@@ -637,10 +638,10 @@ timerFrame:SetScript("OnUpdate", function(self, elapsed)
             end
             if DungeonBots.dalaranTimeRemaining == 15 then
                 PlaySound("RaidWarning")
-                DungeonBots:Warn("¡Quedan 15 segundos antes de que los bots desaparezcan en Dalaran!")
+                DungeonBots:Warn(L["DALARAN_TIMER_15S"])
             elseif DungeonBots.dalaranTimeRemaining == 0 then
                 PlaySound("igQuestFailed")
-                DungeonBots:Warn("¡Tiempo expirado! Los bots han desaparecido en Dalaran. Entra a Forja y pulsa 'Reinvocar en Mazmorra'.")
+                DungeonBots:Warn(L["DALARAN_TIMER_EXPIRED"])
                 DungeonBots:StopDalaranTimer()
             end
         else
@@ -746,7 +747,7 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
                         if not data.printedAcceptMsg and data.pendingAcceptTarget then
                             data.printedAcceptMsg = true
                             local acceptDisplay = DungeonBots.LocalizeHyperlinksInText and DungeonBots:LocalizeHyperlinksInText(data.pendingAcceptTarget) or data.pendingAcceptTarget
-                            DungeonBots:Print("|cffffd200" .. botName .. "|r aceptó la misión: " .. acceptDisplay)
+                            DungeonBots:Print(string.format(L["QUEST_ACCEPTED_FMT"], botName, acceptDisplay))
                         end
                         if DungeonBots.QueryBotQuestCount then
                             DungeonBots:QueryBotQuestCount(botName, true, 0.90)
@@ -1011,7 +1012,7 @@ function DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
                         local dedupKey = "t_" .. string.lower(fallbackTitle)
                         if not data.seenKeys[dedupKey] then
                             data.seenKeys[dedupKey] = true
-                            local statusBadge = (data.captureSection == "completed") and "Completa (lista para entregar)" or ""
+                            local statusBadge = (data.captureSection == "completed") and L["QUEST_COMPLETE_READY"] or ""
                             table.insert(data.quests, {
                                 questId = nil,
                                 questLevel = nil,
@@ -1303,9 +1304,9 @@ function DB_Internal.ParseTalkCaptureWhisper(cleanSender, message)
                         data.printedAcceptMsg = true
                         if string.find(lowerClean, "completed", 1, true)
                             or string.find(lowerClean, "turned in", 1, true) then
-                            DungeonBots:Print("|cffffd200" .. cleanSender .. "|r entregó la misión: " .. qDisplay)
+                            DungeonBots:Print(string.format(L["QUEST_TURNED_IN_FMT"], cleanSender, qDisplay))
                         else
-                            DungeonBots:Print("|cffffd200" .. cleanSender .. "|r aceptó la misión: " .. qDisplay)
+                            DungeonBots:Print(string.format(L["QUEST_ACCEPTED_FMT"], cleanSender, qDisplay))
                         end
                     end
                 end

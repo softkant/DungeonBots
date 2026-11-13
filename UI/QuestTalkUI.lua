@@ -6,6 +6,7 @@ DungeonBots = DungeonBots or {}
 DungeonBots.Internal = DungeonBots.Internal or {}
 
 local DB_Internal = DungeonBots.Internal
+local L = DungeonBots.L or {}
 
 local function ApplyDarkBackdrop(frame, edgeSize)
     return DB_Internal.ApplyDarkBackdrop(frame, edgeSize)
@@ -52,9 +53,9 @@ local function SafeShowLinkTooltip(owner, linkRef, displayLink, title, rawLine)
 end
 
 StaticPopupDialogs["DUNGEONBOTS_DROP_BOT_QUEST"] = {
-    text = "¿Seguro que quieres abandonar esta misión con |cffffd200%s|r?\n\n%s\n\n|cffff3b30Se ordenará al bot abandonar la misión.|r",
-    button1 = "Abandonar",
-    button2 = "Cancelar",
+    text = L["QUEST_DROP_CONFIRM"],
+    button1 = L["BTN_ABANDON"],
+    button2 = L["BTN_CANCEL"],
     OnAccept = function(self, data)
         if data and data.botName and data.questEntry and DungeonBots.DropBotQuest then
             DungeonBots:DropBotQuest(data.botName, data.questEntry, data.fromTalkDialog)
@@ -69,7 +70,7 @@ StaticPopupDialogs["DUNGEONBOTS_DROP_BOT_QUEST"] = {
 local function ConfirmDropBotQuest(botName, questEntry, fromTalkDialog)
     if not botName or not questEntry then return end
     local rawDisplay = questEntry.displayLink or questEntry.safeLink
-        or ("|cffffff00[" .. (questEntry.title or questEntry.rawTitle or "Misión") .. "]|r")
+        or ("|cffffff00[" .. (questEntry.title or questEntry.rawTitle or L["QUEST_DEFAULT"]) .. "]|r")
     local questDisplay = DungeonBots.LocalizeHyperlinksInText
         and DungeonBots:LocalizeHyperlinksInText(rawDisplay)
         or rawDisplay
@@ -121,11 +122,11 @@ local function CreateQuestRow(parent, idx)
     subText:SetWordWrap(false)
     row.subText = subText
 
-    local dropBtn = CreateRedIconButton(row, 96, 22, "Abandonar", "Interface\\Icons\\Spell_ChargeNegative")
+    local dropBtn = CreateRedIconButton(row, 96, 22, L["BTN_ABANDON"], "Interface\\Icons\\Spell_ChargeNegative")
     dropBtn:SetPoint("RIGHT", row, "RIGHT", -6, 0)
     row.dropBtn = dropBtn
 
-    local shareBtn = CreateRedIconButton(row, 96, 22, "Compartir", "Interface\\Icons\\INV_Misc_GroupLooking")
+    local shareBtn = CreateRedIconButton(row, 96, 22, L["BTN_SHARE"], "Interface\\Icons\\INV_Misc_GroupLooking")
     shareBtn:SetPoint("RIGHT", dropBtn, "LEFT", -6, 0)
     row.shareBtn = shareBtn
 
@@ -161,7 +162,7 @@ function DungeonBots:BuildQuestDialog()
 
     local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("LEFT", 10, 0)
-    title:SetText("|cff00ccffMisiones:|r |cffffd200Bot|r")
+    title:SetText(L["QUEST_WIN_DEFAULT"])
     qf.title = title
 
     local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
@@ -173,13 +174,13 @@ function DungeonBots:BuildQuestDialog()
 
     local statusLabel = qf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     statusLabel:SetPoint("TOPLEFT", 14, -44)
-    statusLabel:SetText("Misiones activas: |cffffd2000|r")
+    statusLabel:SetText(L["QUEST_ACTIVE_ZERO"])
     qf.statusLabel = statusLabel
 
     local refreshBtn = CreateFrame("Button", nil, qf, "UIPanelButtonTemplate")
     refreshBtn:SetSize(96, 22)
     refreshBtn:SetPoint("TOPRIGHT", qf, "TOPRIGHT", -14, -40)
-    refreshBtn:SetText("Actualizar")
+    refreshBtn:SetText(L["BTN_REFRESH"])
     refreshBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
         if qf.currentBot then
@@ -209,7 +210,7 @@ function DungeonBots:BuildQuestDialog()
     local emptyLabel = scrollBg:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     emptyLabel:SetPoint("CENTER", scrollBg, "CENTER", -8, 0)
     emptyLabel:SetWidth(420)
-    emptyLabel:SetText("Este bot no tiene misiones activas.")
+    emptyLabel:SetText(L["QUEST_NONE_ACTIVE"])
     qf.emptyLabel = emptyLabel
 
     -- Contenedor de Comprobación de Mazmorras (Foso de Saron y Cámaras de Reflexión)
@@ -223,22 +224,22 @@ function DungeonBots:BuildQuestDialog()
     local frozenHallsData = DungeonBots.FROZEN_HALLS_DATA or {
         {
             key = "foso",
-            name = "Foso de Saron",
-            shortName = "Foso de Saron",
+            name = L["DUNGEON_PIT_NAME"],
+            shortName = L["DUNGEON_PIT_NAME"],
             icon = "Interface\\Icons\\achievement_dungeon_icecrown_pitofsaron",
             keywords = { "saron", "foso", "pit of saron" },
             excludeKeywords = { "forja", "forge", "reflex", "reflection" },
-            prereq = "La Forja de Almas",
+            prereq = L["DUNGEON_FOS_NAME"],
             fallbackIDs = { 253, 254 },
         },
         {
             key = "camaras",
-            name = "Cámaras de Reflexión",
-            shortName = "Cámaras de Reflexión",
+            name = L["DUNGEON_HOR_NAME"],
+            shortName = L["DUNGEON_HOR_NAME"],
             icon = "Interface\\Icons\\achievement_dungeon_icecrown_hallsofreflection",
             keywords = { "reflexi", "reflection" },
             excludeKeywords = { "forja", "forge", "saron", "foso" },
-            prereq = "Foso de Saron",
+            prereq = L["DUNGEON_PIT_NAME"],
             fallbackIDs = { 255, 256 },
         },
     }
@@ -287,48 +288,48 @@ function DungeonBots:BuildQuestDialog()
             GameTooltip:AddLine(self.dungeonName or def.name, 1, 0.82, 0)
 
             if self.canEnter == nil and self.botCanEnter == nil and not self.botNotInParty then
-                GameTooltip:AddLine("Estado: |cffaaaaaaConsultando al servidor...|r", 1, 1, 1)
-                GameTooltip:AddLine("Haz clic para solicitar la información de acceso actualizada.", 0.8, 0.8, 0.8, true)
+                GameTooltip:AddLine(L["DUNG_TIP_STATUS_WAIT"], 1, 1, 1)
+                GameTooltip:AddLine(L["DUNG_TIP_CLICK_QUERY"], 0.8, 0.8, 0.8, true)
                 GameTooltip:Show()
                 return
             end
 
             if self.currentBot and self.currentBot ~= "" then
                 if self.botCanEnter == true then
-                    GameTooltip:AddLine(self.currentBot .. ": |cff00ff00Puede ir|r", 1, 1, 1)
+                    GameTooltip:AddLine(string.format(L["DUNG_TIP_BOT_OK"], self.currentBot), 1, 1, 1)
                 elseif self.botCanEnter == false then
-                    GameTooltip:AddLine(self.currentBot .. ": |cffff4444Falta misión previa|r", 1, 1, 1)
+                    GameTooltip:AddLine(string.format(L["DUNG_TIP_BOT_MISS"], self.currentBot), 1, 1, 1)
                 elseif self.botNotInParty then
-                    GameTooltip:AddLine(self.currentBot .. ": |cffaaaaaaNo está en el grupo actual|r", 1, 1, 1)
+                    GameTooltip:AddLine(string.format(L["DUNG_TIP_BOT_NOTIN"], self.currentBot), 1, 1, 1)
                 end
             end
 
-            local prereqName = self.prereq or def.prereq or "Mazmorra anterior"
-            GameTooltip:AddLine("Requiere cadena previa: |cffffd200" .. prereqName .. "|r", 0.85, 0.85, 0.85, true)
+            local prereqName = self.prereq or def.prereq or L["DUNG_PREV_FALLBACK"]
+            GameTooltip:AddLine(string.format(L["DUNG_REQ_CHAIN_FMT"], prereqName), 0.85, 0.85, 0.85, true)
 
             if self.memberStatuses and #self.memberStatuses > 0 then
                 GameTooltip:AddLine(" ", 1, 1, 1)
-                GameTooltip:AddLine("Estado de los bots:", 1, 0.82, 0)
+                GameTooltip:AddLine(L["DUNG_BOT_STATUS_HDR"], 1, 0.82, 0)
                 local curKey = self.currentBot and string.lower(string.match(self.currentBot, "^([^%-]+)") or self.currentBot) or ""
                 for _, m in ipairs(self.memberStatuses) do
                     local mShort = string.match(m.name or "", "^([^%-]+)") or (m.name or "Bot")
                     local mKey = string.lower(mShort)
                     local nameLabel
                     if curKey ~= "" and mKey == curKey then
-                        nameLabel = "|cffffd200" .. mShort .. "|r |cff88ccff(Actual)|r"
+                        nameLabel = "|cffffd200" .. mShort .. "|r " .. L["DUNG_CUR_TAG"]
                     else
                         nameLabel = "|cffffd200" .. mShort .. "|r"
                     end
-                    local statusStr = m.canEnter and "|cff00ff00Puede ir|r" or "|cffff5555Falta misión|r"
-                    GameTooltip:AddLine("  • " .. nameLabel .. ": " .. statusStr, 1, 1, 1, true)
+                    local statusStr = m.canEnter and L["DUNG_CAN_ENTER"] or L["DUNG_MISSING_Q"]
+                    GameTooltip:AddLine(string.format(L["DUNG_LINE_FMT"], nameLabel, statusStr), 1, 1, 1, true)
                 end
             else
                 GameTooltip:AddLine(" ", 1, 1, 1)
-                GameTooltip:AddLine("|cff888888No hay bots en el grupo actual.|r", 0.7, 0.7, 0.7)
+                GameTooltip:AddLine(L["DUNG_NO_BOTS_IN_GRP"], 0.7, 0.7, 0.7)
             end
 
             GameTooltip:AddLine(" ", 1, 1, 1)
-            GameTooltip:AddLine("|cff888888Clic para actualizar desde el servidor.|r", 0.7, 0.7, 0.7)
+            GameTooltip:AddLine(L["DUNG_CLICK_REFRESH"], 0.7, 0.7, 0.7)
             GameTooltip:Show()
         end
         btn.RefreshTooltip = PopulateDungeonTooltip
@@ -360,7 +361,7 @@ function DungeonBots:BuildQuestDialog()
     local nextBotBtn = CreateFrame("Button", nil, qf, "UIPanelButtonTemplate")
     nextBotBtn:SetSize(120, 24)
     nextBotBtn:SetPoint("BOTTOMLEFT", qf, "BOTTOMLEFT", 12, 10)
-    nextBotBtn:SetText("Siguiente Bot")
+    nextBotBtn:SetText(L["BTN_NEXT_BOT"])
     nextBotBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
         if DungeonBots.CycleNextQuestBot then
@@ -369,14 +370,14 @@ function DungeonBots:BuildQuestDialog()
     end)
     nextBotBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Siguiente Bot", 1, 0.85, 0.2)
+        GameTooltip:AddLine(L["BTN_NEXT_BOT"], 1, 0.85, 0.2)
         if DungeonBots.GetTalkBotCycleInfo then
             local curIdx, total = DungeonBots:GetTalkBotCycleInfo(qf.currentBot)
             if total >= 2 then
                 local posLabel = (curIdx > 0) and (curIdx .. "/" .. total) or ("0/" .. total)
-                GameTooltip:AddLine("Pasa al siguiente bot del grupo para ver sus misiones (" .. posLabel .. ").", 0.85, 0.85, 0.85, true)
+                GameTooltip:AddLine(string.format(L["QUEST_NEXT_BOT_TIP"], posLabel), 0.85, 0.85, 0.85, true)
             else
-                GameTooltip:AddLine("Se necesitan al menos 2 bots en el grupo para pasar al siguiente.", 0.8, 0.8, 0.8, true)
+                GameTooltip:AddLine(L["QUEST_NEED_2_BOTS"], 0.8, 0.8, 0.8, true)
             end
         end
         GameTooltip:Show()
@@ -394,7 +395,7 @@ function DungeonBots:BuildQuestDialog()
     local closeFooterBtn = CreateFrame("Button", nil, qf, "UIPanelButtonTemplate")
     closeFooterBtn:SetSize(90, 24)
     closeFooterBtn:SetPoint("BOTTOMRIGHT", qf, "BOTTOMRIGHT", -12, 10)
-    closeFooterBtn:SetText("Cerrar")
+    closeFooterBtn:SetText(L["BTN_CLOSE"])
     closeFooterBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOff")
         qf:Hide()
@@ -415,7 +416,7 @@ function DungeonBots:UpdateQuestDialog(botName)
         return
     end
     qf.currentBot = targetBot
-    qf.title:SetText("|cff00ccffMisiones:|r |cffffd200" .. targetBot .. "|r")
+    qf.title:SetText(string.format(L["QUEST_WIN_FMT"], targetBot))
 
     if qf.nextBotBtn and qf.botCycleLabel and DungeonBots.GetTalkBotCycleInfo then
         local curIdx, total = DungeonBots:GetTalkBotCycleInfo(targetBot)
@@ -437,24 +438,24 @@ function DungeonBots:UpdateQuestDialog(botName)
     if qf.refreshBtn then
         if data and data.loading then
             qf.refreshBtn:Disable()
-            qf.refreshBtn:SetText("Consultando...")
+            qf.refreshBtn:SetText(L["BTN_QUERYING"])
         else
             qf.refreshBtn:Enable()
-            qf.refreshBtn:SetText("Actualizar")
+            qf.refreshBtn:SetText(L["BTN_REFRESH"])
         end
     end
 
     if data and data.loading and #quests == 0 then
-        qf.statusLabel:SetText("|cff71d5ffConsultando misiones activas...|r")
-        qf.emptyLabel:SetText("|cff71d5ffConsultando misiones de " .. targetBot .. "...|r\n\n|cff888888Espera un instante mientras responde.|r")
+        qf.statusLabel:SetText(L["QUEST_QUERY_STATUS"])
+        qf.emptyLabel:SetText(string.format(L["QUEST_QUERY_WAIT_FMT"], targetBot))
         qf.emptyLabel:Show()
     elseif #quests == 0 and data and data.timedOut then
-        qf.statusLabel:SetText("|cffff9f0aSin respuesta de " .. targetBot .. "|r")
-        qf.emptyLabel:SetText("No se recibió respuesta de " .. targetBot .. ".\n\n|cff888888El bot puede estar ocupado o filtrando comandos repetidos.\nPulsa 'Actualizar' de nuevo en unos segundos.|r")
+        qf.statusLabel:SetText(string.format(L["QUEST_NO_RESP_TITLE"], targetBot))
+        qf.emptyLabel:SetText(string.format(L["QUEST_NO_RESP_BODY"], targetBot))
         qf.emptyLabel:Show()
     elseif #quests == 0 then
-        qf.statusLabel:SetText("Misiones activas: |cffffd2000|r")
-        local baseEmptyMsg = (DungeonBots.L and DungeonBots.L["NO_ACTIVE_QUESTS"]) or "Este bot no tiene misiones activas."
+        qf.statusLabel:SetText(L["QUEST_ACTIVE_ZERO"])
+        local baseEmptyMsg = L["QUEST_NONE_ACTIVE"]
         local hintText = (data and data.emptyHint and data.emptyHint ~= "")
             and ((DungeonBots.LocalizeServerHint and DungeonBots:LocalizeServerHint(data.emptyHint, "quests")) or data.emptyHint)
             or nil
@@ -466,9 +467,9 @@ function DungeonBots:UpdateQuestDialog(botName)
         qf.emptyLabel:Show()
     else
         if data and data.timedOut then
-            qf.statusLabel:SetText("Misiones activas: |cffffd200" .. #quests .. "|r  |cffff9f0a(sin respuesta; lista previa)|r")
+            qf.statusLabel:SetText(string.format(L["QUEST_ACTIVE_FMT"], #quests) .. L["QUEST_ACTIVE_STALE"])
         else
-            qf.statusLabel:SetText("Misiones activas: |cffffd200" .. #quests .. "|r  |cff888888(clic para ver detalles)|r")
+            qf.statusLabel:SetText(string.format(L["QUEST_ACTIVE_FMT"], #quests) .. L["QUEST_ACTIVE_HINT"])
         end
         qf.emptyLabel:Hide()
     end
@@ -482,7 +483,7 @@ function DungeonBots:UpdateQuestDialog(botName)
         row:Show()
 
         local lvlPrefix = (q.questLevel and q.questLevel ~= "") and ("|cff88aacc[" .. q.questLevel .. "]|r ") or ""
-        row.titleText:SetText(lvlPrefix .. "|cffffff00" .. (q.title or "Misión") .. "|r")
+        row.titleText:SetText(lvlPrefix .. "|cffffff00" .. (q.title or L["QUEST_DEFAULT"]) .. "|r")
 
         local subStr = ""
         if q.statusText and q.statusText ~= "" then
@@ -493,9 +494,9 @@ function DungeonBots:UpdateQuestDialog(botName)
                 subStr = "|cff9aa5b5" .. q.statusText .. "|r"
             end
         elseif q.questId then
-            subStr = "|cff777777ID: " .. q.questId .. " (clic para inspeccionar)|r"
+            subStr = string.format(L["QUEST_ID_CLICK_FMT"], tostring(q.questId))
         else
-            subStr = "|cff777777Clic para ver detalle|r"
+            subStr = L["QUEST_CLICK_DETAIL"]
         end
         row.subText:SetText(subStr)
 
@@ -507,12 +508,12 @@ function DungeonBots:UpdateQuestDialog(botName)
         row.titleBtn:SetScript("OnEnter", function(self)
             SetThemedBorder(row, true)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:AddLine(q.title or "Misión", 1, 0.85, 0.2)
+            GameTooltip:AddLine(q.title or L["QUEST_DEFAULT"], 1, 0.85, 0.2)
             if q.statusText and q.statusText ~= "" then
-                GameTooltip:AddLine("Estado: " .. q.statusText, 0.8, 0.9, 1.0, true)
+                GameTooltip:AddLine(L["QUEST_STATUS_PREFIX"] .. q.statusText, 0.8, 0.9, 1.0, true)
             end
             if q.questId then
-                GameTooltip:AddLine("Haz clic para abrir el detalle de la misión.", 0.3, 0.9, 0.5)
+                GameTooltip:AddLine(L["QUEST_OPEN_DETAIL_TIP"], 0.3, 0.9, 0.5)
             end
             GameTooltip:Show()
         end)
@@ -535,7 +536,7 @@ function DungeonBots:UpdateQuestDialog(botName)
         end)
         row.shareBtn:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:AddLine("Se compartirá la misión con jugadores y bots. Los bots solo aceptarán si el jugador que los invocó acepta la misión", 0.9, 0.92, 0.95, true)
+            GameTooltip:AddLine(L["QUEST_SHARE_TIP"], 0.9, 0.92, 0.95, true)
             GameTooltip:Show()
         end)
         row.shareBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -546,7 +547,7 @@ function DungeonBots:UpdateQuestDialog(botName)
         end)
         row.dropBtn:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:AddLine("Abandonarás la misión con este bot", 1, 0.4, 0.4, true)
+            GameTooltip:AddLine(L["QUEST_DROP_TIP"], 1, 0.4, 0.4, true)
             GameTooltip:Show()
         end)
         row.dropBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -596,12 +597,12 @@ local function CreateTalkActionRow(parent, idx)
     label:SetWordWrap(false)
     row.label = label
 
-    local acceptBtn = CreateRedIconButton(row, 100, 20, "Aceptar", "Interface\\Icons\\INV_Misc_Book_09")
+    local acceptBtn = CreateRedIconButton(row, 100, 20, L["BTN_ACCEPT"], "Interface\\Icons\\INV_Misc_Book_09")
     acceptBtn:SetPoint("RIGHT", row, "RIGHT", -4, 0)
     acceptBtn:Hide()
     row.acceptBtn = acceptBtn
 
-    local shareBtn = CreateRedIconButton(row, 94, 20, "Compartir", "Interface\\Icons\\INV_Misc_GroupLooking")
+    local shareBtn = CreateRedIconButton(row, 94, 20, L["BTN_SHARE"], "Interface\\Icons\\INV_Misc_GroupLooking")
     shareBtn:SetPoint("RIGHT", acceptBtn, "LEFT", -4, 0)
     shareBtn:Hide()
     row.shareBtn = shareBtn
@@ -646,7 +647,7 @@ function DungeonBots:BuildTalkDialog()
 
     local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("LEFT", 10, 0)
-    title:SetText("|cff00ccffDiálogo PNJ:|r |cffffd200Bot|r")
+    title:SetText(L["TALK_WIN_DEFAULT"])
     tf.title = title
 
     local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
@@ -659,7 +660,7 @@ function DungeonBots:BuildTalkDialog()
     local requeryBtn = CreateFrame("Button", nil, tf, "UIPanelButtonTemplate")
     requeryBtn:SetSize(106, 22)
     requeryBtn:SetPoint("TOPRIGHT", tf, "TOPRIGHT", -12, -40)
-    requeryBtn:SetText("Reconsultar")
+    requeryBtn:SetText(L["BTN_REQUERY"])
     requeryBtn:SetScript("OnClick", function()
         if not tf.currentBot then return end
         if DungeonBots.IsTalkBusy and DungeonBots:IsTalkBusy(tf.currentBot) then
@@ -675,12 +676,12 @@ function DungeonBots:BuildTalkDialog()
     npcLabel:SetPoint("RIGHT", requeryBtn, "LEFT", -8, 0)
     npcLabel:SetJustifyH("LEFT")
     npcLabel:SetWordWrap(false)
-    npcLabel:SetText("PNJ: |cffffd200Objetivo actual|r")
+    npcLabel:SetText(L["TALK_NPC_DEFAULT"])
     tf.npcLabel = npcLabel
 
     local optTitle = tf:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     optTitle:SetPoint("TOPLEFT", tf, "TOPLEFT", 14, -68)
-    optTitle:SetText("|cffffd200Opciones y Misiones del PNJ:|r")
+    optTitle:SetText(L["TALK_OPTIONS_HDR"])
 
     local optBg = CreateFrame("Frame", nil, tf)
     optBg:SetPoint("TOPLEFT", tf, "TOPLEFT", 10, -84)
@@ -699,13 +700,13 @@ function DungeonBots:BuildTalkDialog()
     local emptyOptLabel = optBg:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     emptyOptLabel:SetPoint("CENTER", optBg, "CENTER", -8, 0)
     emptyOptLabel:SetWidth(430)
-    emptyOptLabel:SetText("Esperando respuesta del PNJ...")
+    emptyOptLabel:SetText(L["TALK_WAIT_NPC"])
     tf.emptyOptLabel = emptyOptLabel
 
     local nextBotBtn = CreateFrame("Button", nil, tf, "UIPanelButtonTemplate")
     nextBotBtn:SetSize(122, 24)
     nextBotBtn:SetPoint("BOTTOMLEFT", tf, "BOTTOMLEFT", 12, 10)
-    nextBotBtn:SetText("Siguiente Bot")
+    nextBotBtn:SetText(L["BTN_NEXT_BOT"])
     nextBotBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
         if DungeonBots.CycleNextTalkBot then
@@ -714,14 +715,14 @@ function DungeonBots:BuildTalkDialog()
     end)
     nextBotBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Siguiente Bot", 1, 0.85, 0.2)
+        GameTooltip:AddLine(L["BTN_NEXT_BOT"], 1, 0.85, 0.2)
         if DungeonBots.GetTalkBotCycleInfo then
             local curIdx, total = DungeonBots:GetTalkBotCycleInfo(tf.currentBot)
             if total >= 2 then
                 local posLabel = (curIdx > 0) and (curIdx .. "/" .. total) or ("0/" .. total)
-                GameTooltip:AddLine("Pasa al siguiente bot del grupo para hablar con el PNJ (" .. posLabel .. ").", 0.8, 0.9, 1.0, true)
+                GameTooltip:AddLine(string.format(L["TALK_NEXT_BOT_TIP"], posLabel), 0.8, 0.9, 1.0, true)
             else
-                GameTooltip:AddLine("Se necesitan al menos 2 bots en el grupo para pasar al siguiente.", 0.8, 0.8, 0.8, true)
+                GameTooltip:AddLine(L["QUEST_NEED_2_BOTS"], 0.8, 0.8, 0.8, true)
             end
         end
         GameTooltip:Show()
@@ -740,7 +741,7 @@ function DungeonBots:BuildTalkDialog()
     local questLogBtn = CreateFrame("Button", nil, tf, "UIPanelButtonTemplate")
     questLogBtn:SetSize(134, 24)
     questLogBtn:SetPoint("BOTTOMRIGHT", tf, "BOTTOMRIGHT", -108, 10)
-    questLogBtn:SetText("Registro Misiones")
+    questLogBtn:SetText(L["TALK_QUEST_LOG_BTN"])
     questLogBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
         if tf.currentBot then
@@ -749,11 +750,11 @@ function DungeonBots:BuildTalkDialog()
     end)
     questLogBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Registro de Misiones del Bot", 1, 0.85, 0.2)
+        GameTooltip:AddLine(L["TALK_QUEST_LOG_TIP"], 1, 0.85, 0.2)
         if tf.currentBot then
-            GameTooltip:AddLine("Abre la ventana de Misiones para " .. tf.currentBot .. ".", 0.8, 0.9, 1.0, true)
+            GameTooltip:AddLine(string.format(L["TALK_QUEST_LOG_FOR"], tf.currentBot), 0.8, 0.9, 1.0, true)
         else
-            GameTooltip:AddLine("Abre la ventana de Misiones del bot seleccionado.", 0.8, 0.9, 1.0, true)
+            GameTooltip:AddLine(L["TALK_QUEST_LOG_SEL"], 0.8, 0.9, 1.0, true)
         end
         GameTooltip:Show()
     end)
@@ -762,7 +763,7 @@ function DungeonBots:BuildTalkDialog()
     local closeFooterBtn = CreateFrame("Button", nil, tf, "UIPanelButtonTemplate")
     closeFooterBtn:SetSize(90, 24)
     closeFooterBtn:SetPoint("BOTTOMRIGHT", tf, "BOTTOMRIGHT", -12, 10)
-    closeFooterBtn:SetText("Cerrar")
+    closeFooterBtn:SetText(L["BTN_CLOSE"])
     closeFooterBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOff")
         tf:Hide()
@@ -787,64 +788,64 @@ end
 
 local TALK_QUEST_STYLE = {
     available = {
-        prefix = "|cff34c759[Disponible]|r ",
+        prefix = L["TALK_TAG_AVAILABLE"],
         showBtn = true,
-        btnText = "Aceptar",
+        btnText = L["BTN_ACCEPT"],
         btnIcon = "Interface\\Icons\\INV_Misc_Book_09",
         btnAction = "accept",
         rightBadge = nil,
         border = { 0.25, 0.85, 0.45, 1.0 },
-        tipStatus = "Disponible",
+        tipStatus = L["STATUS_INCOMPLETE"],
         tipColor = { 0.2, 0.9, 0.45 },
-        tipHint = "El bot puede tomar esta misión. Pulsa 'Aceptar' o haz clic para inspeccionarla.",
+        tipHint = L["TALK_TIP_AVAILABLE"],
     },
     incompleted = {
-        prefix = "|cffff9f0a[En curso]|r ",
+        prefix = L["TALK_TAG_INPROGRESS"],
         showBtn = true,
-        btnText = "Abandonar",
+        btnText = L["BTN_ABANDON"],
         btnIcon = "Interface\\Icons\\Spell_ChargeNegative",
         btnAction = "drop",
         rightBadge = nil,
         border = { 1.0, 0.55, 0.25, 1.0 },
-        tipStatus = "En curso",
+        tipStatus = L["TALK_LBL_INPROGRESS"],
         tipColor = { 1.0, 0.62, 0.15 },
-        tipHint = "El bot ya lleva esta misión. Clic en el nombre para ver detalles, o pulsa 'Abandonar'.",
+        tipHint = L["TALK_TIP_INPROGRESS"],
     },
     completed = {
-        prefix = "|cff00ccff[Completa]|r ",
+        prefix = L["TALK_TAG_COMPLETE"],
         showBtn = true,
-        btnText = "Entregar",
+        btnText = L["BTN_TURN_IN"],
         btnIcon = "Interface\\Icons\\INV_Misc_Book_09",
         btnAction = "accept",
         rightBadge = nil,
         border = { 0.25, 0.85, 1.0, 1.0 },
-        tipStatus = "Completa (Lista para entregar)",
+        tipStatus = L["TALK_LBL_COMPLETE"],
         tipColor = { 0.2, 0.85, 1.0 },
-        tipHint = "Objetivos completos. Pulsa 'Entregar' o haz clic para ver detalles.",
+        tipHint = L["TALK_TIP_COMPLETE"],
     },
     unavailable = {
-        prefix = "|cff888888[No disponible]|r ",
+        prefix = L["TALK_TAG_UNAVAIL"],
         showBtn = false,
         btnText = nil,
         btnIcon = nil,
         btnAction = nil,
-        rightBadge = "|cff888888Bloqueada|r",
+        rightBadge = L["TALK_LBL_LOCKED"],
         border = { 0.5, 0.5, 0.55, 1.0 },
-        tipStatus = "No disponible",
+        tipStatus = L["TALK_LBL_UNAVAIL"],
         tipColor = { 0.65, 0.65, 0.7 },
-        tipHint = "El bot aún no puede tomar esta misión. Clic para ver detalles.",
+        tipHint = L["TALK_TIP_UNAVAIL"],
     },
     unknown = {
-        prefix = "|cffffd200[Misión]|r ",
+        prefix = L["TALK_TAG_QUEST"],
         showBtn = true,
-        btnText = "Aceptar",
+        btnText = L["BTN_ACCEPT"],
         btnIcon = "Interface\\Icons\\INV_Misc_Book_09",
         btnAction = "accept",
         rightBadge = nil,
         border = { 1.0, 0.82, 0.25, 1.0 },
         tipStatus = nil,
         tipColor = { 1, 0.85, 0.2 },
-        tipHint = "Clic para ver la descripción de la misión.",
+        tipHint = L["TALK_TIP_QUEST"],
     },
 }
 
@@ -857,24 +858,24 @@ function DungeonBots:UpdateTalkDialog(botName)
         return
     end
     tf.currentBot = targetBot
-    tf.title:SetText("|cff00ccffDiálogo PNJ:|r |cffffd200" .. targetBot .. "|r")
+    tf.title:SetText(string.format(L["TALK_WIN_FMT"], targetBot))
 
     local data = DungeonBots.talkDialogData and DungeonBots.talkDialogData[targetBot]
     local isBusy = (DungeonBots.IsTalkBusy and DungeonBots:IsTalkBusy(targetBot)) and true or false
-    local npcTitle = (data and data.npcName and data.npcName ~= "") and data.npcName or "PNJ seleccionado"
-    local statusTag = isBusy and "|cff71d5ff[Consultando...]|r" or "|cff34c759[Listo]|r"
+    local npcTitle = (data and data.npcName and data.npcName ~= "") and data.npcName or L["TALK_NPC_SELECTED"]
+    local statusTag = isBusy and L["TALK_STATE_QUERYING"] or L["TALK_STATE_READY"]
     local prox = DungeonBots.GetBotProximityInfo and DungeonBots:GetBotProximityInfo(targetBot) or nil
     tf._lastProxKey = prox and prox.key or nil
     local proxSuffix = (prox and prox.badgeText) and ("  " .. prox.badgeText) or ""
-    tf.npcLabel:SetText("PNJ: |cffffd200" .. npcTitle .. "|r  " .. statusTag .. proxSuffix)
+    tf.npcLabel:SetText(string.format(L["TALK_NPC_FMT"], npcTitle, statusTag) .. proxSuffix)
 
     if tf.requeryBtn then
         if isBusy then
             tf.requeryBtn:Disable()
-            tf.requeryBtn:SetText("Consultando...")
+            tf.requeryBtn:SetText(L["BTN_QUERYING"])
         else
             tf.requeryBtn:Enable()
-            tf.requeryBtn:SetText("Reconsultar")
+            tf.requeryBtn:SetText(L["BTN_REQUERY"])
         end
     end
 
@@ -907,35 +908,35 @@ function DungeonBots:UpdateTalkDialog(botName)
             or nil
         if data and data.rangeError then
             local reasonTxt = lastLocalized and ("\n|cffaaaaaa(" .. DungeonBots:StripChatFormatting(lastLocalized) .. ")|r") or ""
-            tf.emptyOptLabel:SetText("|cffff5544" .. targetBot .. " está demasiado lejos del PNJ.|r" .. reasonTxt .. "\n\nAcércalo al PNJ (usa |cffffd200Seguir|r o |cffffd200Summon|r) y pulsa |cffffd200'Reconsultar'|r.")
+            tf.emptyOptLabel:SetText(string.format(L["TALK_FAR_ERR_FMT"], targetBot) .. reasonTxt)
         elseif data and (data.loading or isBusy) then
             if prox and prox.isFar then
-                tf.emptyOptLabel:SetText("|cffff7b30" .. (prox.detailMsg or (targetBot .. " está lejos.")) .. "|r\n\n|cffaaaaaaConsultando a " .. targetBot .. "... Si no aparece nada, acércalo con 'Seguir' o 'Summon' y pulsa 'Reconsultar'.|r")
+                tf.emptyOptLabel:SetText(string.format(L["TALK_FAR_WAIT_FMT"], (prox.detailMsg or targetBot), targetBot))
             elseif data.isAcceptCmd then
-                tf.emptyOptLabel:SetText("|cff71d5ffAceptando misión con " .. targetBot .. "...|r")
+                tf.emptyOptLabel:SetText(string.format(L["TALK_ACCEPTING_FMT"], targetBot))
             else
-                tf.emptyOptLabel:SetText("|cff71d5ffConsultando opciones y misiones del PNJ con " .. targetBot .. "...|r")
+                tf.emptyOptLabel:SetText(string.format(L["TALK_QUERYING_OPT_FMT"], targetBot))
             end
         elseif data and data.isAcceptCmd and not data.acceptError then
             if lastLocalized then
                 local cleanFallback = DungeonBots:StripChatFormatting(lastLocalized)
                 tf.emptyOptLabel:SetText("|cff34c759" .. cleanFallback .. "|r")
             else
-                tf.emptyOptLabel:SetText("|cff34c759Misión aceptada.|r Actualizando diálogo del PNJ...")
+                tf.emptyOptLabel:SetText(L["TALK_QUEST_ACCEPTED"])
             end
         elseif data and data.acceptError and lastLocalized then
             local cleanFallback = DungeonBots:StripChatFormatting(lastLocalized)
-            tf.emptyOptLabel:SetText("|cffff5544No se pudo aceptar la misión:|r\n\n|cffffaaaa" .. cleanFallback .. "|r")
+            tf.emptyOptLabel:SetText(string.format(L["TALK_ACCEPT_FAIL_FMT"], cleanFallback))
         elseif prox and prox.isFar then
             local extra = lastLocalized and ("\n\n|cffaaaaaa(" .. DungeonBots:StripChatFormatting(lastLocalized) .. ")|r") or ""
-            tf.emptyOptLabel:SetText("|cffff5544" .. (prox.detailMsg or (targetBot .. " está demasiado lejos.")) .. "|r\n\nAcércalo al PNJ (usa |cffffd200Seguir|r o |cffffd200Summon|r) y pulsa |cffffd200'Reconsultar'|r." .. extra)
+            tf.emptyOptLabel:SetText(string.format(L["TALK_TOO_FAR_SHORT"], (prox.detailMsg or targetBot)) .. extra)
         elseif lastLocalized then
             local cleanFallback = DungeonBots:StripChatFormatting(lastLocalized)
             tf.emptyOptLabel:SetText("No se detectaron opciones ni misiones disponibles.\n\n|cffaaaaaa(" .. cleanFallback .. ")|r")
         elseif prox and prox.key == "medium" then
-            tf.emptyOptLabel:SetText("No se detectaron opciones ni misiones disponibles.\n|cffffd200" .. targetBot .. " está a media distancia (12-28 m); puede necesitar acercarse más al PNJ y pulsar 'Reconsultar'.|r")
+            tf.emptyOptLabel:SetText(string.format(L["TALK_NO_OPTS_MID"], targetBot))
         else
-            tf.emptyOptLabel:SetText("No se detectaron opciones ni misiones disponibles.\nAsegúrate de tener seleccionado un PNJ cerca de " .. targetBot .. " y pulsa 'Reconsultar'.")
+            tf.emptyOptLabel:SetText(string.format(L["TALK_NO_OPTS_NEAR"], targetBot))
         end
         tf.emptyOptLabel:Show()
     else
@@ -950,7 +951,7 @@ function DungeonBots:UpdateTalkDialog(botName)
                 row.mainBtn:ClearAllPoints()
                 row.mainBtn:SetPoint("TOPLEFT", row, "TOPLEFT", 4, -2)
                 row.mainBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", showShare and -206 or -112, 2)
-                row.label:SetText(style.prefix .. (act.displayLink or act.title or "Misión"))
+                row.label:SetText(style.prefix .. (act.displayLink or act.title or L["QUEST_DEFAULT"]))
                 row.mainBtn:SetScript("OnClick", function(self)
                     PlaySound("igMainMenuOptionCheckBoxOn")
                     local linkRef = act.questId and ("quest:" .. act.questId .. ":" .. (act.questLevel or "80")) or nil
@@ -960,10 +961,10 @@ function DungeonBots:UpdateTalkDialog(botName)
                     local b = style.border
                     row:SetBackdropBorderColor(b[1], b[2], b[3], b[4])
                     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                    GameTooltip:AddLine(act.title or "Misión", 1, 0.85, 0.2)
+                    GameTooltip:AddLine(act.title or L["QUEST_DEFAULT"], 1, 0.85, 0.2)
                     if style.tipStatus then
                         local c = style.tipColor
-                        GameTooltip:AddLine("Estado: " .. style.tipStatus, c[1], c[2], c[3])
+                        GameTooltip:AddLine(L["QUEST_STATUS_PREFIX"] .. style.tipStatus, c[1], c[2], c[3])
                     end
                     GameTooltip:AddLine(style.tipHint, 0.75, 0.85, 1.0, true)
                     GameTooltip:Show()
@@ -988,7 +989,7 @@ function DungeonBots:UpdateTalkDialog(botName)
                     end)
                     row.shareBtn:SetScript("OnEnter", function(self)
                         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                        GameTooltip:AddLine("Se compartirá la misión con jugadores y bots. Los bots solo aceptarán si el jugador que los invocó acepta la misión", 0.9, 0.92, 0.95, true)
+                        GameTooltip:AddLine(L["QUEST_SHARE_TIP"], 0.9, 0.92, 0.95, true)
                         GameTooltip:Show()
                     end)
                     row.shareBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1001,7 +1002,7 @@ function DungeonBots:UpdateTalkDialog(botName)
                     if row.acceptBtn.icon then
                         row.acceptBtn.icon:SetTexture(style.btnIcon or "Interface\\Icons\\INV_Misc_Book_09")
                     end
-                    row.acceptBtn:SetText(style.btnText or "Aceptar")
+                    row.acceptBtn:SetText(style.btnText or L["BTN_ACCEPT"])
                     row.acceptBtn:Show()
                     row.acceptBtn:SetScript("OnClick", function()
                         if style.btnAction == "drop" then
@@ -1013,7 +1014,7 @@ function DungeonBots:UpdateTalkDialog(botName)
                     if style.btnAction == "drop" then
                         row.acceptBtn:SetScript("OnEnter", function(self)
                             GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                            GameTooltip:AddLine("Abandonarás la misión con este bot", 1, 0.4, 0.4, true)
+                            GameTooltip:AddLine(L["QUEST_DROP_TIP"], 1, 0.4, 0.4, true)
                             GameTooltip:Show()
                         end)
                         row.acceptBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1035,7 +1036,7 @@ function DungeonBots:UpdateTalkDialog(botName)
                 row.mainBtn:ClearAllPoints()
                 row.mainBtn:SetPoint("TOPLEFT", row, "TOPLEFT", 4, -2)
                 row.mainBtn:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -4, 2)
-                row.label:SetText("|cff00ccff>|r |cffffe599" .. (act.label or act.cmd or "Opción") .. "|r")
+                row.label:SetText(string.format(L["TALK_OPTION_FMT"], (act.label or act.cmd or L["TALK_OPTION_DEFAULT"])))
                 row.mainBtn:SetScript("OnClick", function()
                     PlaySound("igMainMenuOptionCheckBoxOn")
                     DungeonBots:SendTalkCommand(targetBot, act.cmd)
@@ -1043,8 +1044,8 @@ function DungeonBots:UpdateTalkDialog(botName)
                 row.mainBtn:SetScript("OnEnter", function(self)
                     SetThemedBorder(row, true)
                     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                    GameTooltip:AddLine(act.label or "Seleccionar opción", 0.45, 0.85, 1.0)
-                    GameTooltip:AddLine("Haz clic para elegir esta opción con el bot.", 0.85, 0.85, 0.85, true)
+                    GameTooltip:AddLine(act.label or L["TALK_OPT_TIP_TITLE"], 0.45, 0.85, 1.0)
+                    GameTooltip:AddLine(L["TALK_OPT_TIP_DESC"], 0.85, 0.85, 0.85, true)
                     GameTooltip:Show()
                 end)
                 row.mainBtn:SetScript("OnLeave", function()

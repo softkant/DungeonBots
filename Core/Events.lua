@@ -6,6 +6,7 @@ DungeonBots = DungeonBots or {}
 DungeonBots.Internal = DungeonBots.Internal or {}
 
 local DB_Internal = DungeonBots.Internal
+local L = DungeonBots.L or {}
 
 local function NowTime()
     return DB_Internal.NowTime()
@@ -47,7 +48,7 @@ local function NotifyBotInventoryFull(botName)
         return
     end
     lastInventoryFullWarnAt[botName] = now + 20.0
-    DungeonBots:Warn("El inventario de |cffffd200" .. botName .. "|r está lleno. Puedes abrir su |cffffd200Inventario|r para destruir objetos y liberar espacio.")
+    DungeonBots:Warn(string.format(L["BAG_FULL_WARN_FMT"], botName))
 end
 
 local function HandlePartyChanged(isEnteringWorld)
@@ -192,7 +193,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             DB_Internal.ClearAllPendingQuestCounts()
         end
 
-        DungeonBots:Print("v" .. DungeonBots.VERSION .. " cargado. Escribe |cffffd200/db|r o |cffffd200/bots|r, o pulsa en |cff71d5ffEl Ojo|r del Buscador de Mazmorras.")
+        DungeonBots:Print(string.format(L["ADDON_LOADED_FMT"], tostring(DungeonBots.VERSION or "1.0.0")))
         if DungeonBots.InitUI then
             DungeonBots:InitUI()
         end
@@ -347,7 +348,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                             DungeonBots:SchedulePartyInviteRetry(cleanSender, 0.4, 2)
                         end
                     elseif whoInfo.zone and whoInfo.zone ~= "" and not inParty then
-                        DungeonBots:Warn("|cffffd200" .. cleanSender .. "|r no pudo unirse al grupo (ubicación actual: |cffffd200" .. whoInfo.zone .. "|r).")
+                        DungeonBots:Warn(string.format(L["JOIN_FAIL_ZONE_FMT"], cleanSender, whoInfo.zone) .. ".")
                     end
                 elseif pendingWho.reason == "busy_owner_lookup" and not inParty and not whoOtherOwner then
                     if DungeonBots.busyExternalBots then
@@ -428,7 +429,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             if DungeonBots.UpdateSpellsDialog and DungeonBots.spellsFrame and DungeonBots.spellsFrame:IsShown() and DungeonBots.spellsFrame.currentBot == cleanSender then
                 DungeonBots:UpdateSpellsDialog(cleanSender)
             end
-            DungeonBots:Warn("No se pudo cambiar la rama de |cffffd200" .. cleanSender .. "|r (" .. specErrorReason .. ").")
+            DungeonBots:Warn(string.format(L["SPEC_CHANGE_FAIL_FMT"], cleanSender, specErrorReason))
             if not (DungeonBots.botSpecListFetched and DungeonBots.botSpecListFetched[cleanSender]) and DungeonBots.QueryBotSpecs then
                 DungeonBots:QueryBotSpecs(cleanSender, false)
             end
@@ -491,13 +492,13 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                 if matchesTarget then
                     pendingSwitches[cleanSender] = nil
                     local displaySpec = DungeonBots.LocalizeSpecText and DungeonBots:LocalizeSpecText(candSpec) or candSpec
-                    DungeonBots:Print("Talentos de |cffffd200" .. cleanSender .. "|r cambiados a |cff71d5ff" .. displaySpec .. "|r.")
+                    DungeonBots:Print(string.format(L["SPEC_CHANGED_FMT"], cleanSender, displaySpec))
                 elseif not pendingSwitch.verifySent and not pendingSwitch.gotSwitchConfirm and (NowTime() - (pendingSwitch.sentAt or 0)) < 0.85 then
                     detectedActiveSpec = nil
                 elseif pendingSwitch.verifySent then
                     pendingSwitches[cleanSender] = nil
                     local displayActual = DungeonBots.LocalizeSpecText and DungeonBots:LocalizeSpecText(candSpec) or candSpec
-                    DungeonBots:Warn("La rama de |cffffd200" .. cleanSender .. "|r sigue en |cff71d5ff" .. displayActual .. "|r (el bot no aplicó el cambio).")
+                    DungeonBots:Warn(string.format(L["SPEC_UNCHANGED_FMT"], cleanSender, displayActual))
                     if not (DungeonBots.botSpecListFetched and DungeonBots.botSpecListFetched[cleanSender]) and DungeonBots.QueryBotSpecs then
                         DungeonBots:QueryBotSpecs(cleanSender, false)
                     end
@@ -535,7 +536,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             DungeonBots:RecordBotHistory(cleanSender)
             if DungeonBots:HasPendingScan(cleanSender) then
                 DungeonBots.pendingScan[cleanSender] = nil
-                DungeonBots:Print("Bot confirmado: |cff00e5ff" .. cleanSender .. "|r (respondió automáticamente como bot).")
+                DungeonBots:Print(string.format(L["BOT_CONFIRMED_FMT"], cleanSender))
             end
             if DungeonBots.UpdatePartyUI then
                 DungeonBots:UpdatePartyUI()
@@ -560,7 +561,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                     DungeonBots.recentInvites[cleanSender] = NowTime() + 1.2
                     DungeonBots:RecordBotHistory(cleanSender)
                     InviteUnit(cleanSender)
-                    DungeonBots:Print("Auto-invitando bot detectado: |cffffd200" .. cleanSender .. "|r")
+                    DungeonBots:Print(string.format(L["AUTO_INVITE_BOT_FMT"], cleanSender))
                 end
                 if DungeonBots.SchedulePartyInviteRetry then
                     DungeonBots:SchedulePartyInviteRetry(cleanSender, 2.0, 3)
@@ -679,7 +680,7 @@ SlashCmdList["DUNGEONBOTS"] = function(rawMsg)
     elseif msg == "reset" then
         if DungeonBots.ResetHUDPositions then
             DungeonBots:ResetHUDPositions()
-            DungeonBots:Print("Posición de las barras flotantes restaurada.")
+            DungeonBots:Print(L["HUD_POS_RESTORED"])
         end
     else
         if DungeonBots.ToggleUI then

@@ -6,6 +6,7 @@ DungeonBots = DungeonBots or {}
 DungeonBots.Internal = DungeonBots.Internal or {}
 
 local DB_Internal = DungeonBots.Internal
+local L = DungeonBots.L or {}
 
 local NowTime = DB_Internal.NowTime
 local NormalizePlayerName = DB_Internal.NormalizePlayerName
@@ -49,7 +50,7 @@ local function ResolveItemEntryVisuals(entry, skipQueue)
     if not entry then return false end
     local changed = false
     local itemId = entry.itemId
-    local rawName = entry.rawName or entry.name or "Objeto"
+    local rawName = entry.rawName or entry.name or (DungeonBots.L and DungeonBots.L["ITEM_DEFAULT"]) or "Item"
 
     local clientName, _, itemRarity, _, _, _, _, _, _, itemTexture
     if itemId and GetItemInfo then
@@ -169,7 +170,7 @@ local function ExtractItemEntriesFromLine(line, currentCategory)
         local count = ParseCountAroundSegment(beforeSeg, afterSeg)
 
         local itemId = tonumber(string.match(m.plainH, "|Hitem:(%d+)"))
-        local rawName = string.match(m.plainH, "|h%[([^%]]+)%]|h") or "Objeto"
+        local rawName = string.match(m.plainH, "|h%[([^%]]+)%]|h") or (DungeonBots.L and DungeonBots.L["ITEM_DEFAULT"]) or "Item"
 
         local entry = {
             itemId = itemId,
@@ -182,7 +183,7 @@ local function ExtractItemEntriesFromLine(line, currentCategory)
             rarity = InferRarityFromColorHex(m.colorHex),
             count = count,
             icon = nil,
-            category = currentCategory or "General",
+            category = currentCategory or (DungeonBots.L and DungeonBots.L["CAT_GENERAL"]) or "General",
         }
         ResolveItemEntryVisuals(entry, false)
         table.insert(extracted, entry)
@@ -408,7 +409,7 @@ local function HandleDestroyFeedbackWhisper(cleanSender, message, now)
         req.gotReply = true
         DungeonBots.pendingDestroyRequests[cleanSender] = nil
         RemoveDestroyedItemFromInventoryData(cleanSender, req)
-        DungeonBots:Print("|cffffd200" .. cleanSender .. "|r destruyó: " .. (req.displayLink or cleanDisplay))
+        DungeonBots:Print(string.format(L["INV_DESTROYED_FMT"], cleanSender, (req.displayLink or cleanDisplay)))
         if DungeonBots.QueryBotStats then
             DungeonBots:QueryBotStats(cleanSender, true)
         end
@@ -530,7 +531,7 @@ function DB_Internal.TickInventoryCapture(now)
                     else
                         data.timedOut = true
                         if cap.hadPrevItems and isDialogShowing then
-                            DungeonBots:Warn(botName .. " no respondió al actualizar el inventario.")
+                            DungeonBots:Warn(string.format(L["INV_NO_RESP_FMT"], botName))
                         end
                     end
                     data.loading = false
@@ -550,7 +551,7 @@ function DB_Internal.TickInventoryCapture(now)
             if now >= (req.expiresAt or 0) then
                 DungeonBots.pendingDestroyRequests[botName] = nil
                 if not req.gotReply then
-                    DungeonBots:Warn("No se recibió confirmación de " .. botName .. " al intentar destruir " .. (req.displayLink or "el objeto") .. ".")
+                    DungeonBots:Warn(string.format(L["INV_DESTROY_FAIL_FMT"], botName, (req.displayLink or L["ITEM_DEFAULT"])))
                 end
             else
                 hasAny = true
@@ -565,7 +566,7 @@ function DungeonBots:QueryBotInventory(botName, isSilent, forceStats)
     local cleanBot = NormalizePlayerName(botName)
     if not cleanBot then
         if not isSilent then
-            DungeonBots:Warn("No hay ningún bot seleccionado para consultar su inventario.")
+            DungeonBots:Warn(L["INV_NO_BOT_SEL"])
         end
         return
     end
@@ -650,7 +651,7 @@ function DungeonBots:DestroyBotItem(botName, itemEntry)
     if not cmdLink or cmdLink == "" then return end
 
     local now = NowTime()
-    local displayLink = (itemEntry.displayLink and itemEntry.displayLink ~= "") and itemEntry.displayLink or ("[" .. (itemEntry.name or itemEntry.rawName or "Objeto") .. "]")
+    local displayLink = (itemEntry.displayLink and itemEntry.displayLink ~= "") and itemEntry.displayLink or ("[" .. (itemEntry.name or itemEntry.rawName or L["ITEM_DEFAULT"]) .. "]")
 
     DungeonBots.pendingDestroyRequests = DungeonBots.pendingDestroyRequests or {}
     DungeonBots.pendingDestroyRequests[cleanBot] = {
@@ -666,7 +667,7 @@ function DungeonBots:DestroyBotItem(botName, itemEntry)
 
     DungeonBots:SendWhisperCommand(cleanBot, "destroy " .. cmdLink)
     PlaySound("igMainMenuOptionCheckBoxOff")
-    DungeonBots:Print("Enviando orden de destruir a |cffffd200" .. cleanBot .. "|r: " .. displayLink)
+    DungeonBots:Print(string.format(L["INV_SEND_DESTROY_FMT"], cleanBot, displayLink))
 
     if DungeonBots.uiCaptureFrame then
         DungeonBots.uiCaptureFrame:Show()

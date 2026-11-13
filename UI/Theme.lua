@@ -6,11 +6,12 @@ DungeonBots = DungeonBots or {}
 DungeonBots.Internal = DungeonBots.Internal or {}
 
 local DB_Internal = DungeonBots.Internal
+local L = DungeonBots.L or {}
 
 local THEME_PALETTES = {
     gold = {
         id = "gold",
-        label = "Dorado",
+        label = L["THEME_GOLD_LABEL"],
         windowEdge = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
         windowBorderColor = { 1.0, 1.0, 1.0, 1.0 },
         windowBg = { 0.09, 0.08, 0.06, 0.98 },
@@ -66,7 +67,7 @@ local THEME_PALETTES = {
     },
     dark = {
         id = "dark",
-        label = "Oscuro Azulado",
+        label = L["THEME_DARK_LABEL"],
         windowEdge = "Interface\\DialogFrame\\UI-DialogBox-Border",
         windowBorderColor = { 0.62, 0.70, 0.84, 1.0 },
         windowBg = { 0.058, 0.072, 0.105, 0.98 },
@@ -454,7 +455,7 @@ local function SafeShowLinkTooltip(owner, linkRef, displayLink, title, rawLine)
     end
     if owner then
         GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
-        GameTooltip:AddLine(title or "Detalle", 1, 0.85, 0.2, true)
+        GameTooltip:AddLine(title or L["DETAIL_LABEL"], 1, 0.85, 0.2, true)
         if rawLine and rawLine ~= "" then
             local localizedRaw = DungeonBots.LocalizeHyperlinksInText
                 and DungeonBots:LocalizeHyperlinksInText(rawLine)

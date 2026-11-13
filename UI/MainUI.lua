@@ -6,6 +6,7 @@ DungeonBots = DungeonBots or {}
 DungeonBots.Internal = DungeonBots.Internal or {}
 
 local DB_Internal = DungeonBots.Internal
+local L = DungeonBots.L or {}
 
 local mainFrame = nil
 local activeTab = 1
@@ -217,8 +218,8 @@ function DungeonBots:InitUI()
         local hc = (p and p.hoverBorder) or { 1.0, 0.82, 0.0, 1.0 }
         settingsBorder:SetVertexColor(hc[1], hc[2], hc[3], 1.0)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Configuración", 1, 1, 1)
-        GameTooltip:AddLine("Abre las opciones de las barras flotantes (Táctica y Utilidades) y filtros de chat de bots.", 0.7, 0.8, 1.0, true)
+        GameTooltip:AddLine(L["SETTINGS_TITLE"], 1, 1, 1)
+        GameTooltip:AddLine(L["SETTINGS_TIP"], 0.7, 0.8, 1.0, true)
         GameTooltip:Show()
     end)
     settingsBtn:SetScript("OnLeave", function()
@@ -262,13 +263,13 @@ function DungeonBots:InitUI()
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         local isLocked = DungeonBots.IsHUDLocked and DungeonBots:IsHUDLocked()
         if isLocked then
-            GameTooltip:AddLine("Barras Flotantes: |cff9d9d9dBloqueadas|r", 1, 1, 1)
-            GameTooltip:AddLine("Gris: ambas barras están fijadas en su posición.", 0.75, 0.75, 0.78, true)
-            GameTooltip:AddLine("Haz clic para desbloquear (verde) y poder mover las 2 barras.", 0.7, 0.85, 1.0, true)
+            GameTooltip:AddLine(L["LOCK_TIP_LOCKED_TITLE"], 1, 1, 1)
+            GameTooltip:AddLine(L["LOCK_TIP_LOCKED_L1"], 0.75, 0.75, 0.78, true)
+            GameTooltip:AddLine(L["LOCK_TIP_LOCKED_L2"], 0.7, 0.85, 1.0, true)
         else
-            GameTooltip:AddLine("Barras Flotantes: |cff34c759Desbloqueadas|r", 1, 1, 1)
-            GameTooltip:AddLine("Verde: puedes arrastrar ambas barras flotantes.", 0.35, 0.95, 0.45, true)
-            GameTooltip:AddLine("Haz clic para bloquear (gris) y fijar las 2 barras.", 0.7, 0.85, 1.0, true)
+            GameTooltip:AddLine(L["LOCK_TIP_UNLOCK_TITLE"], 1, 1, 1)
+            GameTooltip:AddLine(L["LOCK_TIP_UNLOCK_L1"], 0.35, 0.95, 0.45, true)
+            GameTooltip:AddLine(L["LOCK_TIP_UNLOCK_L2"], 0.7, 0.85, 1.0, true)
         end
         GameTooltip:Show()
     end)
@@ -306,23 +307,23 @@ function DungeonBots:InitUI()
     local tabNames = {
         {
             id = 1,
-            title = "Armar Grupo",
-            subtitle = "Historial, clases y control de grupo",
-            desc = "Invoca bots por clase individual, abre tu historial y ejecuta acciones rápidas del grupo.",
+            title = L["TAB1_NAME"],
+            subtitle = L["TAB1_SUB"],
+            desc = L["TAB1_TIP"],
             icon = "Interface\\Icons\\Spell_ChargePositive",
         },
         {
             id = 2,
-            title = "Bots en el grupo",
-            subtitle = "Especialización, equipo y misiones",
-            desc = "Gestiona las ramas de talentos, equipo y misiones de los bots activos en tu grupo.",
+            title = L["TAB2_NAME"],
+            subtitle = L["TAB2_SUB"],
+            desc = L["TAB2_TIP"],
             icon = "Interface\\Icons\\INV_Misc_GroupLooking",
         },
         {
             id = 3,
-            title = "Guía y Consejos",
-            subtitle = "Manual de uso y solución de problemas",
-            desc = "Consejos esenciales sobre misiones previas, invocación dentro de mazmorras, expulsión y bots ocupados.",
+            title = L["TAB3_NAME"],
+            subtitle = L["TAB3_SUB"],
+            desc = L["TAB3_TIP"],
             icon = "Interface\\Icons\\INV_Misc_Book_03",
         },
     }
@@ -357,7 +358,7 @@ function DungeonBots:InitUI()
 
         btn.tabData = tabData
         btn.botCount = 0
-        btn.tooltipTitle = (i == 2) and "Bots en el grupo (0)" or tabData.title
+        btn.tooltipTitle = (i == 2) and string.format(L["TAB2_NAME_FMT"], 0) or tabData.title
 
         if i == 2 then
             local badgeBg = btn:CreateTexture(nil, "ARTWORK")
@@ -386,9 +387,9 @@ function DungeonBots:InitUI()
                 GameTooltip:AddLine(tabData.desc, 1, 1, 1, true)
             end
             if i == activeTab then
-                GameTooltip:AddLine("|cff00ff00(Pestaña Activa)|r", 0.8, 0.8, 0.8)
+                GameTooltip:AddLine(L["TAB_ACTIVE_HINT"], 0.8, 0.8, 0.8)
             else
-                GameTooltip:AddLine("|cff888888(Haz clic para cambiar a esta pestaña)|r", 0.8, 0.8, 0.8)
+                GameTooltip:AddLine(L["TAB_SWITCH_HINT"], 0.8, 0.8, 0.8)
             end
             GameTooltip:Show()
         end)
@@ -570,16 +571,16 @@ function DungeonBots:BuildTab1(parent)
 
     local historyTitle = historyBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     historyTitle:SetPoint("TOPLEFT", histIconFrame, "TOPRIGHT", 10, 2)
-    historyTitle:SetText("|cffffd200Historial de bots|r")
+    historyTitle:SetText(L["HIST_BOX_TITLE"])
 
     local historySummary = historyBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     historySummary:SetPoint("TOPLEFT", historyTitle, "BOTTOMLEFT", 0, -3)
     historySummary:SetWidth(330)
     historySummary:SetJustifyH("LEFT")
-    historySummary:SetText("Lista de bots invitados anteriormente: |cffffd2000|r")
+    historySummary:SetText(string.format(L["HIST_BOX_COUNT_FMT"], 0))
     DungeonBots.historySummaryLabel = historySummary
 
-    local viewHistoryBtn = CreateRedIconButton(historyBox, 136, 26, "Ver Historial bots", "Interface\\Icons\\INV_Misc_Note_01")
+    local viewHistoryBtn = CreateRedIconButton(historyBox, 136, 26, L["HIST_BTN_VIEW"], "Interface\\Icons\\INV_Misc_Note_01")
     viewHistoryBtn:SetPoint("RIGHT", historyBox, "RIGHT", -10, 0)
     if viewHistoryBtn.icon and viewHistoryBtn.text then
         viewHistoryBtn.icon:ClearAllPoints()
@@ -594,8 +595,8 @@ function DungeonBots:BuildTab1(parent)
     end)
     viewHistoryBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Abrir Historial de bots", 1, 1, 1)
-        GameTooltip:AddLine("Muestra la lista de bots con los que has jugado, la especialización que tenían y botones para llamarlos e invitarlos uno por uno.", 0.7, 0.8, 1.0, true)
+        GameTooltip:AddLine(L["HIST_BTN_TIP_TITLE"], 1, 1, 1)
+        GameTooltip:AddLine(L["HIST_BTN_TIP_DESC"], 0.7, 0.8, 1.0, true)
         GameTooltip:Show()
     end)
     viewHistoryBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -613,7 +614,7 @@ function DungeonBots:BuildTab1(parent)
 
     local classTitle = classBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     classTitle:SetPoint("TOPLEFT", 10, -8)
-    classTitle:SetText("|cffffd200Invocar Bot por Clase Individual|r")
+    classTitle:SetText(L["CLASS_BOX_TITLE"])
 
     AddPanelDivider(classBox, -24)
 
@@ -668,9 +669,9 @@ function DungeonBots:BuildTab1(parent)
             cBtn:SetBackdropBorderColor(hc[1], hc[2], hc[3], hc[4])
             cText:SetTextColor(1.0, 1.0, 1.0)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:AddLine("Invocar " .. classDisplay, 1.0, 0.82, 0.0)
-            GameTooltip:AddLine("Invoca un bot de clase " .. classDisplay .. ".", 0.7, 0.8, 1.0)
-            GameTooltip:AddLine("\n|cff34c759Si el bot te susurra al aparecer, el addon lo invitará automáticamente al grupo.|r", 0.8, 0.8, 0.8, true)
+            GameTooltip:AddLine(string.format(L["CLASS_SUMMON_TITLE"], classDisplay), 1.0, 0.82, 0.0)
+            GameTooltip:AddLine(string.format(L["CLASS_SUMMON_DESC"], classDisplay), 0.7, 0.8, 1.0)
+            GameTooltip:AddLine(L["CLASS_SUMMON_NOTE"], 0.8, 0.8, 0.8, true)
             GameTooltip:Show()
         end)
         cBtn:SetScript("OnLeave", function()
@@ -693,16 +694,16 @@ function DungeonBots:BuildTab1(parent)
 
     local actionTitle = actionBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     actionTitle:SetPoint("TOPLEFT", 10, -8)
-    actionTitle:SetText("|cffffd200Opciones Generales|r")
+    actionTitle:SetText(L["OPTIONS_BOX_TITLE"])
 
     AddPanelDivider(actionBox, -24)
 
     local quickActionsLabel = actionBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     quickActionsLabel:SetPoint("TOPLEFT", 12, -31)
-    quickActionsLabel:SetText("|cff9ea6b5Acciones rápidas para todo el grupo:|r")
+    quickActionsLabel:SetText(L["OPTIONS_BOX_SUB"])
 
     local addAllBtn = CreateRedIconButton(
-        actionBox, 136, 26, "Reinvocar Grupo",
+        actionBox, 136, 26, L["ACT_RESUMMON"],
         "Interface\\Icons\\Spell_Nature_AstralRecalGroup"
     )
     addAllBtn:SetPoint("BOTTOMLEFT", actionBox, "BOTTOMLEFT", 7, 10)
@@ -712,15 +713,15 @@ function DungeonBots:BuildTab1(parent)
     end)
     addAllBtn:HookScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Reinvocar a Todos los Bots", 1, 1, 1)
-        GameTooltip:AddLine("Reinvoca a los bots ausentes de tu grupo y los teletransporta a tu posición.", 0.7, 0.8, 1.0, true)
-        GameTooltip:AddLine("\n|cffffd200Nota:|r Solo funciona con bots que aún siguen en tu grupo pero se fueron por alguna razón (relogueo, al pasar el minuto fuera de mazmorra o desconexión). Si ya fueron sacados del grupo, llámalos desde 'Ver Historial de bots'.", 0.85, 0.85, 0.85, true)
+        GameTooltip:AddLine(L["ACT_RESUMMON_TITLE"], 1, 1, 1)
+        GameTooltip:AddLine(L["ACT_RESUMMON_DESC"], 0.7, 0.8, 1.0, true)
+        GameTooltip:AddLine(L["ACT_RESUMMON_NOTE"], 0.85, 0.85, 0.85, true)
         GameTooltip:Show()
     end)
     addAllBtn:HookScript("OnLeave", function() GameTooltip:Hide() end)
 
     local removeAllBtn = CreateRedIconButton(
-        actionBox, 136, 26, "Despedir a Todos",
+        actionBox, 136, 26, L["ACT_DISMISS_ALL"],
         "Interface\\Icons\\Spell_ChargeNegative"
     )
     removeAllBtn:SetPoint("LEFT", addAllBtn, "RIGHT", 10, 0)
@@ -730,45 +731,45 @@ function DungeonBots:BuildTab1(parent)
     end)
     removeAllBtn:HookScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Despedir a Todo el Grupo", 1, 0.3, 0.3)
-        GameTooltip:AddLine("Guarda y retira a todos los bots del mundo y los saca del grupo automáticamente.", 0.7, 0.8, 1.0, true)
+        GameTooltip:AddLine(L["ACT_DISMISS_TITLE"], 1, 0.3, 0.3)
+        GameTooltip:AddLine(L["ACT_DISMISS_DESC"], 0.7, 0.8, 1.0, true)
         GameTooltip:Show()
     end)
     removeAllBtn:HookScript("OnLeave", function() GameTooltip:Hide() end)
 
     local repairBtn = CreateRedIconButton(
-        actionBox, 136, 26, "Reparar Equipo",
+        actionBox, 136, 26, L["ACT_REPAIR"],
         "Interface\\Icons\\Trade_BlackSmithing"
     )
     repairBtn:SetPoint("LEFT", removeAllBtn, "RIGHT", 10, 0)
     repairBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
         DungeonBots:SendPartyCommand("repair")
-        DungeonBots:Print("Ordenando a los bots reparar su equipo...")
+        DungeonBots:Print(L["ACT_REPAIR_MSG"])
     end)
     repairBtn:HookScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Reparar Equipo", 1, 1, 1)
-        GameTooltip:AddLine("Ordena a los bots reparar todas sus piezas si estás cerca de un PNJ reparador o montura.", 0.7, 0.8, 1.0, true)
+        GameTooltip:AddLine(L["ACT_REPAIR"], 1, 1, 1)
+        GameTooltip:AddLine(L["ACT_REPAIR_DESC"], 0.7, 0.8, 1.0, true)
         GameTooltip:Show()
     end)
     repairBtn:HookScript("OnLeave", function() GameTooltip:Hide() end)
 
     local releaseBtn = CreateRedIconButton(
-        actionBox, 136, 26, "Liberar alma",
+        actionBox, 136, 26, L["ACT_RELEASE"],
         "Interface\\Icons\\Spell_Holy_GuardianSpirit"
     )
     releaseBtn:SetPoint("LEFT", repairBtn, "RIGHT", 10, 0)
     releaseBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOff")
         DungeonBots:SendPartyCommand("release")
-        DungeonBots:Print("Ordenando a los bots caídos liberar su alma...")
+        DungeonBots:Print(L["ACT_RELEASE_MSG"])
     end)
     releaseBtn:HookScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Liberar Alma", 1, 1, 1)
-        GameTooltip:AddLine("Fuerza a los bots muertos a liberar su espíritu.", 0.7, 0.8, 1.0, true)
-        GameTooltip:AddLine("\n|cffff3b30ADVERTENCIA:|r El bot liberará espíritu pero se quedará esperando en el cementerio.", 1, 0.35, 0.35, true)
+        GameTooltip:AddLine(L["ACT_RELEASE"], 1, 1, 1)
+        GameTooltip:AddLine(L["ACT_RELEASE_DESC"], 0.7, 0.8, 1.0, true)
+        GameTooltip:AddLine(L["ACT_RELEASE_WARN"], 1, 0.35, 0.35, true)
         GameTooltip:Show()
     end)
     releaseBtn:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -778,11 +779,11 @@ end
 local CARD_ACTION_BUTTONS = {
     {
         key = "charInfoBtn",
-        label = "Personaje",
+        label = L["CARD_CHAR_BTN"],
         icon = "Interface\\Icons\\Achievement_Character_Human_Male",
         texCoord = { 0.08, 0.92, 0.08, 0.92 },
-        tipTitle = "Información del Personaje",
-        tipDesc = "Abre la ventana Información del Personaje en Equipo (ramas de talentos y equipamiento).",
+        tipTitle = L["HUD_CHAR_NAME"],
+        tipDesc = L["CARD_CHAR_DESC"],
         onClick = function(name)
             PlaySound("igMainMenuOptionCheckBoxOn")
             DungeonBots:QueryBotSpells(name, "gear", "", false)
@@ -790,11 +791,11 @@ local CARD_ACTION_BUTTONS = {
     },
     {
         key = "invBtn",
-        label = "Inventario",
+        label = L["CARD_INV_BTN"],
         icon = "Interface\\Icons\\INV_Misc_Bag_08",
         texCoord = { 0.08, 0.92, 0.08, 0.92 },
-        tipTitle = "Inventario del Bot",
-        tipDesc = "Consulta los objetos que lleva el bot en sus bolsas.",
+        tipTitle = L["HUD_INV_NAME"],
+        tipDesc = L["CARD_INV_DESC"],
         onClick = function(name)
             PlaySound("igMainMenuOptionCheckBoxOn")
             DungeonBots:QueryBotInventory(name)
@@ -802,11 +803,11 @@ local CARD_ACTION_BUTTONS = {
     },
     {
         key = "questsBtn",
-        label = "Misiones",
+        label = L["CARD_QUEST_BTN"],
         icon = "Interface\\Icons\\INV_Misc_Book_09",
         texCoord = { 0.13, 0.87, 0.13, 0.87 },
-        tipTitle = "Misiones del Bot",
-        tipDesc = "Consulta las misiones y abre la ventana de Misiones para ver detalles o abandonarlas.",
+        tipTitle = L["HUD_QUESTS_NAME"],
+        tipDesc = L["CARD_QUEST_DESC"],
         onClick = function(name)
             PlaySound("igMainMenuOptionCheckBoxOn")
             DungeonBots:QueryQuests(name)
@@ -907,7 +908,7 @@ function DungeonBots:BuildTab2(parent)
     local refreshStatsBtn = CreateFrame("Button", "DungeonBots_RefreshStatsBtn", parent, "UIPanelButtonTemplate")
     refreshStatsBtn:SetSize(96, 22)
     refreshStatsBtn:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -6, 6)
-    refreshStatsBtn:SetText("Actualizar")
+    refreshStatsBtn:SetText(L["BTN_REFRESH"])
     refreshStatsBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
         if DungeonBots.QueryPartyBotStats then
@@ -916,8 +917,8 @@ function DungeonBots:BuildTab2(parent)
     end)
     refreshStatsBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Actualizar Estado del Grupo", 1, 1, 1)
-        GameTooltip:AddLine("Actualiza el estado de armadura, espacios libres en bolsas y misiones de todos los bots del grupo.", 0.7, 0.8, 1.0, true)
+        GameTooltip:AddLine(L["TAB2_REFRESH_TITLE"], 1, 1, 1)
+        GameTooltip:AddLine(L["TAB2_REFRESH_DESC"], 0.7, 0.8, 1.0, true)
         GameTooltip:Show()
     end)
     refreshStatsBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -928,8 +929,7 @@ function DungeonBots:BuildTab2(parent)
     emptyLabel:SetPoint("CENTER", parent, "CENTER", 0, 12)
     emptyLabel:SetWidth(520)
     emptyLabel:SetJustifyH("CENTER")
-    local emptyText = (DungeonBots.L and DungeonBots.L["TAB2_EMPTY_NO_BOTS"])
-        or "|cffd8e0ecNo hay bots en tu grupo actualmente.|r\n\n|cff9ea6b5Puedes agregar uno en la primera pestaña |cffffd200\"Armar Grupo\"|r|cff9ea6b5\ny luego podrás gestionar sus talentos, equipos, misiones e inventarios acá.|r"
+    local emptyText = L["TAB2_EMPTY_NO_BOTS"]
     emptyLabel:SetText(emptyText)
     DungeonBots.emptyPartyLabel = emptyLabel
 
@@ -942,7 +942,7 @@ function DungeonBots:BuildTab2(parent)
     scanHelp:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 8, 11)
     scanHelp:SetPoint("RIGHT", refreshStatsBtn, "LEFT", -10, 0)
     scanHelp:SetJustifyH("LEFT")
-    scanHelp:SetText("|cff888888Pulsa |cff00e5ff[BOT]|r o |cffffb020[JUGADOR]|r para cambiar el rol.|r")
+    scanHelp:SetText(L["TAB2_ROLE_HINT"])
     scanHelp:Hide()
     DungeonBots.tab2ScanHelp = scanHelp
 
@@ -950,8 +950,7 @@ function DungeonBots:BuildTab2(parent)
     noBotFooter:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 8, 11)
     noBotFooter:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -8, 11)
     noBotFooter:SetJustifyH("LEFT")
-    noBotFooter:SetText((DungeonBots.L and DungeonBots.L["TAB2_FOOTER_NO_BOTS"])
-        or "|cff9ea6b5No hay bots en tu grupo. Puedes agregar uno en la primera pestaña |cffffd200\"Armar Grupo\"|r|cff9ea6b5.|r")
+    noBotFooter:SetText(L["TAB2_FOOTER_NO_BOTS"])
     noBotFooter:Hide()
     DungeonBots.tab2NoBotFooter = noBotFooter
 
@@ -977,7 +976,7 @@ function DungeonBots:BuildTab2(parent)
             local targetName = (u and UnitExists(u) and UnitName(u)) or ("Bot " .. i)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
             GameTooltip:AddLine(targetName, 1, 1, 1)
-            GameTooltip:AddLine("Clic izquierdo para seleccionar.", 1, 0.82, 0.2)
+            GameTooltip:AddLine(L["CARD_PORTRAIT_TIP"], 1, 0.82, 0.2)
             GameTooltip:Show()
         end)
         cIconHolder:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -996,7 +995,7 @@ function DungeonBots:BuildTab2(parent)
 
         local infoText = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         infoText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -2)
-        infoText:SetText("Nivel 80")
+        infoText:SetText(L["CARD_LEVEL_DEFAULT"])
         card.infoText = infoText
 
         local specDisplay = CreateFrame("Frame", "DungeonBots_SpecDisplay_" .. i, card)
@@ -1015,7 +1014,7 @@ function DungeonBots:BuildTab2(parent)
         specText:SetPoint("LEFT", specIcon, "RIGHT", 5, 0)
         specText:SetPoint("RIGHT", specDisplay, "RIGHT", 0, 0)
         specText:SetJustifyH("LEFT")
-        specText:SetText("Rama: |cff888888Sin detectar|r")
+        specText:SetText(L["CARD_SPEC_NONE"])
         card.specText = specText
 
         local armorDisplay = CreateFrame("Frame", nil, card)
@@ -1034,13 +1033,13 @@ function DungeonBots:BuildTab2(parent)
         armorText:SetPoint("LEFT", armorIcon, "RIGHT", 5, 0)
         armorText:SetPoint("RIGHT", armorDisplay, "RIGHT", 0, 0)
         armorText:SetJustifyH("LEFT")
-        armorText:SetText("Armadura: |cff888888Consultando...|r")
+        armorText:SetText(L["CARD_ARMOR_QUERYING"])
         card.armorText = armorText
 
         local kickBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
         kickBtn:SetSize(92, 22)
         kickBtn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -12)
-        kickBtn:SetText("Despedir")
+        kickBtn:SetText(L["BTN_DISMISS"])
         card.kickBtn = kickBtn
 
         local botBadge = CreateFrame("Button", nil, card)
@@ -1049,7 +1048,7 @@ function DungeonBots:BuildTab2(parent)
         ApplyInsetPanelBackdrop(botBadge, 8)
         local badgeText = botBadge:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         badgeText:SetPoint("CENTER", 0, 0)
-        badgeText:SetText("[ BOT ]")
+        badgeText:SetText(L["CARD_TAG_BOT"])
         botBadge.text = badgeText
         card.botBadge = botBadge
 
@@ -1063,7 +1062,7 @@ function DungeonBots:BuildTab2(parent)
         humanNotice:SetPoint("TOPLEFT", card, "TOPLEFT", 224, -14)
         humanNotice:SetPoint("RIGHT", botBadge, "LEFT", -12, 0)
         humanNotice:SetJustifyH("LEFT")
-        humanNotice:SetText("|cffffb020Jugador humano real.|r\n|cff888888Las opciones de control de bot están inactivas para este miembro.|r")
+        humanNotice:SetText(L["CARD_HUMAN_LOCK_NOTE"])
         humanNotice:Hide()
         card.humanNotice = humanNotice
 
@@ -1083,10 +1082,10 @@ local function FormatBotCardInventoryLabel(botName)
     if DB_Internal.GetBotBagFreeInfo and st then
         local freeSlots, _, bagColor = DB_Internal.GetBotBagFreeInfo(st)
         if freeSlots ~= nil then
-            return "Inventario (" .. bagColor .. tostring(freeSlots) .. "|r)", freeSlots
+            return string.format(L["CARD_INV_FMT"], bagColor .. tostring(freeSlots) .. "|r"), freeSlots
         end
     end
-    return "Inventario (|cff888888...|r)", nil
+    return L["CARD_INV_QUERYING"], nil
 end
 
 local function FormatBotCardQuestsLabel(botName)
@@ -1099,11 +1098,11 @@ local function FormatBotCardQuestsLabel(botName)
         end
     end
     if cnt == nil then
-        return "Misiones (|cff888888...|r)", nil
+        return L["CARD_QUEST_QUERYING"], nil
     end
     cnt = tonumber(cnt) or 0
     local numColor = cnt > 0 and "|cffffff00" or "|cff888888"
-    return "Misiones (" .. numColor .. tostring(cnt) .. "|r)", cnt
+    return string.format(L["CARD_QUEST_FMT"], numColor, tostring(cnt)), cnt
 end
 
 -- Actualiza la lista de miembros y sus tarjetas
@@ -1123,7 +1122,7 @@ function DungeonBots:UpdatePartyUI()
     local tab2 = DungeonBots.tabButtons and DungeonBots.tabButtons[2]
     if tab2 then
         tab2.botCount = botCount
-        tab2.tooltipTitle = "Bots en el grupo (" .. botCount .. ")"
+        tab2.tooltipTitle = string.format(L["TAB2_NAME_FMT"], botCount)
         if tab2.countBadgeBg and tab2.countBadgeText then
             if botCount > 0 then
                 tab2.countBadgeText:SetText(tostring(botCount))
@@ -1155,11 +1154,11 @@ function DungeonBots:UpdatePartyUI()
                 local level = UnitLevel(unit)
 
                 local classColor = (classToken and RAID_CLASS_COLORS[classToken]) or { r = 1, g = 1, b = 1 }
-                local classDisplay = classToken and DungeonBots:GetClassDisplayInfo(classToken, true) or "Clase"
+                local classDisplay = classToken and DungeonBots:GetClassDisplayInfo(classToken, true) or L["UNKNOWN"]
 
                 card.nameText:SetText(name)
                 card.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
-                card.infoText:SetText("Nivel " .. (level > 0 and level or 80) .. " (" .. classDisplay .. ")")
+                card.infoText:SetText(string.format(L["CARD_LEVEL_FMT"], tostring(level > 0 and level or 80), classDisplay))
 
                 local isBot = DungeonBots:ShouldTreatAsBot(name)
 
@@ -1168,7 +1167,7 @@ function DungeonBots:UpdatePartyUI()
                 card.classIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
                 if isBot then
-                    card.botBadge.text:SetText("|cff00e5ff[ BOT ]|r")
+                    card.botBadge.text:SetText(L["CARD_TAG_BOT_RICH"])
                     card.botBadge:SetBackdropBorderColor(0.2, 0.8, 1.0, 0.9)
                     card.botBadge:SetBackdropColor(0.08, 0.16, 0.22, 0.95)
                     card.humanNotice:Hide()
@@ -1188,7 +1187,7 @@ function DungeonBots:UpdatePartyUI()
                         card.questsBtn.label:SetText(questsLabel)
                     end
                 else
-                    card.botBadge.text:SetText("|cffffb020[ JUGADOR ]|r")
+                    card.botBadge.text:SetText(L["CARD_TAG_HUMAN_RICH"])
                     card.botBadge:SetBackdropBorderColor(1.0, 0.7, 0.2, 0.9)
                     card.botBadge:SetBackdropColor(0.20, 0.14, 0.08, 0.95)
                     card.humanNotice:Show()
@@ -1206,13 +1205,13 @@ function DungeonBots:UpdatePartyUI()
                 card.botBadge:SetScript("OnEnter", function(self)
                     GameTooltip:SetOwner(self, "ANCHOR_TOP")
                     if isBot then
-                        GameTooltip:AddLine("Clasificado como: |cff00e5ffBOT|r", 1, 1, 1)
-                        GameTooltip:AddLine("Control total activo (talentos, equipo y despido).", 0.7, 0.8, 1.0)
-                        GameTooltip:AddLine("\n|cffffd200Haz clic aquí si este miembro es un jugador real.|r", 1, 0.8, 0.2)
+                        GameTooltip:AddLine(L["CARD_ROLE_BOT_TITLE"], 1, 1, 1)
+                        GameTooltip:AddLine(L["CARD_ROLE_BOT_DESC"], 0.7, 0.8, 1.0)
+                        GameTooltip:AddLine(L["CARD_ROLE_BOT_CLICK"], 1, 0.8, 0.2)
                     else
-                        GameTooltip:AddLine("Clasificado como: |cffffb020JUGADOR HUMANO|r", 1, 1, 1)
-                        GameTooltip:AddLine("Los controles automáticos están pausados para no afectarlo.", 0.7, 0.8, 1.0)
-                        GameTooltip:AddLine("\n|cffffd200Haz clic aquí si este miembro es un bot.|r", 1, 0.8, 0.2)
+                        GameTooltip:AddLine(L["CARD_ROLE_HUM_TITLE"], 1, 1, 1)
+                        GameTooltip:AddLine(L["CARD_ROLE_HUM_DESC"], 0.7, 0.8, 1.0)
+                        GameTooltip:AddLine(L["CARD_ROLE_HUM_CLICK"], 1, 0.8, 0.2)
                     end
                     GameTooltip:Show()
                 end)
@@ -1229,11 +1228,11 @@ function DungeonBots:UpdatePartyUI()
                     local activeDisplay = DungeonBots.LocalizeSpecText
                         and DungeonBots:LocalizeSpecText(activeSpec)
                         or activeSpec
-                    card.specText:SetText("Rama: |cff71d5ff" .. activeDisplay .. "|r")
+                    card.specText:SetText(string.format(L["CARD_SPEC_FMT"], activeDisplay))
                 elseif DungeonBots.pendingSpecReset and DungeonBots.pendingSpecReset[currentBotName] then
-                    card.specText:SetText("Rama: |cff888888Consultando talentos...|r")
+                    card.specText:SetText(L["CARD_SPEC_QUERYING"])
                 else
-                    card.specText:SetText("Rama: |cff888888Sin detectar|r")
+                    card.specText:SetText(L["CARD_SPEC_NONE"])
                 end
 
                 local botRole = DungeonBots.GetBotRole and DungeonBots:GetBotRole(currentBotName, classToken, activeSpec) or nil
@@ -1249,8 +1248,8 @@ function DungeonBots:UpdatePartyUI()
                 end)
                 card.kickBtn:SetScript("OnEnter", function(self)
                     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                    GameTooltip:AddLine("Despedir Bot", 1, 0.3, 0.3)
-                    GameTooltip:AddLine("Remueve a " .. name .. " del mundo, guarda su estado y lo saca del grupo.", 0.7, 0.7, 0.7, true)
+                    GameTooltip:AddLine(L["CARD_DISMISS_TITLE"], 1, 0.3, 0.3)
+                    GameTooltip:AddLine(string.format(L["CARD_DISMISS_FMT"], name), 0.7, 0.7, 0.7, true)
                     GameTooltip:Show()
                 end)
                 card.kickBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1299,24 +1298,24 @@ end
 local FROZEN_HALLS_DATA = {
     {
         key = "foso",
-        name = "Foso de Saron",
-        shortName = "Foso de Saron",
+        name = L["DUNGEON_PIT_NAME"],
+        shortName = L["DUNGEON_PIT_NAME"],
         icon = "Interface\\Icons\\achievement_dungeon_icecrown_pitofsaron",
         keywords = { "saron", "foso", "pit of saron" },
         excludeKeywords = { "forja", "forge", "reflex", "reflection" },
-        prereq = "La Forja de Almas",
+        prereq = L["DUNGEON_FOS_NAME"],
         fallbackNormalID = 253,
         fallbackHeroicID = 254,
         fallbackIDs = { 253, 254 },
     },
     {
         key = "camaras",
-        name = "Cámaras de Reflexión",
-        shortName = "Cámaras de Reflexión",
+        name = L["DUNGEON_HOR_NAME"],
+        shortName = L["DUNGEON_HOR_NAME"],
         icon = "Interface\\Icons\\achievement_dungeon_icecrown_hallsofreflection",
         keywords = { "reflexi", "reflection" },
         excludeKeywords = { "forja", "forge", "saron", "foso" },
-        prereq = "Foso de Saron",
+        prereq = L["DUNGEON_PIT_NAME"],
         fallbackNormalID = 255,
         fallbackHeroicID = 256,
         fallbackIDs = { 255, 256 },
@@ -1457,11 +1456,11 @@ end
 
 function DungeonBots:CheckDungeonQuestStatus(def)
     if not def then
-        return nil, { { text = "Mazmorra no identificada." } }, {}
+        return nil, { { text = L["DUNG_UNKNOWN"] } }, {}
     end
 
     if not GetLFDLockInfo then
-        return nil, { { text = "API de buscador de mazmorras no disponible." } }, {}
+        return nil, { { text = L["DUNG_NO_API"] } }, {}
     end
 
     if not def.candidateIDs or #def.candidateIDs == 0 then
@@ -1497,10 +1496,10 @@ function DungeonBots:CheckDungeonQuestStatus(def)
                     local myName = UnitName("player")
                     if isSelf or not playerName or playerName == "" or playerName == "Desconocido" or playerName == UNKNOWN or playerName == "Unknown" then
                         if isSelf then
-                            playerName = (myName and myName ~= "") and myName or "Tú"
+                            playerName = (myName and myName ~= "") and myName or L["YOU_LABEL"]
                         else
                             local pUnit = "party" .. (i - 1)
-                            playerName = (UnitExists(pUnit) and UnitName(pUnit)) or ("Miembro " .. i)
+                            playerName = (UnitExists(pUnit) and UnitName(pUnit)) or (L["MEMBER_PREFIX"] .. i)
                         end
                     end
                     if myName and NormalizeMemberKey(playerName) == NormalizeMemberKey(myName) then
@@ -1511,11 +1510,11 @@ function DungeonBots:CheckDungeonQuestStatus(def)
                     if key ~= "" and not lockedByKey[key] then
                         local descText
                         if def.key == "foso" then
-                            descText = "no ha completado las misiones previas de La Forja de Almas."
+                            descText = L["DUNG_MISSING_FOS"]
                         elseif def.key == "camaras" then
-                            descText = "no ha completado las misiones previas de Foso de Saron."
+                            descText = L["DUNG_MISSING_PIT"]
                         else
-                            descText = "no ha completado la misión necesaria."
+                            descText = L["DUNG_MISSING_REQ"]
                         end
 
                         local reasonObj = {
@@ -1533,7 +1532,7 @@ function DungeonBots:CheckDungeonQuestStatus(def)
     end
 
     if not hasAnyDataFromServer then
-        return nil, { { text = "Consultando datos al servidor..." } }, {}
+        return nil, { { text = L["DUNG_QUERYING_SRV"] } }, {}
     end
 
     -- Construir el estado únicamente de los bots actuales del grupo (excluir al jugador y otros jugadores reales)
@@ -1640,11 +1639,11 @@ function DungeonBots:UpdateDungeonAccessUI()
             end
 
             if botCanEnter == true then
-                btn.statusText:SetText("|cff00ff00Puede ir|r")
+                btn.statusText:SetText(L["DUNG_CAN_ENTER"])
             elseif botCanEnter == false then
-                btn.statusText:SetText("|cffff4444Falta misión|r")
+                btn.statusText:SetText(L["DUNG_MISSING_Q"])
             elseif botNotInParty then
-                btn.statusText:SetText("|cff888888No en grupo|r")
+                btn.statusText:SetText(L["DUNG_NOT_IN_PARTY"])
             else
                 btn.statusText:SetText("|cffaaaaaa...|r")
             end
@@ -1670,82 +1669,82 @@ end
 -- =========================================================================
 local GUIDE_TOPICS = {
     {
-        shortTitle = "1. Misiones previas",
-        title = "Mazmorras que requieren misiones previas",
-        category = "REQUISITOS DE ACCESO",
+        shortTitle = L["GUIDE_T1_SHORT"],
+        title = L["GUIDE_T1_TITLE"],
+        category = L["GUIDE_T1_CAT"],
         icon = "Interface\\Icons\\Achievement_Dungeon_Icecrown_PitOfSaron",
-        summary = "Algunas mazmorras (como Forja de Almas, Foso de Saron y Cámaras de Reflexión) exigen que tanto tú como cada bot tengan completada su cadena previa para poder entrar.",
+        summary = L["GUIDE_T1_SUM"],
         steps = {
-            "En la pestaña |cffffd200Grupo de Bots|r, revisa los iconos de acceso de |cffffd200Foso de Saron|r y |cffffd200Cámaras de Reflexión|r en el pie de la ventana de Misiones.",
-            "Haz clic en esos botones de acceso para consultar desde el servidor si el bot ya cumple con la misión previa.",
-            "Si le falta, acércate al PNJ con el bot y usa la ventana de |cffffd200Misiones|r o |cffffd200Hablar|r para aceptar y entregar las misiones.",
+            L["GUIDE_T1_S1"],
+            L["GUIDE_T1_S2"],
+            L["GUIDE_T1_S3"],
         },
-        note = "Si el bot acaba de entrar por primera vez, sus misiones y acceso se consultan automáticamente; si ves datos incompletos, pulsa Actualizar.",
+        note = L["GUIDE_T1_NOTE"],
     },
     {
-        shortTitle = "2. Bot tarda en entrar",
-        title = "Bot agregado que susurra, pero tarda en entrar",
-        category = "INVOCACIÓN",
+        shortTitle = L["GUIDE_T2_SHORT"],
+        title = L["GUIDE_T2_TITLE"],
+        category = L["GUIDE_T2_CAT"],
         icon = "Interface\\Icons\\INV_Misc_GroupLooking",
-        summary = "A veces agregas un bot y te susurra al aparecer, pero no entra de inmediato al grupo porque todavía está terminando de cargar en el servidor.",
+        summary = L["GUIDE_T2_SUM"],
         steps = {
-            "El addon reintenta invitar automáticamente varias veces tras detectar el susurro o llamarlo desde el historial.",
-            "Comprueba que |cffffd200eres el líder|r del grupo, que no estás en banda y que tienes cupo libre (máximo 5 en grupo).",
-            "Si tras los reintentos sigue fuera, el addon te indicará en el chat en qué zona se encuentra.",
+            L["GUIDE_T2_S1"],
+            L["GUIDE_T2_S2"],
+            L["GUIDE_T2_S3"],
         },
-        note = "También puedes abrir |cffffd200Ver Historial de bots|r en Armar Grupo y pulsar Invitar manualmente.",
+        note = L["GUIDE_T2_NOTE"],
     },
     {
-        shortTitle = "3. Otra estancia / fase",
-        title = "Bot en otra estancia o faseado dentro de mazmorra",
-        category = "INSTANCIAS Y FASES",
+        shortTitle = L["GUIDE_T3_SHORT"],
+        title = L["GUIDE_T3_TITLE"],
+        category = L["GUIDE_T3_CAT"],
         icon = "Interface\\Icons\\Spell_Arcane_PortalDalaran",
-        summary = "Al invocar o reinvocar un bot dentro de una mazmorra, puede quedar afuera, en otra copia de la estancia o faseado (\"no está en tu estancia\").",
+        summary = L["GUIDE_T3_SUM"],
         steps = {
-            "El addon te mostrará una alerta de estancia/fase con su zona exacta.",
-            "Utiliza |cffffd200Summon|r y/o |cffffd200Follow|r en la barra táctica (HUD) para traerlo contigo.",
-            "Si continúa en otra fase, sal un momento de la mazmorra para reagrupar o reinicia las estancias afuera y usa |cffffd200Summon|r.",
+            L["GUIDE_T3_S1"],
+            L["GUIDE_T3_S2"],
+            L["GUIDE_T3_S3"],
         },
-        note = "Al pasar directo entre mazmorras enlazadas (Forja -> Foso -> Cámaras), salir y reinvocar suele alinear la estancia en caso de error.",
+        note = L["GUIDE_T3_NOTE"],
     },
     {
-        shortTitle = "4. Bot usado por otro",
-        title = "Bots usados por otro jugador vs. \"ya conectado\"",
-        category = "DISPONIBILIDAD",
+        shortTitle = L["GUIDE_T4_SHORT"],
+        title = L["GUIDE_T4_TITLE"],
+        category = L["GUIDE_T4_CAT"],
         icon = "Interface\\Icons\\Spell_Shadow_Charm",
-        summary = "Un bot puede estar jugando con otro usuario en el servidor o simplemente terminando de desconectarse tras una sesión reciente.",
+        summary = L["GUIDE_T4_SUM"],
         steps = {
-            "Si otro jugador lo tiene en su grupo, el addon cancela la auto-invitación y muestra una alerta con el |cffffd200nombre del jugador|r y la |cffffd200zona|r donde está.",
-            "Si el servidor solo indica \"ya conectado\" sin dueño confirmado, el addon espera unos instantes y vuelve a intentar invitarlo si está libre.",
-            "Cuando quede disponible o lo suelte el otro jugador, vuelve a llamarlo desde el historial.",
+            L["GUIDE_T4_S1"],
+            L["GUIDE_T4_S2"],
+            L["GUIDE_T4_S3"],
         },
     },
     {
-        shortTitle = "5. No expulses normal",
-        title = "Nunca expulses bots con \"Expulsar\"",
-        category = "ADVERTENCIA IMPORTANTE",
+        shortTitle = L["GUIDE_T5_SHORT"],
+        title = L["GUIDE_T5_TITLE"],
+        category = L["GUIDE_T5_CAT"],
         critical = true,
         icon = "Interface\\Icons\\Ability_Kick",
-        summary = "No |cffff3b30DEBES|r retirar a un bot usando clic derecho -> \"Expulsar\" como harías con un jugador normal.",
+        summary = L["GUIDE_T5_SUM"],
         steps = {
-            "Despídelos siempre desde el addon usando |cffffd200Despedir|r en su tarjeta o |cffffd200Despedir a Todos|r en Armar Grupo.",
-            "Si los expulsas por el menú estándar de WoW, el bot quedará conectado alrededor de |cffffd2001 minuto|r y el sistema pensará que sigues teniendo ese bot ocupado.",
-            "Si lo hiciste por error, espera ese minuto antes de invocar un reemplazo.",
+            L["GUIDE_T5_S1"],
+            L["GUIDE_T5_S2"],
+            L["GUIDE_T5_S3"],
         },
-        note = "Despedir desde el addon desconecta al bot limpiamente y libera su cupo al instante.",
+        note = L["GUIDE_T5_NOTE"],
     },
     {
-        shortTitle = "6. Equipo y Talentos",
-        title = "Gestión de equipo y autoequipado",
-        category = "EQUIPO DEL BOT",
+        shortTitle = L["GUIDE_T6_SHORT"],
+        title = L["GUIDE_T6_TITLE"],
+        category = L["GUIDE_T6_CAT"],
         icon = "Interface\\Icons\\INV_Chest_Plate01",
-        summary = "Cada bot conserva el equipamiento de su especialización base; desde |cffffd200Información -> Equipo|r puedes cambiar de rama o pulsar |cffffd200Autoequipar|r.",
+        summary = L["GUIDE_T6_SUM"],
         steps = {
-            "El botón |cffffd200Autoequipar|r reajusta la armadura actual del bot, pero al hacerlo su equipo se degradará respecto a sus piezas originales.",
-            "Por ello, se recomienda dejar su armadura como está y buscar otro bot que ya cuente con el equipamiento acorde a los talentos que necesitas.",
-            "Si el inventario del bot está lleno, es posible que no pueda cambiar el set correctamente al autoequipar por falta de espacio en las bolsas.",
+            L["GUIDE_T6_S1"],
+            L["GUIDE_T6_S2"],
+            L["GUIDE_T6_S3"],
         },
-        note = "Si despúes de autoequipar ves el mensaje de |cffffd200inventario|r lleno, puedes liberar espacio de las bolsas.",
+        note = L["GUIDE_T6_NOTE"],
     },
 }
 
@@ -1843,13 +1842,13 @@ function DungeonBots:SelectGuideTopic(index)
     -- Actualizar detalle del tomo derecho
     view.headerIcon:SetTexture(topic.icon)
     if topic.critical then
-        view.categoryText:SetText("|cffff5544" .. (topic.category or "ADVERTENCIA") .. "|r")
+        view.categoryText:SetText("|cffff5544" .. (topic.category or L["GUIDE_BADGE_WARN"]) .. "|r")
         view.titleText:SetText(topic.title)
         view.titleText:SetTextColor(1.0, 0.48, 0.42)
     else
         local catHex = (p and p.guideCatHex) or "|cffc9a96e"
         local dtc = (p and p.guideDetailTitle) or { 1.0, 0.84, 0.16 }
-        view.categoryText:SetText(catHex .. (topic.category or "GUÍA") .. "|r")
+        view.categoryText:SetText(catHex .. (topic.category or L["GUIDE_BADGE_GUIDE"]) .. "|r")
         view.titleText:SetText(topic.title)
         view.titleText:SetTextColor(dtc[1], dtc[2], dtc[3])
     end
@@ -1875,14 +1874,14 @@ function DungeonBots:SelectGuideTopic(index)
     end
 
     if topic.note and topic.note ~= "" then
-        view.noteText:SetText("|cffffd200Nota:|r " .. topic.note)
+        view.noteText:SetText(L["GUIDE_NOTE_PREFIX"] .. topic.note)
         view.noteBox:Show()
     else
         view.noteBox:Hide()
     end
 
     if view.pageText then
-        view.pageText:SetText("Tema " .. idx .. " de " .. total)
+        view.pageText:SetText(string.format(L["GUIDE_TOPIC_OF_FMT"], idx, total))
     end
     if view.prevBtn then
         if idx > 1 then view.prevBtn:Enable() else view.prevBtn:Disable() end
@@ -1916,7 +1915,7 @@ function DungeonBots:BuildTab3(parent)
 
     local idxHeaderTitle = indexPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     idxHeaderTitle:SetPoint("LEFT", idxHeaderIcon, "RIGHT", 7, 0)
-    idxHeaderTitle:SetText("Índice de la Guía")
+    idxHeaderTitle:SetText(L["GUIDE_INDEX_HEADER"])
     local function StyleGuideTitleFS(fs)
         local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
         local c = (p and p.guideTitle) or { 1.0, 0.82, 0.0 }
@@ -1994,7 +1993,7 @@ function DungeonBots:BuildTab3(parent)
         rCat:SetPoint("RIGHT", row, "RIGHT", -4, 0)
         rCat:SetJustifyH("LEFT")
         if topic.critical then
-            rCat:SetText("|cffff6655ADVERTENCIA|r")
+            rCat:SetText(L["GUIDE_WARN_UPPER"])
         else
             rCat:SetText("|cff9d9585" .. (topic.category or "") .. "|r")
         end
@@ -2090,7 +2089,7 @@ function DungeonBots:BuildTab3(parent)
     if summaryText.SetSpacing then summaryText:SetSpacing(3) end
 
     local stepsHeader = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    stepsHeader:SetText("Qué debes hacer:")
+    stepsHeader:SetText(L["GUIDE_WHAT_TO_DO"])
     StyleGuideTitleFS(stepsHeader)
     if DB_Internal.RegisterThemed then
         DB_Internal.RegisterThemed(stepsHeader, StyleGuideTitleFS)
@@ -2176,7 +2175,7 @@ function DungeonBots:BuildTab3(parent)
     local prevBtn = CreateFrame("Button", nil, detailPanel, "UIPanelButtonTemplate")
     prevBtn:SetSize(96, 22)
     prevBtn:SetPoint("BOTTOMLEFT", detailPanel, "BOTTOMLEFT", 14, 10)
-    prevBtn:SetText("< Anterior")
+    prevBtn:SetText(L["GUIDE_PREV"])
     prevBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
         DungeonBots:SelectGuideTopic((DungeonBots.selectedGuideTopic or 1) - 1)
@@ -2185,7 +2184,7 @@ function DungeonBots:BuildTab3(parent)
     local nextBtn = CreateFrame("Button", nil, detailPanel, "UIPanelButtonTemplate")
     nextBtn:SetSize(96, 22)
     nextBtn:SetPoint("BOTTOMRIGHT", detailPanel, "BOTTOMRIGHT", -14, 10)
-    nextBtn:SetText("Siguiente >")
+    nextBtn:SetText(L["GUIDE_NEXT"])
     nextBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
         DungeonBots:SelectGuideTopic((DungeonBots.selectedGuideTopic or 1) + 1)
@@ -2298,11 +2297,11 @@ function DungeonBots:InitMinimapButton()
 
     btn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:AddLine("|cff00ccffDungeon|r|cffffd200Bots|r |cff71d5ff(El Ojo de Mazmorras)|r", 1, 1, 1)
-        GameTooltip:AddLine("Gestor táctico de bots para Mazmorras", 0.7, 0.8, 1.0)
-        GameTooltip:AddLine("\n|cffffd200Clic Izquierdo:|r Abrir / Cerrar Panel Principal")
-        GameTooltip:AddLine("|cffffd200Clic Derecho:|r Alternar Barra Táctica (HUD)")
-        GameTooltip:AddLine("|cffffd200Arrastrar:|r Mover este ojo alrededor del minimapa")
+        GameTooltip:AddLine(L["MINIMAP_TITLE"], 1, 1, 1)
+        GameTooltip:AddLine(L["MINIMAP_SUB"], 0.7, 0.8, 1.0)
+        GameTooltip:AddLine(L["MINIMAP_LCLICK"])
+        GameTooltip:AddLine(L["MINIMAP_RCLICK"])
+        GameTooltip:AddLine(L["MINIMAP_DRAG"])
         GameTooltip:Show()
     end)
     btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -2338,7 +2337,7 @@ function DungeonBots:HookEye()
         btn:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
             GameTooltip:AddLine("|cff00ccffDungeon|r|cffffd200Bots|r", 1, 1, 1)
-            GameTooltip:AddLine("Abre el asistente de bots para mazmorras.", 0.7, 0.8, 1.0)
+            GameTooltip:AddLine(L["LFG_EYE_TIP"], 0.7, 0.8, 1.0)
             GameTooltip:Show()
         end)
         btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
