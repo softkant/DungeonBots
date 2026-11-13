@@ -441,7 +441,7 @@ function DB_Internal.TickInventoryCapture(now)
         for botName, refreshAt in pairs(DungeonBots.pendingInventoryRefresh) do
             if now >= refreshAt then
                 DungeonBots.pendingInventoryRefresh[botName] = nil
-                DungeonBots:QueryBotInventory(botName, true)
+                DungeonBots:QueryBotInventory(botName, true, true)
                 hasAny = true
             else
                 hasAny = true
@@ -503,7 +503,7 @@ function DB_Internal.TickInventoryCapture(now)
     return hasAny
 end
 
-function DungeonBots:QueryBotInventory(botName, isSilent)
+function DungeonBots:QueryBotInventory(botName, isSilent, forceStats)
     local cleanBot = NormalizePlayerName(botName)
     if not cleanBot then
         if not isSilent then
@@ -543,8 +543,8 @@ function DungeonBots:QueryBotInventory(botName, isSilent)
     end
 
     DungeonBots:SendWhisperCommand(cleanBot, "c")
-    if not isSilent and DungeonBots.QueryBotStats then
-        DungeonBots:QueryBotStats(cleanBot, false)
+    if DungeonBots.QueryBotStats and ((not isSilent) or forceStats) then
+        DungeonBots:QueryBotStats(cleanBot, true)
     end
 end
 
