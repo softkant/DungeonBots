@@ -294,13 +294,14 @@ function DungeonBots:BuildQuestDialog()
                 return
             end
 
-            if self.currentBot and self.currentBot ~= "" then
+            local activeBot = (DungeonBots.questFrame and DungeonBots.questFrame.currentBot) or self.currentBot
+            if activeBot and activeBot ~= "" then
                 if self.botCanEnter == true then
-                    GameTooltip:AddLine(string.format(L["DUNG_TIP_BOT_OK"], self.currentBot), 1, 1, 1)
+                    GameTooltip:AddLine(string.format(L["DUNG_TIP_BOT_OK"], activeBot), 1, 1, 1)
                 elseif self.botCanEnter == false then
-                    GameTooltip:AddLine(string.format(L["DUNG_TIP_BOT_MISS"], self.currentBot), 1, 1, 1)
+                    GameTooltip:AddLine(string.format(L["DUNG_TIP_BOT_MISS"], activeBot), 1, 1, 1)
                 elseif self.botNotInParty then
-                    GameTooltip:AddLine(string.format(L["DUNG_TIP_BOT_NOTIN"], self.currentBot), 1, 1, 1)
+                    GameTooltip:AddLine(string.format(L["DUNG_TIP_BOT_NOTIN"], activeBot), 1, 1, 1)
                 end
             end
 
@@ -310,7 +311,7 @@ function DungeonBots:BuildQuestDialog()
             if self.memberStatuses and #self.memberStatuses > 0 then
                 GameTooltip:AddLine(" ", 1, 1, 1)
                 GameTooltip:AddLine(L["DUNG_BOT_STATUS_HDR"], 1, 0.82, 0)
-                local curKey = self.currentBot and string.lower(string.match(self.currentBot, "^([^%-]+)") or self.currentBot) or ""
+                local curKey = activeBot and string.lower(string.match(activeBot, "^([^%-]+)") or activeBot) or ""
                 for _, m in ipairs(self.memberStatuses) do
                     local mShort = string.match(m.name or "", "^([^%-]+)") or (m.name or "Bot")
                     local mKey = string.lower(mShort)
@@ -572,9 +573,9 @@ function DungeonBots:OpenQuestDialog(botName)
         if DungeonBots.RequestDungeonLockInfo then
             DungeonBots:RequestDungeonLockInfo(false)
         end
-        if DungeonBots.UpdateDungeonAccessUI then
-            DungeonBots:UpdateDungeonAccessUI()
-        end
+    end
+    if DungeonBots.UpdateDungeonAccessUI then
+        DungeonBots:UpdateDungeonAccessUI()
     end
 end
 
