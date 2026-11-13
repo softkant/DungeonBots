@@ -34,12 +34,14 @@ eventFrame:RegisterEvent("CHAT_MSG_PARTY_LEADER")
 eventFrame:RegisterEvent("CHAT_MSG_SAY")
 eventFrame:RegisterEvent("PARTY_MEMBERS_CHANGED")
 eventFrame:RegisterEvent("LFG_LOCK_INFO_RECEIVED")
+eventFrame:RegisterEvent("LFG_UPDATE")
 eventFrame:RegisterEvent("UNIT_NAME_UPDATE")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 eventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
 
 local lastInventoryFullWarnAt = {}
+local lastLfgQueueMode = nil
 
 local function NotifyBotInventoryFull(botName)
     if not botName or botName == "" then return end
@@ -228,6 +230,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         if DB_Internal.RefreshTheme then
             DB_Internal.RefreshTheme()
         end
+        lastLfgQueueMode = (GetLFGMode and GetLFGMode()) or nil
         DungeonBots:SyncPartyToHistory()
 
     elseif event == "CHAT_MSG_SYSTEM" then
@@ -621,6 +624,18 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         DungeonBots.lfgLockInfoReceived = true
         if DungeonBots.UpdateDungeonAccessUI then
             DungeonBots:UpdateDungeonAccessUI()
+        end
+
+    elseif event == "LFG_UPDATE" then
+        local newMode = (GetLFGMode and GetLFGMode()) or nil
+        local prevMode = lastLfgQueueMode
+        lastLfgQueueMode = newMode
+        if newMode == "queued" and prevMode ~= "queued" then
+            local inInstance, instanceType = IsInInstance and IsInInstance()
+            local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
+            if inInstance and instanceType == "party" and numParty > 0 then
+                DungeonBots:Warn(L["LFG_BACKFILL_NAME_HIST_ONLY"])
+            end
         end
 
     elseif event == "UNIT_NAME_UPDATE" then

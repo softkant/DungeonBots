@@ -62,9 +62,6 @@ function DungeonBots:CanInviteToParty()
     if numParty >= 4 then
         return false
     end
-    if IsLfgQueueBlockingInvite() then
-        return false
-    end
     return (numParty == 0 or (IsPartyLeader and IsPartyLeader()))
 end
 
@@ -436,13 +433,13 @@ end
 -- Funciones Operativas de Invocación y Despido de Bots
 -- =========================================================================
 
-local function CheckCanSummonBot()
+local function CheckCanSummonBot(allowWhenLfgQueued)
     local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
     if (GetNumRaidMembers and GetNumRaidMembers() > 0) or numParty >= 4 then
         DungeonBots:Warn(L["GROUP_FULL_CANT_ADD"])
         return false
     end
-    if IsLfgQueueBlockingInvite() then
+    if not allowWhenLfgQueued and IsLfgQueueBlockingInvite() then
         DungeonBots:Warn(L["LFG_QUEUED_CANT_ADD"])
         return false
     end
@@ -452,7 +449,7 @@ end
 -- Invocar bot por clase
 function DungeonBots:AddClass(classId)
     if not classId then return false end
-    if not CheckCanSummonBot() then return false end
+    if not CheckCanSummonBot(false) then return false end
     DungeonBots:MarkPendingClassSummon(classId)
     local classToken = DB_Internal.CLASS_TOKEN_BY_ID and DB_Internal.CLASS_TOKEN_BY_ID[classId]
     local classDisplay = classToken and DungeonBots:GetClassDisplayInfo(classToken) or classId
@@ -465,7 +462,7 @@ end
 function DungeonBots:AddBot(botName)
     local cleanName = NormalizePlayerName(botName)
     if not cleanName or cleanName == "" then return false end
-    if not CheckCanSummonBot() then return false end
+    if not CheckCanSummonBot(true) then return false end
     DungeonBots.lastBotCallAttempt = DungeonBots.lastBotCallAttempt or {}
     DungeonBots.lastBotCallAttempt[cleanName] = NowTime()
     if DungeonBots.busyExternalBots and DungeonBots.busyExternalBots[cleanName] then
@@ -698,8 +695,6 @@ function DungeonBots:WarnCannotAutoInvite(botName)
         reason = L["REASON_IN_RAID"]
     elseif (GetNumPartyMembers and GetNumPartyMembers() or 0) >= 4 then
         reason = L["REASON_GROUP_FULL"]
-    elseif IsLfgQueueBlockingInvite() then
-        reason = L["REASON_LFG_QUEUED"]
     end
     DungeonBots:Warn(string.format(L["AUTO_INVITE_FAIL_FMT"], cleanName, reason))
 end
