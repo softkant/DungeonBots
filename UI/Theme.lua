@@ -13,25 +13,25 @@ local THEME_PALETTES = {
         label = "Dorado",
         windowEdge = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
         windowBorderColor = { 1.0, 1.0, 1.0, 1.0 },
-        windowBg = { 0.09, 0.08, 0.06, 0.98 },
-        windowStone = { 0.88, 0.82, 0.70, 0.44 },
-        windowTint = { 0.045, 0.035, 0.022, 0.54 },
+        windowBg = { 0.14, 0.115, 0.08, 0.98 },
+        windowStone = { 0.92, 0.85, 0.72, 0.50 },
+        windowTint = { 0.07, 0.055, 0.032, 0.36 },
 
         panelEdge = "Interface\\Tooltips\\UI-Tooltip-Border",
-        panelBg = { 0.08, 0.07, 0.055, 0.96 },
-        panelBorder = { 0.66, 0.54, 0.30, 0.95 },
-        panelStone = { 0.76, 0.70, 0.60, 0.32 },
-        panelTint = { 0.03, 0.025, 0.02, 0.56 },
+        panelBg = { 0.19, 0.155, 0.105, 0.96 },
+        panelBorder = { 0.72, 0.58, 0.32, 0.95 },
+        panelStone = { 0.92, 0.84, 0.68, 0.45 },
+        panelTint = { 0.09, 0.070, 0.038, 0.30 },
 
-        insetBg = { 0.095, 0.080, 0.060, 0.95 },
-        insetBorder = { 0.54, 0.44, 0.26, 0.90 },
-        darkBg = { 0.085, 0.072, 0.055, 0.96 },
-        darkBorder = { 0.70, 0.56, 0.30, 0.95 },
+        insetBg = { 0.19, 0.155, 0.105, 0.94 },
+        insetBorder = { 0.68, 0.54, 0.30, 0.92 },
+        darkBg = { 0.15, 0.125, 0.085, 0.96 },
+        darkBorder = { 0.74, 0.60, 0.32, 0.95 },
         hoverBorder = { 1.0, 0.82, 0.28, 1.0 },
 
-        headerBg = { 0.15, 0.115, 0.08, 0.98 },
-        headerBorder = { 0.74, 0.60, 0.32, 0.95 },
-        headerAccent = { 0.82, 0.68, 0.36, 0.45 },
+        headerBg = { 0.22, 0.17, 0.11, 0.98 },
+        headerBorder = { 0.76, 0.62, 0.34, 0.95 },
+        headerAccent = { 0.86, 0.72, 0.40, 0.48 },
 
         ruleLine = { 0.76, 0.62, 0.32, 0.48 },
         quickSlot = { 0.85, 0.70, 0.36, 0.95 },
@@ -190,7 +190,8 @@ local function ApplyStonePanelStyle(frame)
     })
     frame:SetBackdropColor(p.panelBg[1], p.panelBg[2], p.panelBg[3], p.panelBg[4])
     frame:SetBackdropBorderColor(bc[1], bc[2], bc[3], bc[4] or 0.95)
-    EnsureStoneTextures(frame, 3, p.panelStone, frame._dbStoneAlpha, p.panelTint)
+    local stoneAlpha = (GetThemeId() == "gold") and math.max(frame._dbStoneAlpha or 0, p.panelStone[4]) or frame._dbStoneAlpha
+    EnsureStoneTextures(frame, 3, p.panelStone, stoneAlpha, p.panelTint)
 end
 
 local function ApplyBlizzardStonePanel(frame, borderR, borderG, borderB, edgeSize, bgAlpha)
