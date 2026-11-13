@@ -432,9 +432,6 @@ function DungeonBots:InitUI()
     f.modalDimmer = modalDimmer
     f:HookScript("OnShow", function()
         DB_Internal.UpdateMainModalDimmer()
-        if DungeonBots.UpdateReviveButtonState then
-            DungeonBots:UpdateReviveButtonState()
-        end
         if DungeonBots.QueryPartyBotStats then
             DungeonBots:QueryPartyBotStats(false)
         end
@@ -504,11 +501,7 @@ function DungeonBots:SelectTab(tabIndex)
         mainFrame:SetHeight(TAB_HEIGHTS[tabIndex] or 492)
     end
     DungeonBots:UpdateActiveSectionHeader()
-    if tabIndex == 1 then
-        if DungeonBots.UpdateReviveButtonState then
-            DungeonBots:UpdateReviveButtonState()
-        end
-    elseif tabIndex == 2 then
+    if tabIndex == 2 then
         DungeonBots:UpdatePartyUI()
         if DungeonBots.QueryPartyBotStats then
             DungeonBots:QueryPartyBotStats(false)
@@ -763,53 +756,6 @@ function DungeonBots:BuildTab1(parent)
         GameTooltip:Show()
     end)
     releaseBtn:HookScript("OnLeave", function() GameTooltip:Hide() end)
-
-    local reviveIcon = (GetSpellTexture and GetSpellTexture(2006)) or "Interface\\Icons\\Spell_Holy_GreaterHeal"
-    local reviveBtn = CreateRedIconButton(
-        actionBox, 136, 24, "Revivir", reviveIcon
-    )
-    reviveBtn:SetPoint("BOTTOM", releaseBtn, "TOP", 0, 5)
-    reviveBtn:Hide()
-    reviveBtn:SetScript("OnClick", function()
-        PlaySound("igMainMenuOptionCheckBoxOn")
-        local released = DungeonBots.GetReleasedBotNames and DungeonBots:GetReleasedBotNames() or {}
-        DungeonBots:SendPartyCommand("revive")
-        if #released > 0 then
-            DungeonBots:Print("Ordenando revivir con el ángel a: |cffffd200" .. table.concat(released, ", ") .. "|r")
-        else
-            DungeonBots:Print("Ordenando a los bots en espíritu revivir con el ángel...")
-        end
-    end)
-    reviveBtn:HookScript("OnEnter", function(self)
-        local released = DungeonBots.GetReleasedBotNames and DungeonBots:GetReleasedBotNames() or {}
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Revivir con el Ángel", 1, 1, 1)
-        GameTooltip:AddLine("Ordena a los bots que ya liberaron su alma revivir con el Ángel de la Resurrección.", 0.7, 0.8, 1.0, true)
-        if #released > 0 then
-            GameTooltip:AddLine("\nBots en espíritu: |cffffd200" .. table.concat(released, ", ") .. "|r", 0.85, 0.92, 1.0, true)
-        end
-        GameTooltip:Show()
-    end)
-    reviveBtn:HookScript("OnLeave", function() GameTooltip:Hide() end)
-    DungeonBots.reviveBtn = reviveBtn
-
-    if DungeonBots.UpdateReviveButtonState then
-        DungeonBots:UpdateReviveButtonState()
-    end
-end
-
-function DungeonBots:UpdateReviveButtonState()
-    local btn = DungeonBots.reviveBtn
-    if not btn then return end
-    local released = DungeonBots.GetReleasedBotNames and DungeonBots:GetReleasedBotNames() or {}
-    if #released > 0 then
-        btn:Show()
-    else
-        if GameTooltip and GameTooltip.IsOwned and GameTooltip:IsOwned(btn) then
-            GameTooltip:Hide()
-        end
-        btn:Hide()
-    end
 end
 
 -- Botones de acción rápida en cada tarjeta de bot de la pestaña "Bots en el grupo".
@@ -1328,9 +1274,6 @@ function DungeonBots:UpdatePartyUI()
         else
             DungeonBots.tab2NoBotFooter:Hide()
         end
-    end
-    if DungeonBots.UpdateReviveButtonState then
-        DungeonBots:UpdateReviveButtonState()
     end
 end
 
