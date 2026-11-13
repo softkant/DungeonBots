@@ -852,6 +852,16 @@ end
 StaticPopupDialogs["DUNGEONBOTS_BOT_BUSY_ALERT"] = {
     text = "%s",
     button1 = L["BTN_UNDERSTOOD"],
+    OnShow = function(self)
+        self:SetFrameStrata("FULLSCREEN_DIALOG")
+        self:SetFrameLevel(100)
+        if self.Raise then
+            self:Raise()
+        end
+    end,
+    OnHide = function(self)
+        self:SetFrameStrata("DIALOG")
+    end,
     timeout = 0,
     whileDead = 1,
     hideOnEscape = 1,
@@ -1193,9 +1203,6 @@ function DungeonBots:NotifyExternalBotBusy(botName, ownerName, sourceTag, forceA
     end
 
     DungeonBots:Warn(chatMsg)
-    if UIErrorsFrame and UIErrorsFrame.AddMessage then
-        UIErrorsFrame:AddMessage(plainMsg, 1.0, 0.22, 0.22, 1.0)
-    end
     if PlaySound then
         PlaySound("igQuestFailed")
     end
@@ -1204,6 +1211,8 @@ function DungeonBots:NotifyExternalBotBusy(botName, ownerName, sourceTag, forceA
             StaticPopup_Hide("DUNGEONBOTS_BOT_BUSY_ALERT")
         end
         StaticPopup_Show("DUNGEONBOTS_BOT_BUSY_ALERT", chatMsg)
+    elseif UIErrorsFrame and UIErrorsFrame.AddMessage then
+        UIErrorsFrame:AddMessage(plainMsg, 1.0, 0.22, 0.22, 1.0)
     end
     return true
 end

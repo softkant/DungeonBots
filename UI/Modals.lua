@@ -355,6 +355,16 @@ StaticPopupDialogs["DUNGEONBOTS_CLEAR_HISTORY"] = {
     text = L["CLEAR_HIST_CONFIRM"],
     button1 = L["CLEAR_HIST_YES"],
     button2 = L["BTN_CANCEL"],
+    OnShow = function(self)
+        self:SetFrameStrata("FULLSCREEN_DIALOG")
+        self:SetFrameLevel(100)
+        if self.Raise then
+            self:Raise()
+        end
+    end,
+    OnHide = function(self)
+        self:SetFrameStrata("DIALOG")
+    end,
     OnAccept = function()
         DungeonBots:ClearBotHistory()
     end,
