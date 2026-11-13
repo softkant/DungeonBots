@@ -579,7 +579,7 @@ function DungeonBots:BuildTab1(parent)
     historySummary:SetText("Lista de bots invitados anteriormente: |cffffd2000|r")
     DungeonBots.historySummaryLabel = historySummary
 
-    local viewHistoryBtn = CreateRedIconButton(historyBox, 174, 26, "Ver Historial de bots", "Interface\\Icons\\INV_Misc_Note_01", true)
+    local viewHistoryBtn = CreateRedIconButton(historyBox, 152, 26, "Ver Historial de bots", "Interface\\Icons\\INV_Misc_Note_01")
     viewHistoryBtn:SetPoint("RIGHT", historyBox, "RIGHT", -10, 0)
     viewHistoryBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
