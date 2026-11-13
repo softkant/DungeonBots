@@ -36,6 +36,7 @@ eventFrame:RegisterEvent("PARTY_MEMBERS_CHANGED")
 eventFrame:RegisterEvent("LFG_LOCK_INFO_RECEIVED")
 eventFrame:RegisterEvent("LFG_UPDATE")
 eventFrame:RegisterEvent("UNIT_NAME_UPDATE")
+eventFrame:RegisterEvent("UNIT_CONNECTION")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 eventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
@@ -87,6 +88,9 @@ local function HandlePartyChanged(isEnteringWorld)
         DungeonBots:SetFleeActive(false, "party_empty")
     end
     DungeonBots:SyncPartyToHistory()
+    if DungeonBots.OnResummonPartyActivity then
+        DungeonBots:OnResummonPartyActivity()
+    end
     if DungeonBots.CheckPartyForNewBots then
         DungeonBots:CheckPartyForNewBots()
     end
@@ -239,6 +243,16 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         if fullBot then
             NotifyBotInventoryFull(fullBot)
             return
+        end
+        if message and DB_Internal.ExtractAddedBotFromSystem and DungeonBots.ConfirmPartyBotIdentity then
+            local addedBot = DB_Internal.ExtractAddedBotFromSystem(message)
+            if addedBot and DungeonBots:IsBot(addedBot) ~= false then
+                local inResummon = DungeonBots.pendingResummonVerify and DungeonBots.pendingResummonVerify[addedBot]
+                if inResummon or DungeonBots:FindPartyUnitByName(addedBot, true) or DungeonBots:IsRecentBot(addedBot) then
+                    DungeonBots:ConfirmPartyBotIdentity(addedBot, false)
+                    return
+                end
+            end
         end
         if message and DB_Internal.ExtractBusyBotFromSystem then
             local busyBot, busyKind = DB_Internal.ExtractBusyBotFromSystem(message)
@@ -641,6 +655,15 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     elseif event == "UNIT_NAME_UPDATE" then
         local unit = ...
         if unit and string.match(unit, "^party%d$") then
+            HandlePartyChanged(false)
+        end
+
+    elseif event == "UNIT_CONNECTION" then
+        local unit, isConnected = ...
+        if unit and string.match(unit, "^party%d$") and isConnected then
+            if DungeonBots.OnResummonPartyActivity then
+                DungeonBots:OnResummonPartyActivity()
+            end
             HandlePartyChanged(false)
         end
 

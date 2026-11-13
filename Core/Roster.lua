@@ -481,22 +481,132 @@ function DungeonBots:AddBot(botName)
     return true
 end
 
+-- Verificación automática tras reinvocar miembros desconocidos del grupo
+DungeonBots.pendingResummonVerify = DungeonBots.pendingResummonVerify or {}
+
+local resummonVerifyFrame = CreateFrame("Frame", "DungeonBots_ResummonVerifyFrame")
+resummonVerifyFrame:Hide()
+resummonVerifyFrame:SetScript("OnUpdate", function(self, elapsed)
+    local now = NowTime()
+    local hasPending = false
+    for botName, entry in pairs(DungeonBots.pendingResummonVerify) do
+        if not entry or (entry.expiresAt or 0) <= now or DungeonBots:IsBot(botName) == false or DungeonBots:ShouldTreatAsBot(botName) then
+            DungeonBots.pendingResummonVerify[botName] = nil
+        else
+            local unit = DungeonBots:FindPartyUnitByName(botName, true)
+            if not unit then
+                DungeonBots.pendingResummonVerify[botName] = nil
+            else
+                hasPending = true
+                if UnitIsConnected(unit) and (entry.scansLeft or 0) > 0 and now >= (entry.nextScanAt or 0) then
+                    entry.scansLeft = entry.scansLeft - 1
+                    entry.nextScanAt = now + 2.5
+                    DungeonBots.pendingScan[botName] = now + 15
+                    DungeonBots:SendWhisperCommand(botName, "follow info")
+                end
+            end
+        end
+    end
+    if not hasPending then
+        self:Hide()
+    end
+end)
+
+function DungeonBots:ConfirmPartyBotIdentity(botName, silent)
+    local cleanName = NormalizePlayerName(botName)
+    if not cleanName or cleanName == "" then return false end
+    if UnitName and cleanName == UnitName("player") then return false end
+    if DungeonBots:IsBot(cleanName) == false then return false end
+
+    local alreadyBot = DungeonBots:ShouldTreatAsBot(cleanName)
+    if DungeonBots.pendingScan then
+        DungeonBots.pendingScan[cleanName] = nil
+    end
+    if DungeonBots.pendingResummonVerify then
+        DungeonBots.pendingResummonVerify[cleanName] = nil
+    end
+    DungeonBots.confirmedBots[cleanName] = true
+    DungeonBots:MarkRecentBot(cleanName, 120)
+    DungeonBots:RegisterBot(cleanName, true)
+    DungeonBots:RecordBotHistory(cleanName)
+
+    if not alreadyBot and not silent then
+        DungeonBots:Print(string.format(L["BOT_CONFIRMED_FMT"], cleanName))
+    end
+    if DungeonBots.UpdatePartyUI then
+        DungeonBots:UpdatePartyUI()
+    end
+    if DungeonBots:FindPartyUnitByName(cleanName, true) and DungeonBots.CheckPartyForNewBots then
+        DungeonBots:CheckPartyForNewBots()
+    end
+    return true
+end
+
+function DungeonBots:ScheduleResummonBotVerification(members)
+    if not members or #members == 0 then return end
+    local now = NowTime()
+    local addedAny = false
+    for _, botName in ipairs(members) do
+        local cleanName = NormalizePlayerName(botName)
+        if cleanName and cleanName ~= "" and DungeonBots:IsBot(cleanName) ~= false and not DungeonBots:ShouldTreatAsBot(cleanName) then
+            DungeonBots.pendingResummonVerify[cleanName] = {
+                expiresAt = now + 15.0,
+                nextScanAt = now + 0.9,
+                scansLeft = 3,
+            }
+            addedAny = true
+        end
+    end
+    if addedAny then
+        resummonVerifyFrame:Show()
+    end
+end
+
+function DungeonBots:OnResummonPartyActivity()
+    local now = NowTime()
+    local hasPending = false
+    for botName, entry in pairs(DungeonBots.pendingResummonVerify) do
+        if not entry or (entry.expiresAt or 0) <= now or DungeonBots:IsBot(botName) == false or DungeonBots:ShouldTreatAsBot(botName) then
+            DungeonBots.pendingResummonVerify[botName] = nil
+        else
+            local unit = DungeonBots:FindPartyUnitByName(botName, true)
+            if not unit then
+                DungeonBots.pendingResummonVerify[botName] = nil
+            else
+                hasPending = true
+                if UnitIsConnected(unit) and (entry.nextScanAt or 0) > (now + 0.6) then
+                    -- Acelerar la comprobación cuando el miembro recién pasa a conectado
+                    entry.nextScanAt = now + 0.6
+                end
+            end
+        end
+    end
+    if hasPending then
+        resummonVerifyFrame:Show()
+    end
+end
+
 -- Reinvocar a todos los bots del grupo (clave para entrar a mazmorra)
 function DungeonBots:AddAllBots()
     local partyBots = {}
+    local unverifiedMembers = {}
     local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
     for i = 1, 4 do
         local unit = "party" .. i
         if UnitExists(unit) then
             local name = UnitName(unit)
-            if name and name ~= "" and DungeonBots:ShouldTreatAsBot(name) then
-                DungeonBots:MarkRecentBot(name, 60)
-                table.insert(partyBots, name)
+            if name and name ~= "" and name ~= UNKNOWNOBJECT and name ~= "Unknown" then
+                if DungeonBots:ShouldTreatAsBot(name) then
+                    DungeonBots:MarkRecentBot(name, 60)
+                    table.insert(partyBots, name)
+                elseif DungeonBots:IsBot(name) ~= false then
+                    table.insert(unverifiedMembers, name)
+                end
             end
         end
     end
 
-    if #partyBots > 0 then
+    if #partyBots > 0 and #unverifiedMembers == 0 then
         for _, botName in ipairs(partyBots) do
             DungeonBots:SendDotCommand(".playerbots bot add " .. botName)
         end
@@ -506,6 +616,7 @@ function DungeonBots:AddAllBots()
         DungeonBots:SendDotCommand(".playerbots bot add *")
         DungeonBots:SendPartyCommand("summon")
         DungeonBots:Print(L["BOTS_RESUMMONED"])
+        DungeonBots:ScheduleResummonBotVerification(unverifiedMembers)
     else
         DungeonBots:Warn(L["NO_BOTS_TO_RESUMMON"])
     end

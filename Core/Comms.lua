@@ -434,6 +434,34 @@ function DB_Internal.ExtractBusyBotFromSystem(message)
     return nil, nil
 end
 
+function DB_Internal.ExtractAddedBotFromSystem(message)
+    local cleanMsg = TrimText(StripWowFormatting(message or ""))
+    if cleanMsg == "" then return nil end
+
+    local addTarget, addDetail = string.match(cleanMsg, "^[Aa][Dd][Dd]:%s*([^%s%-]+)%s*%-%s*(.+)$")
+    if addTarget and addDetail then
+        local lowerDetail = string.lower(TrimText(addDetail))
+        if string.find(lowerDetail, "already", 1, true)
+            or string.find(lowerDetail, "ya ", 1, true)
+            or string.find(lowerDetail, "error", 1, true)
+            or string.find(lowerDetail, "fail", 1, true)
+            or string.find(lowerDetail, "not ", 1, true)
+            or string.find(lowerDetail, "no ", 1, true)
+            or string.find(lowerDetail, "cannot", 1, true)
+            or string.find(lowerDetail, "can't", 1, true)
+            or string.find(lowerDetail, "offline", 1, true)
+            or string.find(lowerDetail, "unknown", 1, true)
+            or string.find(lowerDetail, "desconectad", 1, true)
+            or string.find(lowerDetail, "desconocid", 1, true)
+            or string.find(lowerDetail, "busy", 1, true)
+            or string.find(lowerDetail, "ocupad", 1, true) then
+            return nil
+        end
+        return NormalizePlayerName(addTarget)
+    end
+    return nil
+end
+
 function DungeonBots:EvaluateWhisperSender(cleanSender, message, allowPromote)
     if not cleanSender or cleanSender == "" then
         return { isBot = false }
@@ -500,16 +528,10 @@ function DungeonBots:EvaluateWhisperSender(cleanSender, message, allowPromote)
                     rejectedScan = true,
                 }
             end
-            DungeonBots.pendingScan[cleanSender] = nil
-            DungeonBots.confirmedBots[cleanSender] = true
-            DungeonBots:MarkRecentBot(cleanSender, 120)
-            DungeonBots:RegisterBot(cleanSender, true)
-            DungeonBots:RecordBotHistory(cleanSender)
-            DungeonBots.justPromotedBotWhisper[cleanSender] = NowTime() + 1.0
-            DungeonBots:Print(string.format(L["BOT_CONFIRMED_FMT"], cleanSender))
-            if DungeonBots.UpdatePartyUI then
-                DungeonBots:UpdatePartyUI()
+            if DungeonBots.ConfirmPartyBotIdentity then
+                DungeonBots:ConfirmPartyBotIdentity(cleanSender, false)
             end
+            DungeonBots.justPromotedBotWhisper[cleanSender] = NowTime() + 1.0
             isKnownOrHistory = true
             justPromoted = true
         end
