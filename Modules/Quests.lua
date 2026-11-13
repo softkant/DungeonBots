@@ -97,6 +97,7 @@ function DungeonBots:QueryQuests(botName, isSilent, suppressDialog, retriedSilen
     DungeonBots.pendingTalkCapture[cleanBot] = nil
     DungeonBots.pendingTalkRefresh[cleanBot] = nil
     local prevData = DungeonBots.questDialogData and DungeonBots.questDialogData[cleanBot]
+    local hadPrevSnapshot = (prevData and prevData.done and not prevData.timedOut) and true or false
     local prevQuests = (prevData and type(prevData.quests) == "table" and #(prevData.quests) > 0) and prevData.quests or nil
     local prevEmptyHint = (not prevQuests and prevData and prevData.emptyHint) or nil
     DungeonBots.pendingQuestCapture[cleanBot] = {
@@ -107,12 +108,6 @@ function DungeonBots:QueryQuests(botName, isSilent, suppressDialog, retriedSilen
         sawQuestHeader = false,
         silent = (suppressDialog == true),
         retriedSilent = (retriedSilent == true),
-    }
-    DungeonBots.questDialogData[cleanBot] = {
-        botName = cleanBot,
-        loading = true,
-        done = false,
-        timedOut = false,
         captureSection = "active",
         quests = {},
         seenKeys = {},
@@ -121,9 +116,23 @@ function DungeonBots:QueryQuests(botName, isSilent, suppressDialog, retriedSilen
         sawEmptyIndicator = false,
         sawEmptyActiveSummary = false,
         sawEmptyCompletedSummary = false,
+    }
+    DungeonBots.questDialogData[cleanBot] = {
+        botName = cleanBot,
+        loading = true,
+        done = hadPrevSnapshot,
+        timedOut = false,
+        captureSection = "active",
+        quests = prevQuests or {},
+        seenKeys = (prevData and prevData.seenKeys) or {},
+        rawLines = (prevData and prevData.rawLines) or {},
+        emptyHint = prevEmptyHint,
+        sawEmptyIndicator = (prevData and prevData.sawEmptyIndicator) or false,
+        sawEmptyActiveSummary = false,
+        sawEmptyCompletedSummary = false,
         prevQuests = prevQuests,
         prevEmptyHint = prevEmptyHint,
-        updatedAt = now,
+        updatedAt = (prevData and prevData.updatedAt) or now,
     }
     if DungeonBots.uiCaptureFrame then
         DungeonBots.uiCaptureFrame:Show()
@@ -690,8 +699,21 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
             if data then
                 data.loading = false
                 data.done = true
-                local confirmedEmpty = (cap.gotAnyLine and ((data.emptyHint ~= nil) or data.sawEmptyIndicator or cap.sawQuestHeader)) and true or false
-                if #(data.quests or {}) == 0 and not confirmedEmpty then
+                local stagedQuests = cap.quests or {}
+                local confirmedEmpty = (cap.gotAnyLine and ((cap.emptyHint ~= nil) or cap.sawEmptyIndicator or cap.sawQuestHeader)) and true or false
+                if cap.gotAnyLine and (#stagedQuests > 0 or confirmedEmpty) then
+                    data.timedOut = false
+                    data.quests = stagedQuests
+                    data.seenKeys = cap.seenKeys or {}
+                    data.rawLines = cap.rawLines or {}
+                    data.captureSection = cap.captureSection or "active"
+                    data.emptyHint = cap.emptyHint
+                    data.sawEmptyIndicator = cap.sawEmptyIndicator
+                    data.sawEmptyActiveSummary = cap.sawEmptyActiveSummary
+                    data.sawEmptyCompletedSummary = cap.sawEmptyCompletedSummary
+                    data.updatedAt = now
+                    UpdateBotQuestCountCache(botName, #(data.quests), now)
+                elseif not cap.gotAnyLine then
                     data.timedOut = true
                     if data.prevQuests and #(data.prevQuests) > 0 then
                         data.quests = data.prevQuests
@@ -699,16 +721,14 @@ uiCaptureFrame:SetScript("OnUpdate", function(self, elapsed)
                     elseif data.prevEmptyHint then
                         data.emptyHint = data.prevEmptyHint
                     end
+                    if cap.silent and not cap.retriedSilent
+                        and (not DungeonBots.FindPartyUnitByName or DungeonBots:FindPartyUnitByName(botName)) then
+                        DungeonBots:QueryBotQuestCount(botName, false, 0.85, true)
+                        hasAny = true
+                    end
                 end
                 data.prevQuests = nil
                 data.prevEmptyHint = nil
-                if cap.gotAnyLine and (#(data.quests or {}) > 0 or confirmedEmpty) then
-                    UpdateBotQuestCountCache(botName, #(data.quests or {}), now)
-                elseif cap.silent and not cap.retriedSilent
-                    and (not DungeonBots.FindPartyUnitByName or DungeonBots:FindPartyUnitByName(botName)) then
-                    DungeonBots:QueryBotQuestCount(botName, false, 0.85, true)
-                    hasAny = true
-                end
                 if (not cap.silent or DB_Internal.IsQuestDialogOpenFor(botName)) and DungeonBots.UpdateQuestDialog then
                     DungeonBots:UpdateQuestDialog(botName)
                 end
@@ -844,12 +864,14 @@ function DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
     end
 
     cap.gotAnyLine = true
-    local settleSecs = cap.silent and 0.45 or 0.75
+    local settleSecs = cap.silent and 0.35 or 0.40
     cap.finalizeAt = math.min((cap.startedAt or now) + 6.0, now + settleSecs)
     cap.expiresAt = math.min((cap.startedAt or now) + 6.5, math.max(cap.expiresAt or (now + 4.5), now + 1.5))
-    data.loading = false
-    data.timedOut = false
-    data.updatedAt = now
+
+    cap.quests = cap.quests or {}
+    cap.seenKeys = cap.seenKeys or {}
+    cap.rawLines = cap.rawLines or {}
+    cap.captureSection = cap.captureSection or "active"
 
     for rawLine in string.gmatch(message or "", "[^\r\n]+") do
         local line = TrimText(rawLine)
@@ -858,7 +880,7 @@ function DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
         local trimmedLower = TrimText(string.gsub(lowerClean, "[%.%!%?%:;]+$", ""))
 
         if cleanLine ~= "" then
-            table.insert(data.rawLines, line)
+            table.insert(cap.rawLines, line)
             local hasQuestLink = (string.find(line, "|Hquest:", 1, true) ~= nil)
             local lowerMeta = hasQuestLink
                 and string.lower(TrimText(StripWowFormatting(string.gsub(line, "|Hquest:[^|]+|h%[[^%]]+%]|h", " "))))
@@ -879,11 +901,11 @@ function DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
                 or string.find(lowerClean, "0 misiones", 1, true)
                 or trimmedLower == "no quests"
                 or trimmedLower == "ninguna"
-                or (trimmedLower == "none" and #(data.quests) == 0)
+                or (trimmedLower == "none" and #(cap.quests) == 0)
             ) then
-                data.emptyHint = (DungeonBots.LocalizeServerHint and DungeonBots:LocalizeServerHint(cleanLine, "quests")) or cleanLine
-                data.sawEmptyIndicator = true
-                cap.finalizeAt = math.min(cap.finalizeAt, now + 0.25)
+                cap.emptyHint = (DungeonBots.LocalizeServerHint and DungeonBots:LocalizeServerHint(cleanLine, "quests")) or cleanLine
+                cap.sawEmptyIndicator = true
+                cap.finalizeAt = math.min(cap.finalizeAt, now + 0.20)
             elseif not hasQuestLink and (
                 string.find(lowerClean, "no completed quests", 1, true)
                 or string.find(lowerClean, "no incompleted quests", 1, true)
@@ -892,7 +914,7 @@ function DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
                 or trimmedLower == "none"
                 or trimmedLower == "empty"
             ) then
-                data.sawEmptyIndicator = true
+                cap.sawEmptyIndicator = true
                 -- Encabezado o resumen informativo vacío
             elseif not hasQuestLink and (
                 string.find(lowerClean, "incompleted quests", 1, true)
@@ -903,21 +925,21 @@ function DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
                 or string.find(lowerClean, "^[%-=]+%s*quests%s*[%-=]+$")
             ) then
                 cap.sawQuestHeader = true
-                data.captureSection = "active"
+                cap.captureSection = "active"
             elseif not hasQuestLink and (
                 string.find(lowerClean, "completed quests", 1, true)
                 or string.find(lowerClean, "^%-*%s*completed")
             ) then
                 cap.sawQuestHeader = true
-                data.captureSection = "completed"
+                cap.captureSection = "completed"
             elseif not hasQuestLink and string.find(lowerClean, "summary", 1, true) then
                 cap.sawQuestHeader = true
-                data.captureSection = "summary"
+                cap.captureSection = "summary"
                 if (string.find(lowerClean, "0%s+incompleted?") and string.find(lowerClean, "0%s+completed"))
                     or (string.find(lowerClean, "0%s+active") and string.find(lowerClean, "0%s+completed"))
                     or string.find(lowerClean, "0%s*/%s*%d+")
                     or string.find(lowerClean, "total%s*:%s*0") then
-                    data.sawEmptyIndicator = true
+                    cap.sawEmptyIndicator = true
                 end
             elseif not hasQuestLink and (
                 string.find(lowerClean, "^[-=]+$")
@@ -937,18 +959,18 @@ function DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
                     or string.find(lowerClean, "^active%s*:%s*0")
                     or string.find(lowerClean, "^0%s+incompleted?")
                     or string.find(lowerClean, "^0%s+active") then
-                    data.sawEmptyActiveSummary = true
+                    cap.sawEmptyActiveSummary = true
                 end
                 if string.find(lowerClean, "^completed%s*:%s*0")
                     or string.find(lowerClean, "^0%s+completed") then
-                    data.sawEmptyCompletedSummary = true
+                    cap.sawEmptyCompletedSummary = true
                 end
                 if string.find(lowerClean, "^total%s*:%s*0$")
                     or string.find(lowerClean, "^total%s*:%s*0[%s%/%(]")
                     or string.find(lowerClean, "^0%s+quests?")
                     or string.find(lowerClean, "^0%s*/%s*%d+")
-                    or (data.sawEmptyActiveSummary and data.sawEmptyCompletedSummary) then
-                    data.sawEmptyIndicator = true
+                    or (cap.sawEmptyActiveSummary and cap.sawEmptyCompletedSummary) then
+                    cap.sawEmptyIndicator = true
                 end
                 -- Separador o resumen numérico; no agregar como fila de misión
             else
@@ -964,8 +986,8 @@ function DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
                     rawTitle = rawTitle or StripWowFormatting(plainH)
                     local dedupKey = qId and ("id_" .. qId) or ("t_" .. string.lower(rawTitle))
 
-                    if not data.seenKeys[dedupKey] then
-                        data.seenKeys[dedupKey] = true
+                    if not cap.seenKeys[dedupKey] then
+                        cap.seenKeys[dedupKey] = true
                         local extraText = ""
                         if scanPos == 1 and not string.find(string.sub(subLine, eOff + 1), "|Hquest:") then
                             local beforeTxt = TrimText(StripWowFormatting(string.sub(subLine, 1, sOff - 1)))
@@ -976,7 +998,7 @@ function DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
                         if extraText ~= "" and DungeonBots.LocalizeServerSection then
                             extraText = DungeonBots:LocalizeServerSection(extraText)
                         end
-                        if extraText == "" and data.captureSection == "completed" then
+                        if extraText == "" and cap.captureSection == "completed" then
                             extraText = (DungeonBots.L and DungeonBots.L["QUEST_COMPLETE_READY"]) or "Completa (lista para entregar)"
                         end
                         local qLvlResolved = (qLevel and qLevel ~= "") and qLevel or "80"
@@ -988,7 +1010,7 @@ function DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
                             and DungeonBots:LocalizeHyperlinksInText(rawDisplayLink)
                             or rawDisplayLink
 
-                        table.insert(data.quests, {
+                        table.insert(cap.quests, {
                             questId = qId,
                             questLevel = qLvlResolved,
                             rawTitle = rawTitle,
@@ -1006,14 +1028,14 @@ function DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
                     if scanPos > #line then break end
                 end
 
-                if not foundLinkInLine and data.captureSection ~= "summary" then
+                if not foundLinkInLine and cap.captureSection ~= "summary" then
                     local fallbackTitle = TrimText(string.gsub(cleanLine, "^[%d#]+[%.)%]:%-]+%s*", ""))
                     if fallbackTitle ~= "" and #fallbackTitle > 2 then
                         local dedupKey = "t_" .. string.lower(fallbackTitle)
-                        if not data.seenKeys[dedupKey] then
-                            data.seenKeys[dedupKey] = true
-                            local statusBadge = (data.captureSection == "completed") and L["QUEST_COMPLETE_READY"] or ""
-                            table.insert(data.quests, {
+                        if not cap.seenKeys[dedupKey] then
+                            cap.seenKeys[dedupKey] = true
+                            local statusBadge = (cap.captureSection == "completed") and L["QUEST_COMPLETE_READY"] or ""
+                            table.insert(cap.quests, {
                                 questId = nil,
                                 questLevel = nil,
                                 rawTitle = fallbackTitle,
@@ -1031,14 +1053,6 @@ function DB_Internal.ParseQuestCaptureWhisper(cleanSender, message)
         end
     end
 
-    if data.emptyHint
-        or (#(data.quests) > 0)
-        or (data.sawEmptyIndicator and data.captureSection ~= "active") then
-        UpdateBotQuestCountCache(cleanSender, #(data.quests), now)
-    end
-    if (not cap.silent or DB_Internal.IsQuestDialogOpenFor(cleanSender)) and DungeonBots.UpdateQuestDialog then
-        DungeonBots:UpdateQuestDialog(cleanSender)
-    end
     return true
 end
 

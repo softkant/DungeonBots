@@ -445,7 +445,7 @@ function DungeonBots:UpdateQuestDialog(botName)
         end
     end
 
-    if data and data.loading and #quests == 0 then
+    if data and data.loading and not data.done and #quests == 0 then
         qf.statusLabel:SetText(L["QUEST_QUERY_STATUS"])
         qf.emptyLabel:SetText(string.format(L["QUEST_QUERY_WAIT_FMT"], targetBot))
         qf.emptyLabel:Show()
@@ -474,8 +474,8 @@ function DungeonBots:UpdateQuestDialog(botName)
         qf.emptyLabel:Hide()
     end
 
-    for _, row in ipairs(questRows) do
-        row:Hide()
+    for i = #quests + 1, #questRows do
+        questRows[i]:Hide()
     end
 
     for i, q in ipairs(quests) do
@@ -560,17 +560,21 @@ function DungeonBots:OpenQuestDialog(botName)
     if not DungeonBots.questFrame then
         DungeonBots:BuildQuestDialog()
     end
-    DungeonBots.questFrame.currentBot = botName
+    local qf = DungeonBots.questFrame
+    local wasShown = qf:IsShown()
+    qf.currentBot = botName
     DungeonBots:UpdateQuestDialog(botName)
-    DungeonBots.questFrame:Show()
-    if DungeonBots.questFrame.Raise then
-        pcall(DungeonBots.questFrame.Raise, DungeonBots.questFrame)
-    end
-    if DungeonBots.RequestDungeonLockInfo then
-        DungeonBots:RequestDungeonLockInfo(false)
-    end
-    if DungeonBots.UpdateDungeonAccessUI then
-        DungeonBots:UpdateDungeonAccessUI()
+    if not wasShown then
+        qf:Show()
+        if qf.Raise then
+            pcall(qf.Raise, qf)
+        end
+        if DungeonBots.RequestDungeonLockInfo then
+            DungeonBots:RequestDungeonLockInfo(false)
+        end
+        if DungeonBots.UpdateDungeonAccessUI then
+            DungeonBots:UpdateDungeonAccessUI()
+        end
     end
 end
 
