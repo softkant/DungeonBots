@@ -52,7 +52,7 @@ local TACTICAL_ACTIONS = {
     },
     {
         name = L["HUD_FOLLOW_NAME"],
-        cmd = "follow",
+        cmds = { "reset", "follow" },
         icon = "Interface\\Icons\\Ability_Tracking",
         title = L["HUD_FOLLOW_TITLE"],
         desc = L["HUD_FOLLOW_DESC"],
@@ -748,6 +748,11 @@ function DungeonBots:InitHUD()
                     return
                 elseif action.actionKind == "formation_cycle" then
                     CycleFormationMode()
+                    return
+                elseif action.cmds then
+                    for _, c in ipairs(action.cmds) do
+                        DungeonBots:SendPartyCommand(c)
+                    end
                     return
                 end
                 DungeonBots:SendPartyCommand(action.cmd)
