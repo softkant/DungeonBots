@@ -19,8 +19,8 @@ Summon, organize, gear, inspect, and direct your 5-player dungeon bots from a cl
 
 ## Installation
 
-1. Download **`DungeonBots-v1.1.0.zip`** from the release page here:  
-   **https://github.com/softkant/DungeonBots/releases/tag/v1.1.0**
+1. Download the latest **`DungeonBots-vX.Y.Z.zip`** archive from the latest release page here:  
+   **https://github.com/softkant/DungeonBots/releases/latest**
 2. Extract the archive so the **`DungeonBots`** folder is placed at:
    ```text
    /Interface/AddOns/DungeonBots/
