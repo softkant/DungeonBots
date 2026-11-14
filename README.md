@@ -14,16 +14,16 @@ Summon, organize, gear, inspect, and direct your 5-player dungeon bots from a cl
 
 - **World of Warcraft 3.3.5a** client (`Interface: 30300`)
 - Server with **[mod-playerbots](https://github.com/mod-playerbots/mod-playerbots/)** enabled
-- *(Optional)* Compatible with **WIM (WoW Instant Messenger)**
 
 ---
 
 ## Installation
 
-1. Go to the **[Releases](https://github.com/softkant/DungeonBots/releases)** page and download the latest `DungeonBots-vX.Y.Z.zip`.
-2. Extract the archive so the **`DungeonBots`** folder ends up directly inside:
+1. Download **`DungeonBots-v1.1.0.zip`** from the release page here:  
+   **https://github.com/softkant/DungeonBots/releases/tag/v1.1.0**
+2. Extract the archive so the **`DungeonBots`** folder is placed at:
    ```text
-   World of Warcraft/Interface/AddOns/DungeonBots/
+   /Interface/AddOns/DungeonBots/
    ```
    *(Make sure `DungeonBots.toc` is inside that folder, not nested inside an extra subfolder.)*
 3. Log in or type `/reload`, then open the addon with `/db` or the **minimap button**.
@@ -32,13 +32,17 @@ Summon, organize, gear, inspect, and direct your 5-player dungeon bots from a cl
 
 ## Screenshots
 
-| Build Party & Teams | Party Bots & Inspection |
-| :---: | :---: |
-| ![Build Party](screenshots/main-build.png) | ![Party Bots](screenshots/party-bots.png) |
+### Build Party & Teams
+![Build Party](screenshots/main-build.png)
 
-| Floating Bars (HUD) | Bot Inventory (Multi-Destroy) |
-| :---: | :---: |
-| ![Floating HUD](screenshots/floating-hud.png) | ![Bot Inventory](screenshots/inventory.png) |
+### Party Bots & Inspection
+![Party Bots](screenshots/party-bots.png)
+
+### Floating Bars (HUD)
+![Floating HUD](screenshots/floating-hud.png)
+
+### Bot Inventory (Multi-Destroy)
+![Bot Inventory](screenshots/inventory.png)
 
 ---
 
