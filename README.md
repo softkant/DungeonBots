@@ -5,7 +5,7 @@
 Summon, organize, gear, inspect, and direct your 5-player dungeon bots from a clean Blizzard-styled UI — without typing chat commands manually.
 
 ![WoW 3.3.5a](https://img.shields.io/badge/WoW-3.3.5a%20(30300)-blue)
-![Version](https://img.shields.io/badge/Version-1.2.1-gold)
+![Version](https://img.shields.io/badge/Version-1.2.2-gold)
 ![Languages](https://img.shields.io/badge/Languages-English%20%7C%20Espa%C3%B1ol-green)
 
 ---
@@ -56,7 +56,7 @@ Summon, organize, gear, inspect, and direct your 5-player dungeon bots from a cl
 
 ### Individual Bot Management (`Party Bots`)
 - **Character Info (`Gear`, `Spells`, `Glyphs`):** Inspect live gear, switch talent specs, trigger **Autogear** (with downgrade warnings), and cast or cancel bot spells.
-- **Visual Inventory:** Bag-grid viewer with search filter, quality borders, localized tooltips, and **Left-click multi-select** to destroy multiple items in one confirmation (or **Right-click** for quick single-item destroy).
+- **Visual Inventory:** Bag-grid viewer with search filter, quality borders, localized tooltips, and **Left-click multi-select (up to 5 items)** to destroy items in one confirmation using the **Destroy** button.
 - **Quest Log & Frozen Halls Check:** Inspect active bot quests, abandon quests, and check Forge of Souls / Pit of Saron / Halls of Reflection prerequisites per bot.
 - **Interactive NPC Dialog (`talk`):** Pick gossip options, accept quests, and turn in quests for each bot in party from one window.
 

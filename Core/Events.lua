@@ -246,7 +246,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             DB_Internal.ClearAllPendingQuestCounts()
         end
 
-        DungeonBots:Print(string.format(L["ADDON_LOADED_FMT"], tostring(DungeonBots.VERSION or "1.2.1")))
+        DungeonBots:Print(string.format(L["ADDON_LOADED_FMT"], tostring(DungeonBots.VERSION or "1.2.2")))
         if DungeonBots.InitUI then
             DungeonBots:InitUI()
         end

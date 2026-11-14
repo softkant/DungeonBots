@@ -3,7 +3,7 @@
 -- =========================================================================
 
 DungeonBots = DungeonBots or {}
-DungeonBots.VERSION = "1.2.1"
+DungeonBots.VERSION = "1.2.2"
 DungeonBots.Internal = DungeonBots.Internal or {}
 
 local DB_Internal = DungeonBots.Internal

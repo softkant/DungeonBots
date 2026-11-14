@@ -211,6 +211,49 @@ local function IsInventoryNoiseOrWrongResponse(message)
 end
 
 DungeonBots.pendingDestroyRequests = DungeonBots.pendingDestroyRequests or {}
+DungeonBots.pendingDestroyQueues = DungeonBots.pendingDestroyQueues or {}
+DungeonBots.pendingDestroyBatches = DungeonBots.pendingDestroyBatches or {}
+
+local MAX_DESTROY_ITEMS = 5
+DB_Internal.MAX_DESTROY_ITEMS = MAX_DESTROY_ITEMS
+
+local function NotifyDestroyDialogChanged(cleanBot)
+    local inv = DungeonBots.inventoryFrame
+    if inv and inv:IsShown() and inv.currentBot == cleanBot and DungeonBots.UpdateInventoryDialog then
+        DungeonBots:UpdateInventoryDialog(cleanBot)
+    end
+end
+
+local function AdvanceDestroyBatchDone(cleanBot)
+    local batch = DungeonBots.pendingDestroyBatches and DungeonBots.pendingDestroyBatches[cleanBot]
+    if batch then
+        batch.done = (batch.done or 0) + 1
+    end
+end
+
+function DungeonBots:GetDestroyInventoryProgress(botName)
+    local cleanBot = NormalizePlayerName(botName)
+    if not cleanBot then return false, 0, 0 end
+    local req = DungeonBots.pendingDestroyRequests and DungeonBots.pendingDestroyRequests[cleanBot]
+    local q = DungeonBots.pendingDestroyQueues and DungeonBots.pendingDestroyQueues[cleanBot]
+    local hasQueued = (q and q.items and #q.items > 0) and true or false
+    if not req and not hasQueued then
+        if DungeonBots.pendingDestroyBatches then
+            DungeonBots.pendingDestroyBatches[cleanBot] = nil
+        end
+        return false, 0, 0
+    end
+    local batch = DungeonBots.pendingDestroyBatches and DungeonBots.pendingDestroyBatches[cleanBot]
+    local total = (batch and batch.total) or ((req and 1 or 0) + ((q and q.items) and #q.items or 0))
+    local done = (batch and batch.done) or 0
+    local current = math.min(math.max(1, total), math.max(1, done + 1))
+    return true, current, total
+end
+
+function DungeonBots:IsDestroyingBotInventory(botName)
+    local active = self:GetDestroyInventoryProgress(botName)
+    return active
+end
 
 local function NormalizeItemPayloadColons(payload)
     if not payload or payload == "" then return nil end
@@ -384,11 +427,21 @@ local function ScheduleNextQueuedDestroy(cleanBot, delaySec)
 end
 
 local function SendSingleDestroyRequest(cleanBot, itemEntry, isQuiet)
+    local unit = DungeonBots.FindPartyUnitByName and DungeonBots:FindPartyUnitByName(cleanBot)
+    if not unit or not UnitIsConnected(unit) then
+        return false
+    end
+
     local cmdLink = BuildDestroyCommandLink(itemEntry)
     if not cmdLink or cmdLink == "" then return false end
 
     local now = NowTime()
     local displayLink = (itemEntry.displayLink and itemEntry.displayLink ~= "") and itemEntry.displayLink or ("[" .. (itemEntry.name or itemEntry.rawName or L["ITEM_DEFAULT"]) .. "]")
+
+    DungeonBots.pendingDestroyBatches = DungeonBots.pendingDestroyBatches or {}
+    if not DungeonBots.pendingDestroyBatches[cleanBot] then
+        DungeonBots.pendingDestroyBatches[cleanBot] = { total = 1, done = 0 }
+    end
 
     DungeonBots.pendingDestroyRequests = DungeonBots.pendingDestroyRequests or {}
     DungeonBots.pendingDestroyRequests[cleanBot] = {
@@ -411,6 +464,7 @@ local function SendSingleDestroyRequest(cleanBot, itemEntry, isQuiet)
     if DungeonBots.uiCaptureFrame then
         DungeonBots.uiCaptureFrame:Show()
     end
+    NotifyDestroyDialogChanged(cleanBot)
     return true
 end
 
@@ -441,6 +495,12 @@ local function DispatchNextQueuedDestroy(cleanBot, now)
     end
 
     DungeonBots.pendingDestroyQueues[cleanBot] = nil
+    if not (DungeonBots.pendingDestroyRequests and DungeonBots.pendingDestroyRequests[cleanBot]) then
+        if DungeonBots.pendingDestroyBatches then
+            DungeonBots.pendingDestroyBatches[cleanBot] = nil
+        end
+        NotifyDestroyDialogChanged(cleanBot)
+    end
     return false
 end
 
@@ -449,7 +509,12 @@ local function HandleDestroyFeedbackWhisper(cleanSender, message, now)
     if not req then return false end
     if now > (req.expiresAt or 0) then
         DungeonBots.pendingDestroyRequests[cleanSender] = nil
-        ScheduleNextQueuedDestroy(cleanSender, 0.25)
+        AdvanceDestroyBatchDone(cleanSender)
+        local hasMoreQueued = ScheduleNextQueuedDestroy(cleanSender, 0.25)
+        if not hasMoreQueued and DungeonBots.pendingDestroyBatches then
+            DungeonBots.pendingDestroyBatches[cleanSender] = nil
+        end
+        NotifyDestroyDialogChanged(cleanSender)
         return false
     end
     if not message or message == "" or IsInventoryNoiseOrWrongResponse(message) then
@@ -481,8 +546,13 @@ local function HandleDestroyFeedbackWhisper(cleanSender, message, now)
 
     if isRefusal then
         DungeonBots.pendingDestroyRequests[cleanSender] = nil
+        AdvanceDestroyBatchDone(cleanSender)
         DungeonBots:Warn(cleanSender .. ": " .. cleanDisplay)
-        ScheduleNextQueuedDestroy(cleanSender, 0.35)
+        local hasMoreQueued = ScheduleNextQueuedDestroy(cleanSender, 0.35)
+        if not hasMoreQueued and DungeonBots.pendingDestroyBatches then
+            DungeonBots.pendingDestroyBatches[cleanSender] = nil
+        end
+        NotifyDestroyDialogChanged(cleanSender)
         return true
     end
 
@@ -495,9 +565,16 @@ local function HandleDestroyFeedbackWhisper(cleanSender, message, now)
     if isConfirm then
         req.gotReply = true
         DungeonBots.pendingDestroyRequests[cleanSender] = nil
-        RemoveDestroyedItemFromInventoryData(cleanSender, req)
-        DungeonBots:Print(string.format(L["INV_DESTROYED_FMT"], cleanSender, (req.displayLink or cleanDisplay)))
+        AdvanceDestroyBatchDone(cleanSender)
         local hasMoreQueued = ScheduleNextQueuedDestroy(cleanSender, 0.35)
+        if not hasMoreQueued and DungeonBots.pendingDestroyBatches then
+            DungeonBots.pendingDestroyBatches[cleanSender] = nil
+        end
+        local removedLocally = RemoveDestroyedItemFromInventoryData(cleanSender, req)
+        if not removedLocally then
+            NotifyDestroyDialogChanged(cleanSender)
+        end
+        DungeonBots:Print(string.format(L["INV_DESTROYED_FMT"], cleanSender, (req.displayLink or cleanDisplay)))
         if not hasMoreQueued and DungeonBots.QueryBotStats then
             DungeonBots:QueryBotStats(cleanSender, true)
         end
@@ -641,12 +718,17 @@ function DB_Internal.TickInventoryCapture(now)
         for botName, req in pairs(DungeonBots.pendingDestroyRequests) do
             if now >= (req.expiresAt or 0) then
                 DungeonBots.pendingDestroyRequests[botName] = nil
+                AdvanceDestroyBatchDone(botName)
                 if not req.gotReply then
                     DungeonBots:Warn(string.format(L["INV_DESTROY_FAIL_FMT"], botName, (req.displayLink or L["ITEM_DEFAULT"])))
                 end
-                if ScheduleNextQueuedDestroy(botName, 0.25) then
+                local hasMoreQueued = ScheduleNextQueuedDestroy(botName, 0.25)
+                if hasMoreQueued then
                     hasAny = true
+                elseif DungeonBots.pendingDestroyBatches then
+                    DungeonBots.pendingDestroyBatches[botName] = nil
                 end
+                NotifyDestroyDialogChanged(botName)
             else
                 hasAny = true
             end
@@ -772,6 +854,9 @@ function DungeonBots:DestroyBotItems(botName, itemList)
         local cmdLink = itemEntry and BuildDestroyCommandLink(itemEntry)
         if cmdLink and cmdLink ~= "" then
             table.insert(validItems, itemEntry)
+            if #validItems >= MAX_DESTROY_ITEMS then
+                break
+            end
         end
     end
     if #validItems == 0 then return end
@@ -806,10 +891,19 @@ function DungeonBots:DestroyBotItems(botName, itemList)
     end
     if added == 0 then return end
 
+    DungeonBots.pendingDestroyBatches = DungeonBots.pendingDestroyBatches or {}
+    local batch = DungeonBots.pendingDestroyBatches[cleanBot]
+    if not batch then
+        DungeonBots.pendingDestroyBatches[cleanBot] = { total = added, done = 0 }
+    else
+        batch.total = (batch.total or 0) + added
+    end
+
     if added > 1 then
         PlaySound("igMainMenuOptionCheckBoxOff")
         DungeonBots:Print(string.format(L["INV_SEND_DESTROY_BATCH_FMT"], cleanBot, added))
     end
 
     DispatchNextQueuedDestroy(cleanBot, NowTime())
+    NotifyDestroyDialogChanged(cleanBot)
 end
