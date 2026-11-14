@@ -5,7 +5,7 @@
 Summon, organize, gear, inspect, and direct your 5-player dungeon bots from a clean Blizzard-styled UI — without typing chat commands manually.
 
 ![WoW 3.3.5a](https://img.shields.io/badge/WoW-3.3.5a%20(30300)-blue)
-![Version](https://img.shields.io/badge/Version-1.2.0-gold)
+![Version](https://img.shields.io/badge/Version-1.2.1-gold)
 ![Languages](https://img.shields.io/badge/Languages-English%20%7C%20Espa%C3%B1ol-green)
 
 ---
@@ -69,7 +69,7 @@ Summon, organize, gear, inspect, and direct your 5-player dungeon bots from a cl
 - **Visual Themes:** Switch live between **Gold** and **Slate Blue**.
 - **Independent Language Selector:** Choose **Auto**, **English**, or **Español** inside Settings — works even if your WoW client uses a different language.
 - **Chat Filtering:** Optionally hide incoming/outgoing bot whispers and bot party/say/yell chatter (supports Blizzard chat and WIM).
-- **Built-in Guide:** 6-topic troubleshooting and Frozen Halls / instance cooldown reference tab inside the addon.
+- **Built-in Guide:** 5-topic troubleshooting and Frozen Halls / instance cooldown reference tab inside the addon.
 
 ---
 

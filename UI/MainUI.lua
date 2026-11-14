@@ -1753,8 +1753,7 @@ local GUIDE_TOPICS = {
         shortTitle = L["GUIDE_T5_SHORT"],
         title = L["GUIDE_T5_TITLE"],
         category = L["GUIDE_T5_CAT"],
-        critical = true,
-        icon = "Interface\\Icons\\Ability_Kick",
+        icon = "Interface\\Icons\\INV_Chest_Plate01",
         summary = L["GUIDE_T5_SUM"],
         steps = {
             L["GUIDE_T5_S1"],
@@ -1763,23 +1762,10 @@ local GUIDE_TOPICS = {
         },
         note = L["GUIDE_T5_NOTE"],
     },
-    {
-        shortTitle = L["GUIDE_T6_SHORT"],
-        title = L["GUIDE_T6_TITLE"],
-        category = L["GUIDE_T6_CAT"],
-        icon = "Interface\\Icons\\INV_Chest_Plate01",
-        summary = L["GUIDE_T6_SUM"],
-        steps = {
-            L["GUIDE_T6_S1"],
-            L["GUIDE_T6_S2"],
-            L["GUIDE_T6_S3"],
-        },
-        note = L["GUIDE_T6_NOTE"],
-    },
 }
 if DB_Internal.RegisterLocaleRefresh then
     DB_Internal.RegisterLocaleRefresh(function()
-        for i = 1, 6 do
+        for i = 1, #GUIDE_TOPICS do
             local topic = GUIDE_TOPICS[i]
             if topic then
                 local p = "GUIDE_T" .. i .. "_"
