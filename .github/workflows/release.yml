@@ -1,6 +1,10 @@
 name: Package Addon Release
 
 on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
   release:
     types: [published]
 
@@ -13,23 +17,52 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release tag
+        id: meta
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            TAG="${{ github.ref_name }}"
+          else
+            VER=$(grep -m1 '^## Version:' DungeonBots.toc | sed 's/^## Version:[[:space:]]*//' | tr -d '[:space:]\r')
+            if [ -z "${VER}" ]; then
+              echo "Could not read ## Version from DungeonBots.toc" >&2
+              exit 1
+            fi
+            TAG="v${VER}"
+          fi
+          echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
+          echo "zip_name=DungeonBots-${TAG}.zip" >> "${GITHUB_OUTPUT}"
 
       - name: Build addon zip package
         run: |
           set -euo pipefail
-          TAG="${{ github.event.release.tag_name }}"
-          ZIP_NAME="DungeonBots-${TAG}.zip"
+          ZIP_NAME="${{ steps.meta.outputs.zip_name }}"
           rm -rf dist "${ZIP_NAME}"
           mkdir -p dist/DungeonBots
           cp DungeonBots.toc README.md dist/DungeonBots/
           cp -r Core Locales Modules UI dist/DungeonBots/
           (cd dist && zip -r "../${ZIP_NAME}" DungeonBots)
 
-      - name: Upload zip asset to Release
+      - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          TAG="${{ github.event.release.tag_name }}"
-          ZIP_NAME="DungeonBots-${TAG}.zip"
-          gh release upload "${TAG}" "${ZIP_NAME}" --clobber
+          TAG="${{ steps.meta.outputs.tag }}"
+          ZIP_NAME="${{ steps.meta.outputs.zip_name }}"
+          if [ "${{ github.event_name }}" = "release" ]; then
+            gh release upload "${TAG}" "${ZIP_NAME}" --clobber
+          elif gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release upload "${TAG}" "${ZIP_NAME}" --clobber
+          else
+            gh release create "${TAG}" "${ZIP_NAME}" \
+              --target "${GITHUB_SHA}" \
+              --title "DungeonBots ${TAG}" \
+              --generate-notes
+          fi
