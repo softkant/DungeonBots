@@ -370,7 +370,7 @@ L["TAB3_TIP"]              = "Consejos esenciales sobre misiones previas, invoca
 L["TAB_ACTIVE_HINT"]       = "|cff00ff00(Pestaña Activa)|r"
 L["TAB_SWITCH_HINT"]       = "|cff888888(Haz clic para cambiar a esta pestaña)|r"
 
-L["HIST_BOX_TITLE"]        = "|cffffd200Historial y Equipos de Bots|r"
+L["HIST_BOX_TITLE"]        = "|cffffd200Historial de Bots|r"
 L["HIST_BOX_COUNT_FMT"]    = "Lista de bots invitados anteriormente: |cffffd200%d|r"
 L["HIST_BTN_VIEW"]         = "Historial/Equipos"
 L["HIST_BTN_TIP_TITLE"]    = "Abrir Historial de bots"

@@ -371,7 +371,7 @@ L["TAB3_TIP"]              = "Essential tips on quest prerequisites, dungeon res
 L["TAB_ACTIVE_HINT"]       = "|cff00ff00(Active Tab)|r"
 L["TAB_SWITCH_HINT"]       = "|cff888888(Click to switch to this tab)|r"
 
-L["HIST_BOX_TITLE"]        = "|cffffd200Bot History & Teams|r"
+L["HIST_BOX_TITLE"]        = "|cffffd200Bot History|r"
 L["HIST_BOX_COUNT_FMT"]    = "Previously invited bots: |cffffd200%d|r"
 L["HIST_BTN_VIEW"]         = "History/Teams"
 L["HIST_BTN_TIP_TITLE"]    = "Open Bot History"
