@@ -1,0 +1,35 @@
+name: Package Addon Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build addon zip package
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.release.tag_name }}"
+          ZIP_NAME="DungeonBots-${TAG}.zip"
+          rm -rf dist "${ZIP_NAME}"
+          mkdir -p dist/DungeonBots
+          cp DungeonBots.toc README.md dist/DungeonBots/
+          cp -r Core Locales Modules UI dist/DungeonBots/
+          (cd dist && zip -r "../${ZIP_NAME}" DungeonBots)
+
+      - name: Upload zip asset to Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.release.tag_name }}"
+          ZIP_NAME="DungeonBots-${TAG}.zip"
+          gh release upload "${TAG}" "${ZIP_NAME}" --clobber
