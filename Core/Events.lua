@@ -220,6 +220,12 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         if DungeonBotsDB.uiTheme ~= "dark" and DungeonBotsDB.uiTheme ~= "gold" then
             DungeonBotsDB.uiTheme = "gold"
         end
+        if DungeonBotsDB.addonLocale ~= "esES" and DungeonBotsDB.addonLocale ~= "enUS" and DungeonBotsDB.addonLocale ~= "auto" then
+            DungeonBotsDB.addonLocale = "auto"
+        end
+        if DungeonBots.ApplyAddonLocale then
+            DungeonBots:ApplyAddonLocale(DungeonBotsDB.addonLocale)
+        end
 
         DungeonBots:SetupChatFilters()
         DungeonBots:SetupWIMCompatibility()

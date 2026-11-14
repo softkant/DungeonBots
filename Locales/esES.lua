@@ -2,16 +2,13 @@
 -- Locales\esES.lua: Traduccion al Espanol (esES / esMX)
 -- =========================================================================
 
-local clientLocale = GetLocale and GetLocale() or "enUS"
-if clientLocale ~= "esES" and clientLocale ~= "esMX" then
-    return
-end
-
 DungeonBots = DungeonBots or {}
 DungeonBots.Internal = DungeonBots.Internal or {}
+DungeonBots.Locales = DungeonBots.Locales or {}
 
 local DB_Internal = DungeonBots.Internal
-local L = DungeonBots.L or {}
+local L = DungeonBots.Locales.esES or {}
+DungeonBots.Locales.esES = L
 
 -- =========================================================================
 -- Core: Clases, Ramas, Presets, Estadisticas y General
@@ -549,6 +546,20 @@ L["SET_THEME_DARK_TITLE"]  = "Tema: Oscuro Azulado"
 L["SET_THEME_DARK_DESC"]   = "Variante oscura azulada y acero con textura de piedra Blizzard y bordes plateados."
 L["SET_THEME_GOLD_TITLE"]  = "Tema: Dorado"
 L["SET_THEME_GOLD_DESC"]   = "Estilo clásico Blizzard WotLK con bordes dorados tallados y paneles piedra/bronce cálidos."
+L["SET_LANG_LABEL"]        = "Idioma:"
+L["SET_LANG_AUTO_LABEL"]   = "Automático"
+L["SET_LANG_AUTO_TITLE"]   = "Idioma: Automático"
+L["SET_LANG_AUTO_DESC"]    = "Usa automáticamente el idioma de tu cliente WoW (%s)."
+L["SET_LANG_ES_LABEL"]     = "Español"
+L["SET_LANG_ES_TITLE"]     = "Idioma: Español"
+L["SET_LANG_ES_DESC"]      = "Fuerza toda la interfaz, guías y mensajes de DungeonBots al español sin importar el idioma del cliente."
+L["SET_LANG_EN_LABEL"]     = "English"
+L["SET_LANG_EN_TITLE"]     = "Idioma: English"
+L["SET_LANG_EN_DESC"]      = "Fuerza toda la interfaz, guías y mensajes de DungeonBots al inglés sin importar el idioma del cliente."
+L["SET_LANG_RELOAD_CONFIRM"]= "Idioma del addon guardado en |cffffd200%s|r.\n\n¿Recargar la interfaz (/reload) ahora para aplicarlo en todas las ventanas?"
+L["SET_LANG_RELOAD_NOW"]   = "Recargar ahora"
+L["SET_LANG_RELOAD_LATER"] = "Más tarde"
+L["SET_LANG_SAVED_FMT"]    = "Idioma del addon configurado en |cffffd200%s|r. Ejecuta |cff71d5ff/reload|r para aplicarlo."
 L["SETTINGS_FOOTER_VER"]   = "|cff888888v%s|r"
 L["SETTINGS_DISCORD_ERR"]  = "|cff999999Si hay algún error, puedes contactar con |r|cff71d5ff@Shahak|r|cff999999 por Discord.|r"
 
@@ -871,3 +882,11 @@ DB_Internal.ES_SERVER_SECTIONS = {
     ["key"]          = L["CAT_KEYS"],
     ["keys"]         = L["CAT_KEYS"],
 }
+
+local clientLocale = GetLocale and GetLocale() or "enUS"
+if clientLocale == "esES" or clientLocale == "esMX" then
+    local target = DungeonBots.L
+    for k, v in pairs(L) do
+        target[k] = v
+    end
+end

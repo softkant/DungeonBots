@@ -23,8 +23,16 @@ local function StripWowFormatting(text)
 end
 
 -- =========================================================================
--- Detección de Idioma del Cliente
+-- Detección y Selección de Idioma del Addon / Cliente
 -- =========================================================================
+local localeRefreshCallbacks = {}
+
+function DB_Internal.RegisterLocaleRefresh(fn)
+    if type(fn) == "function" then
+        table.insert(localeRefreshCallbacks, fn)
+    end
+end
+
 function DungeonBots:GetClientLocale()
     if GetLocale then
         return GetLocale() or "enUS"
@@ -32,8 +40,57 @@ function DungeonBots:GetClientLocale()
     return "enUS"
 end
 
+function DungeonBots:GetAddonLocaleSetting()
+    local val = DungeonBotsDB and DungeonBotsDB.addonLocale
+    if val == "esES" or val == "enUS" or val == "auto" then
+        return val
+    end
+    return "auto"
+end
+
+function DungeonBots:GetEffectiveLocale()
+    local setting = DungeonBots:GetAddonLocaleSetting()
+    if setting == "esES" or setting == "enUS" then
+        return setting
+    end
+    return DungeonBots:GetClientLocale()
+end
+
+function DungeonBots:ApplyAddonLocale(choice)
+    local setting = choice or DungeonBots:GetAddonLocaleSetting()
+    if setting ~= "esES" and setting ~= "enUS" and setting ~= "auto" then
+        setting = "auto"
+    end
+    local targetLoc = (setting == "auto") and DungeonBots:GetClientLocale() or setting
+    local isSpanish = (targetLoc == "esES" or targetLoc == "esMX")
+
+    local activeL = DungeonBots.L or {}
+    local enDict = DungeonBots.Locales and DungeonBots.Locales.enUS
+    if type(enDict) == "table" then
+        for k, v in pairs(enDict) do
+            activeL[k] = v
+        end
+    end
+    if isSpanish then
+        local esDict = DungeonBots.Locales and DungeonBots.Locales.esES
+        if type(esDict) == "table" then
+            for k, v in pairs(esDict) do
+                activeL[k] = v
+            end
+        end
+    end
+    DungeonBots.L = activeL
+
+    if DungeonBots.RefreshCoreLocaleTables then
+        pcall(DungeonBots.RefreshCoreLocaleTables, DungeonBots)
+    end
+    for _, fn in ipairs(localeRefreshCallbacks) do
+        pcall(fn)
+    end
+end
+
 function DungeonBots:IsSpanishLocale()
-    local loc = DungeonBots:GetClientLocale()
+    local loc = DungeonBots:GetEffectiveLocale()
     return (loc == "esES" or loc == "esMX")
 end
 
@@ -45,8 +102,32 @@ end
 -- =========================================================================
 -- Localización de Clases y Especializaciones (Solo Visual, No Comandos)
 -- =========================================================================
+local CLASS_LOCALE_KEYS = {
+    WARRIOR     = "CLASS_WARRIOR",
+    PALADIN     = "CLASS_PALADIN",
+    HUNTER      = "CLASS_HUNTER",
+    ROGUE       = "CLASS_ROGUE",
+    PRIEST      = "CLASS_PRIEST",
+    DEATHKNIGHT = "CLASS_DK",
+    SHAMAN      = "CLASS_SHAMAN",
+    MAGE        = "CLASS_MAGE",
+    WARLOCK     = "CLASS_WARLOCK",
+    DRUID       = "CLASS_DRUID",
+}
+
 function DungeonBots:GetLocalizedClassName(classToken, compactName)
     if not classToken or classToken == "" then return nil end
+    local setting = DungeonBots:GetAddonLocaleSetting()
+    if setting == "esES" or setting == "enUS" then
+        if classToken == "DEATHKNIGHT" and setting == "esES" and not compactName then
+            return "Caballero de la Muerte"
+        end
+        local key = CLASS_LOCALE_KEYS[classToken]
+        local activeL = DungeonBots.L
+        if key and activeL and activeL[key] then
+            return activeL[key]
+        end
+    end
     if compactName and classToken == "DEATHKNIGHT" and DungeonBots:IsSpanishLocale() then
         return "C. de la Muerte"
     end

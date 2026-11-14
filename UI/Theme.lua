@@ -122,6 +122,12 @@ local THEME_PALETTES = {
         warmFillActive = { 0.12, 0.23, 0.36, 0.82 },
     },
 }
+if DB_Internal.RegisterLocaleRefresh then
+    DB_Internal.RegisterLocaleRefresh(function()
+        THEME_PALETTES.gold.label = L["THEME_GOLD_LABEL"]
+        THEME_PALETTES.dark.label = L["THEME_DARK_LABEL"]
+    end)
+end
 
 local function GetThemeId()
     if DungeonBotsDB and DungeonBotsDB.uiTheme == "dark" then

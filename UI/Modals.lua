@@ -83,8 +83,8 @@ function DungeonBots:UpdateSettingsDialog()
 
     local curTheme = DB_Internal.GetThemeId and DB_Internal.GetThemeId() or "dark"
     local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
-    if sf.themeDarkBtn and sf.themeGoldBtn and p then
-        local function StyleThemeChoice(btn, isSelected, displayName)
+    if p then
+        local function StyleChoiceBtn(btn, isSelected, displayName)
             if isSelected then
                 btn:SetBackdropColor(p.specActiveBg[1], p.specActiveBg[2], p.specActiveBg[3], p.specActiveBg[4])
                 btn:SetBackdropBorderColor(p.specActiveBorder[1], p.specActiveBorder[2], p.specActiveBorder[3], p.specActiveBorder[4])
@@ -95,11 +95,19 @@ function DungeonBots:UpdateSettingsDialog()
                 btn.label:SetText(p.specInactiveHex .. displayName .. "|r")
             end
         end
-        StyleThemeChoice(sf.themeDarkBtn, curTheme == "dark", L["THEME_DARK_LABEL"])
-        StyleThemeChoice(sf.themeGoldBtn, curTheme == "gold", L["THEME_GOLD_LABEL"])
+        if sf.themeDarkBtn and sf.themeGoldBtn then
+            StyleChoiceBtn(sf.themeDarkBtn, curTheme == "dark", L["THEME_DARK_LABEL"])
+            StyleChoiceBtn(sf.themeGoldBtn, curTheme == "gold", L["THEME_GOLD_LABEL"])
+        end
+        if sf.langAutoBtn and sf.langEsBtn and sf.langEnBtn then
+            local curLang = (DungeonBots.GetAddonLocaleSetting and DungeonBots:GetAddonLocaleSetting()) or "auto"
+            StyleChoiceBtn(sf.langAutoBtn, curLang == "auto", L["SET_LANG_AUTO_LABEL"])
+            StyleChoiceBtn(sf.langEsBtn,   curLang == "esES", L["SET_LANG_ES_LABEL"])
+            StyleChoiceBtn(sf.langEnBtn,   curLang == "enUS", L["SET_LANG_EN_LABEL"])
+        end
     end
 
-    local totalH = 232 + (anyBarShow and 26 or 0) + (muteShow and 26 or 0)
+    local totalH = 266 + (anyBarShow and 26 or 0) + (muteShow and 26 or 0)
     sf:SetHeight(totalH)
 end
 
@@ -306,6 +314,82 @@ function DungeonBots:BuildSettingsDialog()
     themeGoldBtn:SetPoint("LEFT", themeDarkBtn, "RIGHT", 8, 0)
     sf.themeGoldBtn = themeGoldBtn
 
+    -- Opción 4: Selector de Idioma del Addon (Automático / Español / English)
+    local langLabel = sf:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    langLabel:SetPoint("TOPLEFT", themeLabel, "BOTTOMLEFT", 0, -24)
+    langLabel:SetText(L["SET_LANG_LABEL"])
+    sf.langLabel = langLabel
+
+    local function CreateLangChoiceBtn(name, langId, width, tipTitle, tipBody)
+        local btn = CreateFrame("Button", name, sf)
+        btn:SetSize(width, 24)
+        ApplyInsetPanelBackdrop(btn, 8)
+        btn:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+
+        local label = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        label:SetPoint("LEFT", btn, "LEFT", 6, 0)
+        label:SetPoint("RIGHT", btn, "RIGHT", -6, 0)
+        label:SetJustifyH("CENTER")
+        btn.label = label
+
+        btn:SetScript("OnClick", function()
+            PlaySound("igMainMenuOptionCheckBoxOn")
+            local prevSetting = (DungeonBots.GetAddonLocaleSetting and DungeonBots:GetAddonLocaleSetting()) or "auto"
+            if prevSetting == langId then return end
+            if DungeonBotsDB then
+                DungeonBotsDB.addonLocale = langId
+            end
+            if DungeonBots.ApplyAddonLocale then
+                DungeonBots:ApplyAddonLocale(langId)
+            end
+            local displayName = (langId == "esES") and L["SET_LANG_ES_LABEL"]
+                or ((langId == "enUS") and L["SET_LANG_EN_LABEL"] or L["SET_LANG_AUTO_LABEL"])
+            DungeonBots:UpdateSettingsDialog()
+            DungeonBots:Print(string.format(L["SET_LANG_SAVED_FMT"], displayName))
+            StaticPopup_Show("DUNGEONBOTS_RELOAD_LOCALE", displayName)
+        end)
+        btn:SetScript("OnEnter", function(self)
+            local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+            if p then
+                self:SetBackdropBorderColor(p.hoverBorder[1], p.hoverBorder[2], p.hoverBorder[3], p.hoverBorder[4])
+            end
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:AddLine(tipTitle, 1, 1, 1)
+            GameTooltip:AddLine(tipBody, 0.75, 0.85, 1.0, true)
+            GameTooltip:Show()
+        end)
+        btn:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+            DungeonBots:UpdateSettingsDialog()
+        end)
+        return btn
+    end
+
+    local clientLoc = (DungeonBots.GetClientLocale and DungeonBots:GetClientLocale()) or "enUS"
+    local langAutoBtn = CreateLangChoiceBtn(
+        "DungeonBots_LangAutoBtn", "auto", 130,
+        L["SET_LANG_AUTO_TITLE"],
+        string.format(L["SET_LANG_AUTO_DESC"], clientLoc)
+    )
+    langAutoBtn:SetPoint("LEFT", langLabel, "RIGHT", 12, 0)
+    sf.langAutoBtn = langAutoBtn
+
+    local langEsBtn = CreateLangChoiceBtn(
+        "DungeonBots_LangEsBtn", "esES", 110,
+        L["SET_LANG_ES_TITLE"],
+        L["SET_LANG_ES_DESC"]
+    )
+    langEsBtn:SetPoint("LEFT", langAutoBtn, "RIGHT", 6, 0)
+    sf.langEsBtn = langEsBtn
+
+    local langEnBtn = CreateLangChoiceBtn(
+        "DungeonBots_LangEnBtn", "enUS", 110,
+        L["SET_LANG_EN_TITLE"],
+        L["SET_LANG_EN_DESC"]
+    )
+    langEnBtn:SetPoint("LEFT", langEsBtn, "RIGHT", 6, 0)
+    sf.langEnBtn = langEnBtn
+
     local closeFooterBtn = CreateFrame("Button", nil, sf, "UIPanelButtonTemplate")
     closeFooterBtn:SetSize(90, 24)
     closeFooterBtn:SetPoint("BOTTOMRIGHT", sf, "BOTTOMRIGHT", -14, 12)
@@ -379,6 +463,40 @@ StaticPopupDialogs["DUNGEONBOTS_CLEAR_HISTORY"] = {
     whileDead = 1,
     hideOnEscape = 1,
 }
+
+StaticPopupDialogs["DUNGEONBOTS_RELOAD_LOCALE"] = {
+    text = L["SET_LANG_RELOAD_CONFIRM"],
+    button1 = L["SET_LANG_RELOAD_NOW"],
+    button2 = L["SET_LANG_RELOAD_LATER"],
+    OnShow = function(self)
+        self:SetFrameStrata("FULLSCREEN_DIALOG")
+        self:SetFrameLevel(100)
+        if self.Raise then
+            self:Raise()
+        end
+    end,
+    OnHide = function(self)
+        self:SetFrameStrata("DIALOG")
+    end,
+    OnAccept = function()
+        ReloadUI()
+    end,
+    timeout = 0,
+    whileDead = 1,
+    hideOnEscape = 1,
+}
+
+if DB_Internal.RegisterLocaleRefresh then
+    DB_Internal.RegisterLocaleRefresh(function()
+        StaticPopupDialogs["DUNGEONBOTS_CLEAR_HISTORY"].text    = L["CLEAR_HIST_CONFIRM"]
+        StaticPopupDialogs["DUNGEONBOTS_CLEAR_HISTORY"].button1 = L["CLEAR_HIST_YES"]
+        StaticPopupDialogs["DUNGEONBOTS_CLEAR_HISTORY"].button2 = L["BTN_CANCEL"]
+
+        StaticPopupDialogs["DUNGEONBOTS_RELOAD_LOCALE"].text    = L["SET_LANG_RELOAD_CONFIRM"]
+        StaticPopupDialogs["DUNGEONBOTS_RELOAD_LOCALE"].button1 = L["SET_LANG_RELOAD_NOW"]
+        StaticPopupDialogs["DUNGEONBOTS_RELOAD_LOCALE"].button2 = L["SET_LANG_RELOAD_LATER"]
+    end)
+end
 
 function DungeonBots:UpdateHistorySummary()
     if not DungeonBots.historySummaryLabel then return end

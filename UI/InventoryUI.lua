@@ -38,6 +38,13 @@ StaticPopupDialogs["DUNGEONBOTS_DESTROY_BOT_ITEM"] = {
     hideOnEscape = true,
     preferredIndex = 3,
 }
+if DB_Internal.RegisterLocaleRefresh then
+    DB_Internal.RegisterLocaleRefresh(function()
+        StaticPopupDialogs["DUNGEONBOTS_DESTROY_BOT_ITEM"].text = L["INV_DESTROY_CONFIRM"]
+        StaticPopupDialogs["DUNGEONBOTS_DESTROY_BOT_ITEM"].button1 = L["BTN_DESTROY"]
+        StaticPopupDialogs["DUNGEONBOTS_DESTROY_BOT_ITEM"].button2 = L["BTN_CANCEL"]
+    end)
+end
 
 local function ConfirmDestroyBotItem(botName, itemEntry)
     if not botName or not itemEntry then return end

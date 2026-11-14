@@ -814,6 +814,22 @@ local CARD_ACTION_BUTTONS = {
         end,
     },
 }
+if DB_Internal.RegisterLocaleRefresh then
+    DB_Internal.RegisterLocaleRefresh(function()
+        local keys = {
+            { "CARD_CHAR_BTN",  "HUD_CHAR_NAME",   "CARD_CHAR_DESC" },
+            { "CARD_INV_BTN",   "HUD_INV_NAME",    "CARD_INV_DESC" },
+            { "CARD_QUEST_BTN", "HUD_QUESTS_NAME", "CARD_QUEST_DESC" },
+        }
+        for i, k in ipairs(keys) do
+            if CARD_ACTION_BUTTONS[i] then
+                CARD_ACTION_BUTTONS[i].label = L[k[1]]
+                CARD_ACTION_BUTTONS[i].tipTitle = L[k[2]]
+                CARD_ACTION_BUTTONS[i].tipDesc = L[k[3]]
+            end
+        end
+    end)
+end
 
 -- Crea un botón con ícono enmarcado y etiqueta inferior para las tarjetas de bot.
 local function CreateCardActionIconButton(parent, cfg)
@@ -1322,6 +1338,20 @@ local FROZEN_HALLS_DATA = {
     },
 }
 DungeonBots.FROZEN_HALLS_DATA = FROZEN_HALLS_DATA
+if DB_Internal.RegisterLocaleRefresh then
+    DB_Internal.RegisterLocaleRefresh(function()
+        if FROZEN_HALLS_DATA[1] then
+            FROZEN_HALLS_DATA[1].name = L["DUNGEON_PIT_NAME"]
+            FROZEN_HALLS_DATA[1].shortName = L["DUNGEON_PIT_NAME"]
+            FROZEN_HALLS_DATA[1].prereq = L["DUNGEON_FOS_NAME"]
+        end
+        if FROZEN_HALLS_DATA[2] then
+            FROZEN_HALLS_DATA[2].name = L["DUNGEON_HOR_NAME"]
+            FROZEN_HALLS_DATA[2].shortName = L["DUNGEON_HOR_NAME"]
+            FROZEN_HALLS_DATA[2].prereq = L["DUNGEON_PIT_NAME"]
+        end
+    end)
+end
 
 function DungeonBots:GetConnectedPartyBotCount()
     local count = 0
@@ -1747,6 +1777,24 @@ local GUIDE_TOPICS = {
         note = L["GUIDE_T6_NOTE"],
     },
 }
+if DB_Internal.RegisterLocaleRefresh then
+    DB_Internal.RegisterLocaleRefresh(function()
+        for i = 1, 6 do
+            local topic = GUIDE_TOPICS[i]
+            if topic then
+                local p = "GUIDE_T" .. i .. "_"
+                topic.shortTitle = L[p .. "SHORT"]
+                topic.title = L[p .. "TITLE"]
+                topic.category = L[p .. "CAT"]
+                topic.summary = L[p .. "SUM"]
+                topic.steps = { L[p .. "S1"], L[p .. "S2"], L[p .. "S3"] }
+                if topic.note ~= nil or i ~= 4 then
+                    topic.note = (i ~= 4) and L[p .. "NOTE"] or nil
+                end
+            end
+        end
+    end)
+end
 
 function DungeonBots:RefreshGuideLayout()
     local view = DungeonBots.guideDetailView

@@ -66,6 +66,13 @@ StaticPopupDialogs["DUNGEONBOTS_DROP_BOT_QUEST"] = {
     hideOnEscape = true,
     preferredIndex = 3,
 }
+if DB_Internal.RegisterLocaleRefresh then
+    DB_Internal.RegisterLocaleRefresh(function()
+        StaticPopupDialogs["DUNGEONBOTS_DROP_BOT_QUEST"].text = L["QUEST_DROP_CONFIRM"]
+        StaticPopupDialogs["DUNGEONBOTS_DROP_BOT_QUEST"].button1 = L["BTN_ABANDON"]
+        StaticPopupDialogs["DUNGEONBOTS_DROP_BOT_QUEST"].button2 = L["BTN_CANCEL"]
+    end)
+end
 
 local function ConfirmDropBotQuest(botName, questEntry, fromTalkDialog)
     if not botName or not questEntry then return end
@@ -854,6 +861,33 @@ local TALK_QUEST_STYLE = {
         tipHint = L["TALK_TIP_QUEST"],
     },
 }
+if DB_Internal.RegisterLocaleRefresh then
+    DB_Internal.RegisterLocaleRefresh(function()
+        TALK_QUEST_STYLE.available.prefix    = L["TALK_TAG_AVAILABLE"]
+        TALK_QUEST_STYLE.available.btnText   = L["BTN_ACCEPT"]
+        TALK_QUEST_STYLE.available.tipStatus = L["STATUS_INCOMPLETE"]
+        TALK_QUEST_STYLE.available.tipHint   = L["TALK_TIP_AVAILABLE"]
+
+        TALK_QUEST_STYLE.incompleted.prefix    = L["TALK_TAG_INPROGRESS"]
+        TALK_QUEST_STYLE.incompleted.btnText   = L["BTN_ABANDON"]
+        TALK_QUEST_STYLE.incompleted.tipStatus = L["TALK_LBL_INPROGRESS"]
+        TALK_QUEST_STYLE.incompleted.tipHint   = L["TALK_TIP_INPROGRESS"]
+
+        TALK_QUEST_STYLE.completed.prefix    = L["TALK_TAG_COMPLETE"]
+        TALK_QUEST_STYLE.completed.btnText   = L["BTN_TURN_IN"]
+        TALK_QUEST_STYLE.completed.tipStatus = L["TALK_LBL_COMPLETE"]
+        TALK_QUEST_STYLE.completed.tipHint   = L["TALK_TIP_COMPLETE"]
+
+        TALK_QUEST_STYLE.unavailable.prefix     = L["TALK_TAG_UNAVAIL"]
+        TALK_QUEST_STYLE.unavailable.rightBadge = L["TALK_LBL_LOCKED"]
+        TALK_QUEST_STYLE.unavailable.tipStatus  = L["TALK_LBL_UNAVAIL"]
+        TALK_QUEST_STYLE.unavailable.tipHint    = L["TALK_TIP_UNAVAIL"]
+
+        TALK_QUEST_STYLE.unknown.prefix  = L["TALK_TAG_QUEST"]
+        TALK_QUEST_STYLE.unknown.btnText = L["BTN_ACCEPT"]
+        TALK_QUEST_STYLE.unknown.tipHint = L["TALK_TIP_QUEST"]
+    end)
+end
 
 function DungeonBots:UpdateTalkDialog(botName)
     if not DungeonBots.talkFrame then return end

@@ -25,6 +25,16 @@ local DIFFICULTY_INFO = {
     orange = { key = "orange", label = L["DIFF_ORANGE"], colorHex = "|cffff8040", r = 1.00, g = 0.50, b = 0.25 },
     red    = { key = "red",    label = L["DIFF_RED"],    colorHex = "|cffff4040", r = 1.00, g = 0.25, b = 0.25 },
 }
+if DB_Internal.RegisterLocaleRefresh then
+    DB_Internal.RegisterLocaleRefresh(function()
+        DIFFICULTY_INFO.gray.label   = L["DIFF_GRAY"]
+        DIFFICULTY_INFO.grey.label   = L["DIFF_GRAY"]
+        DIFFICULTY_INFO.green.label  = L["DIFF_GREEN"]
+        DIFFICULTY_INFO.yellow.label = L["DIFF_YELLOW"]
+        DIFFICULTY_INFO.orange.label = L["DIFF_ORANGE"]
+        DIFFICULTY_INFO.red.label    = L["DIFF_RED"]
+    end)
+end
 
 local MODE_COMMANDS = {
     gear = "gear",

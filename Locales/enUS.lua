@@ -4,15 +4,19 @@
 
 DungeonBots = DungeonBots or {}
 DungeonBots.Internal = DungeonBots.Internal or {}
+DungeonBots.Locales = DungeonBots.Locales or {}
 
-local L = DungeonBots.L or {}
-setmetatable(L, {
+local L = DungeonBots.Locales.enUS or {}
+DungeonBots.Locales.enUS = L
+
+local activeL = DungeonBots.L or {}
+setmetatable(activeL, {
     __index = function(tbl, key)
         if key == nil then return "" end
         return key
     end
 })
-DungeonBots.L = L
+DungeonBots.L = activeL
 
 -- =========================================================================
 -- Core: Classes, Specs, Presets, Stats & General
@@ -550,6 +554,20 @@ L["SET_THEME_DARK_TITLE"]  = "Theme: Slate Blue"
 L["SET_THEME_DARK_DESC"]   = "Dark slate-blue and steel theme with Blizzard stone texture and silver borders."
 L["SET_THEME_GOLD_TITLE"]  = "Theme: Gold"
 L["SET_THEME_GOLD_DESC"]   = "Classic Blizzard WotLK style with carved golden borders and warm bronze-stone panels."
+L["SET_LANG_LABEL"]        = "Language:"
+L["SET_LANG_AUTO_LABEL"]   = "Auto"
+L["SET_LANG_AUTO_TITLE"]   = "Language: Automatic"
+L["SET_LANG_AUTO_DESC"]    = "Follows your WoW client language (%s)."
+L["SET_LANG_ES_LABEL"]     = "Español"
+L["SET_LANG_ES_TITLE"]     = "Language: Spanish"
+L["SET_LANG_ES_DESC"]      = "Forces DungeonBots UI, guides, and messages to Spanish regardless of client language."
+L["SET_LANG_EN_LABEL"]     = "English"
+L["SET_LANG_EN_TITLE"]     = "Language: English"
+L["SET_LANG_EN_DESC"]      = "Forces DungeonBots UI, guides, and messages to English regardless of client language."
+L["SET_LANG_RELOAD_CONFIRM"]= "Addon language saved as |cffffd200%s|r.\n\nReload UI (/reload) now to apply it to all windows?"
+L["SET_LANG_RELOAD_NOW"]   = "Reload UI"
+L["SET_LANG_RELOAD_LATER"] = "Later"
+L["SET_LANG_SAVED_FMT"]    = "Addon language set to |cffffd200%s|r. Run |cff71d5ff/reload|r to apply everywhere."
 L["SETTINGS_FOOTER_VER"]   = "|cff888888v%s|r"
 L["SETTINGS_DISCORD_ERR"]  = "|cff999999If you find any error, you can contact |r|cff71d5ff@Shahak|r|cff999999 on Discord.|r"
 
@@ -751,3 +769,7 @@ L["SPELL_NO_SPELLS_FMT"]   = "No spells received for |cffffd200%s|r."
 L["SPELL_NOMATCH_FMT"]     = "No spell matches \"%s\"."
 L["GLYPH_EQUIPPED_HINT"]   = "|cff8899aaEquipped glyph  |  Hover for details|r"
 L["SPELL_ROW_HINT"]        = "|cff667788Left-click: select  |  Shift + Click: link|r"
+
+for k, v in pairs(L) do
+    DungeonBots.L[k] = v
+end

@@ -143,6 +143,41 @@ local UTIL_ACTIONS = {
         color = { 0.68, 0.45, 1.0 }
     },
 }
+if DB_Internal.RegisterLocaleRefresh then
+    DB_Internal.RegisterLocaleRefresh(function()
+        local tacticalKeys = {
+            { "HUD_FOCUS_NAME",      "HUD_FOCUS_TITLE",      "HUD_FOCUS_DESC" },
+            { "HUD_PULL_NAME",       "HUD_PULL_TITLE",       "HUD_PULL_DESC" },
+            { "HUD_STAY_NAME",       "HUD_STAY_TITLE",       "HUD_STAY_DESC" },
+            { "HUD_FOLLOW_NAME",     "HUD_FOLLOW_TITLE",     "HUD_FOLLOW_DESC" },
+            { "HUD_SUMMON_NAME",     "HUD_SUMMON_TITLE",     "HUD_SUMMON_DESC" },
+            { "HUD_FLEE_NAME",       "HUD_FLEE_TITLE",       "HUD_FLEE_DESC" },
+            { "HUD_FORM_CYCLE_NAME", "HUD_FORM_CYCLE_TITLE", "HUD_FORM_CYCLE_DESC" },
+            { "HUD_MOVEGRP_NAME",    "HUD_MOVEGRP_TITLE",    "HUD_MOVEGRP_DESC" },
+        }
+        for i, keys in ipairs(tacticalKeys) do
+            if TACTICAL_ACTIONS[i] then
+                TACTICAL_ACTIONS[i].name = L[keys[1]]
+                TACTICAL_ACTIONS[i].title = L[keys[2]]
+                TACTICAL_ACTIONS[i].desc = L[keys[3]]
+            end
+        end
+        local utilKeys = {
+            { "HUD_TALK_NAME",   "HUD_TALK_TITLE",   "HUD_TALK_DESC" },
+            { "HUD_QUESTS_NAME", "HUD_QUESTS_TITLE", "HUD_QUESTS_DESC" },
+            { "HUD_PARTY_NAME",  "HUD_PARTY_TITLE",  "HUD_PARTY_DESC" },
+            { "HUD_INV_NAME",    "HUD_INV_TITLE",    "HUD_INV_DESC" },
+            { "HUD_CHAR_NAME",   "HUD_CHAR_TITLE",   "HUD_CHAR_DESC" },
+        }
+        for i, keys in ipairs(utilKeys) do
+            if UTIL_ACTIONS[i] then
+                UTIL_ACTIONS[i].name = L[keys[1]]
+                UTIL_ACTIONS[i].title = L[keys[2]]
+                UTIL_ACTIONS[i].desc = L[keys[3]]
+            end
+        end
+    end)
+end
 
 local function GetOrCreateHudBotDropDown()
     if hudBotDropDown then return hudBotDropDown end

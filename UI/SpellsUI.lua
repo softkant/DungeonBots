@@ -50,6 +50,13 @@ local MODE_TABS = {
     { id = "spells", label = L["CHAR_TAB_SPELLS"], icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
     { id = "glyphs", label = L["CHAR_TAB_GLYPHS"], icon = "Interface\\Icons\\INV_Inscription_Tradeskill01" },
 }
+if DB_Internal.RegisterLocaleRefresh then
+    DB_Internal.RegisterLocaleRefresh(function()
+        MODE_TABS[1].label = L["CHAR_TAB_GEAR"]
+        MODE_TABS[2].label = L["CHAR_TAB_SPELLS"]
+        MODE_TABS[3].label = L["CHAR_TAB_GLYPHS"]
+    end)
+end
 
 local function BuildGearPanel(sp)
     local gearPanel = CreateFrame("Frame", "DungeonBots_GearPanel", sp)

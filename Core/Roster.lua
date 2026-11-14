@@ -868,6 +868,11 @@ StaticPopupDialogs["DUNGEONBOTS_BOT_BUSY_ALERT"] = {
     whileDead = 1,
     hideOnEscape = 1,
 }
+if DB_Internal.RegisterLocaleRefresh then
+    DB_Internal.RegisterLocaleRefresh(function()
+        StaticPopupDialogs["DUNGEONBOTS_BOT_BUSY_ALERT"].button1 = L["BTN_UNDERSTOOD"]
+    end)
+end
 
 local pendingInviteRetries = {}
 local historyInviteFrame = CreateFrame("Frame", "DungeonBots_HistoryInviteFrame")

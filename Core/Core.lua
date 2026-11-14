@@ -25,6 +25,7 @@ local DEFAULT_CONFIG = {
     muteBotGroupChat = false,
     closeWimBotWindows = true,
     uiTheme = "gold",
+    addonLocale = "auto",
     hudPosition = { point = "BOTTOM", x = 0, y = 140 },
     utilHudPosition = { point = "BOTTOM", x = 0, y = 194 },
     minimapAngle = 195,
@@ -140,6 +141,46 @@ DungeonBots.PRESETS = {
         classes = { "druid", "shaman", "mage", "warlock", "hunter" }
     },
 }
+
+function DungeonBots:RefreshCoreLocaleTables()
+    local classKeys = { "CLASS_WARRIOR", "CLASS_PALADIN", "CLASS_HUNTER", "CLASS_ROGUE", "CLASS_PRIEST", "CLASS_DK", "CLASS_SHAMAN", "CLASS_MAGE", "CLASS_WARLOCK", "CLASS_DRUID" }
+    for i, key in ipairs(classKeys) do
+        if DungeonBots.CLASSES[i] then
+            DungeonBots.CLASSES[i].name = L[key]
+        end
+    end
+    local specKeys = {
+        WARRIOR     = { "SPEC_PROT_TANK", "SPEC_FURY_DPS", "SPEC_ARMS_DPS" },
+        PALADIN     = { "SPEC_PROT_TANK", "SPEC_HOLY_HEAL", "SPEC_RET_DPS" },
+        DEATHKNIGHT = { "SPEC_BLOOD_TANK", "SPEC_FROST_DK", "SPEC_UNHOLY_DPS" },
+        PRIEST      = { "SPEC_HOLY_HEAL", "SPEC_DISC_HEAL", "SPEC_SHADOW_DPS" },
+        DRUID       = { "SPEC_FERAL_TANK", "SPEC_RESTO_HEAL", "SPEC_BALANCE_DPS" },
+        SHAMAN      = { "SPEC_RESTO_HEAL", "SPEC_ELEM_DPS", "SPEC_ENH_DPS" },
+        MAGE        = { "SPEC_ARCANE_DPS", "SPEC_FIRE_DPS", "SPEC_FROST_DPS" },
+        WARLOCK     = { "SPEC_AFFLIC_DPS", "SPEC_DEMO_DPS", "SPEC_DESTRO_DPS" },
+        HUNTER      = { "SPEC_MARK_DPS", "SPEC_SURV_DPS", "SPEC_BEAST_DPS" },
+        ROGUE       = { "SPEC_COMBAT_DPS", "SPEC_ASSAS_DPS", "SPEC_SUBT_DPS" },
+    }
+    for cls, keys in pairs(specKeys) do
+        local list = DungeonBots.SPECS[cls]
+        if list then
+            for i, key in ipairs(keys) do
+                if list[i] then list[i].name = L[key] end
+            end
+        end
+    end
+    local presetKeys = {
+        { "PRESET_STANDARD_NAME", "PRESET_STANDARD_DESC" },
+        { "PRESET_MELEE_NAME", "PRESET_MELEE_DESC" },
+        { "PRESET_CASTER_NAME", "PRESET_CASTER_DESC" },
+    }
+    for i, pairKeys in ipairs(presetKeys) do
+        if DungeonBots.PRESETS[i] then
+            DungeonBots.PRESETS[i].name = L[pairKeys[1]]
+            DungeonBots.PRESETS[i].desc = L[pairKeys[2]]
+        end
+    end
+end
 
 -- Estado interno
 DungeonBots.activeBots = {}
