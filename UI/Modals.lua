@@ -655,7 +655,7 @@ function DungeonBots:UpdateHistoryTeamsUI()
         local col = historyTeamColumns[teamIndex]
         if col then
             local members = (DungeonBots.GetBotTeam and DungeonBots:GetBotTeam(teamIndex)) or {}
-            col.titleText:SetText(string.format(L["HIST_TEAM_TITLE_FMT"], teamIndex) .. " (" .. #members .. "/" .. maxMembers .. ")")
+            col.titleText:SetText(string.format(L["HIST_TEAM_TITLE_FMT"], teamIndex))
 
             local cards = historyTeamCards[teamIndex]
             for _, card in ipairs(cards) do
@@ -948,7 +948,7 @@ function DungeonBots:BuildHistoryDialog()
 
         local colTitle = colHeader:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         colTitle:SetPoint("CENTER", colHeader, "CENTER", 0, 0)
-        colTitle:SetText(string.format(L["HIST_TEAM_TITLE_FMT"], teamIndex) .. " (0/" .. (DungeonBots.MAX_BOT_TEAM_MEMBERS or 4) .. ")")
+        colTitle:SetText(string.format(L["HIST_TEAM_TITLE_FMT"], teamIndex))
 
         local colEmpty = colFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         colEmpty:SetPoint("CENTER", colFrame, "CENTER", 0, 4)
