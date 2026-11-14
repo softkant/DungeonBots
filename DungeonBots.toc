@@ -4,7 +4,7 @@
 ## Notes-esES: Gestor táctico y visual de bots para Mazmorras en WoW 3.3.5a para el módulo mod-playerbots.
 ## Notes-esMX: Gestor táctico y visual de bots para Mazmorras en WoW 3.3.5a para el módulo mod-playerbots.
 ## Author: Antigravity
-## Version: 1.1.0
+## Version: 1.1.1
 ## SavedVariables: DungeonBotsDB
 
 # Locales (Base strings first so Core and UI tables can use L)

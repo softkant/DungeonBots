@@ -342,6 +342,7 @@ L["HUD_TIP_OPEN_DESC"]     = "Abre la ventana completa de configuración, clases
 L["HUD_HIDDEN_MSG"]        = "HUD Táctico ocultado. Escribe |cffffd200/db hud|r para mostrarlo."
 L["HUD_VISIBLE_MSG"]       = "HUD Táctico visible."
 L["HUD_ARMED_DUNGEON_MSG"] = "HUD Táctico activado (aparecerá automáticamente al entrar a una mazmorra de 5 jugadores). Puedes cambiar esto en Configuración (el engranaje)."
+L["HUD_HIDDEN_NOT_LEADER"] = "No eres el líder del grupo: las barras flotantes se ocultan porque la funcionalidad es solo para el líder."
 
 -- =========================================================================
 -- Ventana Principal, Pestanas 1-3, Mazmorras, Guia y Minimapa

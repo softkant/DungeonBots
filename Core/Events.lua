@@ -33,6 +33,8 @@ eventFrame:RegisterEvent("CHAT_MSG_PARTY")
 eventFrame:RegisterEvent("CHAT_MSG_PARTY_LEADER")
 eventFrame:RegisterEvent("CHAT_MSG_SAY")
 eventFrame:RegisterEvent("PARTY_MEMBERS_CHANGED")
+eventFrame:RegisterEvent("PARTY_LEADER_CHANGED")
+eventFrame:RegisterEvent("RAID_ROSTER_UPDATE")
 eventFrame:RegisterEvent("LFG_LOCK_INFO_RECEIVED")
 eventFrame:RegisterEvent("LFG_UPDATE")
 eventFrame:RegisterEvent("UNIT_NAME_UPDATE")
@@ -111,10 +113,10 @@ local function HandlePartyChanged(isEnteringWorld)
     if DungeonBots.talkFrame and DungeonBots.talkFrame:IsShown() and DungeonBots.UpdateTalkDialog then
         DungeonBots:UpdateTalkDialog()
     end
-    if isEnteringWorld and DungeonBots.UpdateHUDVisibility then
+    if DungeonBots.UpdateHUDVisibility then
         DungeonBots:UpdateHUDVisibility()
     end
-    if isEnteringWorld and DungeonBots.UpdateHUDTalkButtonState then
+    if DungeonBots.UpdateHUDTalkButtonState then
         DungeonBots:UpdateHUDTalkButtonState()
     end
     if DungeonBots.UpdateDungeonAccessUI and DungeonBots.dungeonCheckPanel and DungeonBots.dungeonCheckPanel:IsShown() then
@@ -241,7 +243,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             DB_Internal.ClearAllPendingQuestCounts()
         end
 
-        DungeonBots:Print(string.format(L["ADDON_LOADED_FMT"], tostring(DungeonBots.VERSION or "1.1.0")))
+        DungeonBots:Print(string.format(L["ADDON_LOADED_FMT"], tostring(DungeonBots.VERSION or "1.1.1")))
         if DungeonBots.InitUI then
             DungeonBots:InitUI()
         end
@@ -664,7 +666,10 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             NotifyBotInventoryFull(fullBot)
         end
 
-    elseif event == "PARTY_MEMBERS_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
+    elseif event == "PARTY_MEMBERS_CHANGED"
+        or event == "PARTY_LEADER_CHANGED"
+        or event == "RAID_ROSTER_UPDATE"
+        or event == "PLAYER_ENTERING_WORLD" then
         HandlePartyChanged(event == "PLAYER_ENTERING_WORLD")
 
     elseif event == "LFG_LOCK_INFO_RECEIVED" then

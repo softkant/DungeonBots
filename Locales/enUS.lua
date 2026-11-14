@@ -350,6 +350,7 @@ L["HUD_TIP_OPEN_DESC"]     = "Opens the full configuration, class summons, and t
 L["HUD_HIDDEN_MSG"]        = "Tactical HUD hidden. Type |cffffd200/db hud|r to show it."
 L["HUD_VISIBLE_MSG"]       = "Tactical HUD visible."
 L["HUD_ARMED_DUNGEON_MSG"] = "Tactical HUD enabled (will appear automatically when entering a 5-player dungeon). You can change this in Settings (the gear icon)."
+L["HUD_HIDDEN_NOT_LEADER"] = "You are not the group leader: floating bars are hidden because addon controls are leader-only."
 
 -- =========================================================================
 -- Main UI Window, Tabs, Tab 1, Tab 2, Dungeons, Guide & Minimap

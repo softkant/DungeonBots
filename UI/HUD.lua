@@ -570,8 +570,26 @@ function DungeonBots:UpdateHUDTalkButtonState()
     end
 end
 
-local function ApplyBarVisibility(barFrame, visibleKey)
+local wasHudBlockedByNonLeader = false
+
+function DungeonBots:CanUseHUDAsLeader()
+    local numRaid = (GetNumRaidMembers and GetNumRaidMembers()) or 0
+    if numRaid > 0 then
+        return (IsRaidLeader and IsRaidLeader()) and true or false
+    end
+    local numParty = (GetNumPartyMembers and GetNumPartyMembers()) or 0
+    if numParty > 0 then
+        return (IsPartyLeader and IsPartyLeader()) and true or false
+    end
+    return true
+end
+
+local function ApplyBarVisibility(barFrame, visibleKey, canUseByLeader)
     if not barFrame then return false end
+    if not canUseByLeader then
+        barFrame:Hide()
+        return false
+    end
     if DungeonBotsDB and DungeonBotsDB[visibleKey] == false then
         barFrame:Hide()
         return false
@@ -585,10 +603,24 @@ local function ApplyBarVisibility(barFrame, visibleKey)
     return true
 end
 
-function DungeonBots:UpdateHUDVisibility()
-    ApplyBarVisibility(hudFrame, "hudVisible")
-    if ApplyBarVisibility(utilHudFrame, "utilHudVisible") then
+function DungeonBots:UpdateHUDVisibility(notifyIfStillBlocked)
+    local canUseByLeader = DungeonBots:CanUseHUDAsLeader()
+    local anyBarWanted = (not DungeonBotsDB) or (DungeonBotsDB.hudVisible ~= false) or (DungeonBotsDB.utilHudVisible ~= false)
+
+    ApplyBarVisibility(hudFrame, "hudVisible", canUseByLeader)
+    if ApplyBarVisibility(utilHudFrame, "utilHudVisible", canUseByLeader) then
         DungeonBots:UpdateHUDTalkButtonState()
+    elseif hudBotDropDown and UIDROPDOWNMENU_OPEN_MENU == hudBotDropDown and CloseDropDownMenus then
+        CloseDropDownMenus()
+    end
+
+    if not canUseByLeader and anyBarWanted then
+        if not wasHudBlockedByNonLeader or notifyIfStillBlocked then
+            DungeonBots:Warn(L["HUD_HIDDEN_NOT_LEADER"])
+        end
+        wasHudBlockedByNonLeader = true
+    else
+        wasHudBlockedByNonLeader = false
     end
 end
 
@@ -897,8 +929,10 @@ function DungeonBots:ResetHUDPositions()
 end
 
 function DungeonBots:ToggleHUD()
+    local justInited = false
     if not hudFrame then
         DungeonBots:InitHUD()
+        justInited = true
     end
     if hudFrame:IsShown() then
         hudFrame:Hide()
@@ -906,8 +940,10 @@ function DungeonBots:ToggleHUD()
         DungeonBots:Print(L["HUD_HIDDEN_MSG"])
     else
         if DungeonBotsDB then DungeonBotsDB.hudVisible = true end
-        DungeonBots:UpdateHUDVisibility()
-        if hudFrame:IsShown() then
+        DungeonBots:UpdateHUDVisibility(not justInited)
+        if not DungeonBots:CanUseHUDAsLeader() then
+            -- El aviso de que las barras se ocultan por no ser líder ya lo muestra UpdateHUDVisibility
+        elseif hudFrame:IsShown() then
             DungeonBots:Print(L["HUD_VISIBLE_MSG"])
         else
             DungeonBots:Print(L["HUD_ARMED_DUNGEON_MSG"])

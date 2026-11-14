@@ -149,7 +149,7 @@ function DungeonBots:BuildSettingsDialog()
 
     local versionLabel = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     versionLabel:SetPoint("BOTTOMLEFT", title, "BOTTOMRIGHT", 6, 1)
-    versionLabel:SetText(string.format(L["SETTINGS_FOOTER_VER"], (DungeonBots.VERSION or "1.1.0")))
+    versionLabel:SetText(string.format(L["SETTINGS_FOOTER_VER"], (DungeonBots.VERSION or "1.1.1")))
     sf.versionLabel = versionLabel
 
     local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
@@ -213,13 +213,13 @@ function DungeonBots:BuildSettingsDialog()
             local val = self:GetChecked() and true or false
             if DungeonBotsDB then DungeonBotsDB[dbKey] = val end
             PlaySound(val and "igMainMenuOptionCheckBoxOn" or "igMainMenuOptionCheckBoxOff")
+            DungeonBots:UpdateSettingsDialog()
+            DungeonBots:Print(labelText .. ": " .. (val and L["STATE_VISIBLE_GREEN"] or L["STATE_HIDDEN_RED"]))
             if val and DungeonBots.InitHUD and not DungeonBots[frameField] then
                 DungeonBots:InitHUD()
             elseif DungeonBots.UpdateHUDVisibility then
-                DungeonBots:UpdateHUDVisibility()
+                DungeonBots:UpdateHUDVisibility(val)
             end
-            DungeonBots:UpdateSettingsDialog()
-            DungeonBots:Print(labelText .. ": " .. (val and L["STATE_VISIBLE_GREEN"] or L["STATE_HIDDEN_RED"]))
         end)
     end
 
