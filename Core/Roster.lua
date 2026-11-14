@@ -1430,6 +1430,8 @@ end
 -- Equipos Guardados de Bots (3 Columnas)
 -- =========================================================================
 local MAX_BOT_TEAMS = 3
+local MAX_BOT_TEAM_MEMBERS = 4
+DungeonBots.MAX_BOT_TEAM_MEMBERS = MAX_BOT_TEAM_MEMBERS
 
 local function EnsureBotTeamsTable()
     if not DungeonBotsDB then DungeonBotsDB = {} end
@@ -1483,16 +1485,19 @@ function DungeonBots:GetBotTeam(teamIndex)
     local resolved = {}
     local seen = {}
     for i = 1, #rawList do
+        if #resolved >= MAX_BOT_TEAM_MEMBERS then
+            break
+        end
         local item = rawList[i]
         local rawName = (type(item) == "table") and item.name or item
         local cleanName = NormalizePlayerName(rawName)
         if cleanName and cleanName ~= "" and not seen[cleanName] then
             seen[cleanName] = true
             local snap = BuildTeamBotSnapshot(cleanName, type(item) == "table" and item or nil)
-            rawList[i] = snap
             table.insert(resolved, snap)
         end
     end
+    teams[idx] = resolved
     return resolved
 end
 
@@ -1514,8 +1519,7 @@ function DungeonBots:AddBotToTeam(teamIndex, botName, hintEntry)
     if not idx or idx < 1 or idx > MAX_BOT_TEAMS or not cleanName or cleanName == "" then
         return false
     end
-    local teams = EnsureBotTeamsTable()
-    local list = teams[idx]
+    local list = DungeonBots:GetBotTeam(idx)
     for i, item in ipairs(list) do
         local itemName = (type(item) == "table") and item.name or item
         if NormalizePlayerName(itemName) == cleanName then
@@ -1523,6 +1527,10 @@ function DungeonBots:AddBotToTeam(teamIndex, botName, hintEntry)
             RefreshHistoryUIIfVisible()
             return false
         end
+    end
+    if #list >= MAX_BOT_TEAM_MEMBERS then
+        DungeonBots:Warn(string.format(L["HIST_TEAM_FULL_FMT"], idx))
+        return false
     end
     table.insert(list, BuildTeamBotSnapshot(cleanName, hintEntry))
     if DungeonBots:IsBot(cleanName) ~= false then

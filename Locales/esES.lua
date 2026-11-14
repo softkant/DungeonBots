@@ -586,6 +586,7 @@ L["HIST_TEAM_SUMMON_TIP"]  = "Invoca e invita al grupo a los bots guardados en E
 L["HIST_TEAM_REMOVE_TIP"]  = "Quitar del equipo"
 L["HIST_TEAM_ADDED_FMT"]   = "|cffffd200%s|r guardado en |cff71d5ffEquipo %d|r."
 L["HIST_TEAM_REMOVED_FMT"] = "|cffffd200%s|r quitado de |cff71d5ffEquipo %d|r."
+L["HIST_TEAM_FULL_FMT"]    = "|cff71d5ffEquipo %d|r ya está completo (máximo 4 bots)."
 L["HIST_TEAM_NO_SLOTS"]    = "No hay espacios libres en el grupo para invocar bots de |cff71d5ffEquipo %d|r."
 L["HIST_TEAM_SUMMONING_FMT"]= "Invocando |cff71d5ffEquipo %d|r (%d bot(s))..."
 L["HIST_TEAM_FOOTER_HINT"] = "|cff888888Clic derecho en un bot del Historial para armar tus equipos.|r"

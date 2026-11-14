@@ -417,12 +417,16 @@ local function OpenHistoryTeamContextMenu(entry)
         info.notCheckable = true
         UIDropDownMenu_AddButton(info, level)
 
+        local maxMembers = DungeonBots.MAX_BOT_TEAM_MEMBERS or 4
         for teamIndex = 1, 3 do
             local tIdx = teamIndex
+            local members = (DungeonBots.GetBotTeam and DungeonBots:GetBotTeam(tIdx)) or {}
             local inTeam = DungeonBots.IsBotInTeam and DungeonBots:IsBotInTeam(tIdx, targetEntry.name)
+            local isFull = (#members >= maxMembers)
             local btn = UIDropDownMenu_CreateInfo()
-            btn.text = string.format(L["HIST_MENU_TEAM_FMT"], tIdx)
+            btn.text = string.format(L["HIST_MENU_TEAM_FMT"], tIdx) .. " (" .. #members .. "/" .. maxMembers .. ")"
             btn.checked = inTeam and true or false
+            btn.disabled = (not inTeam and isFull) and true or false
             btn.keepShownOnClick = false
             btn.func = function()
                 PlaySound("igMainMenuOptionCheckBoxOn")
@@ -430,7 +434,7 @@ local function OpenHistoryTeamContextMenu(entry)
                     if DungeonBots.RemoveBotFromTeam then
                         DungeonBots:RemoveBotFromTeam(tIdx, targetEntry.name)
                     end
-                else
+                elseif not isFull then
                     if DungeonBots.AddBotToTeam then
                         DungeonBots:AddBotToTeam(tIdx, targetEntry.name, targetEntry)
                     end
@@ -573,7 +577,7 @@ end
 
 local function CreateTeamMemberCard(parent, teamIndex, idx)
     local card = CreateFrame("Frame", nil, parent)
-    card:SetSize(166, 46)
+    card:SetSize(186, 48)
     card:EnableMouse(true)
     ApplyInsetPanelBackdrop(card, 6)
 
@@ -639,12 +643,13 @@ end
 function DungeonBots:UpdateHistoryTeamsUI()
     if not DungeonBots.historyFrame then return end
 
+    local maxMembers = DungeonBots.MAX_BOT_TEAM_MEMBERS or 4
     local defaultQuestionIcon = "Interface\\Icons\\INV_Misc_QuestionMark"
     for teamIndex = 1, 3 do
         local col = historyTeamColumns[teamIndex]
         if col then
             local members = (DungeonBots.GetBotTeam and DungeonBots:GetBotTeam(teamIndex)) or {}
-            col.titleText:SetText(string.format(L["HIST_TEAM_TITLE_FMT"], teamIndex, #members))
+            col.titleText:SetText(string.format(L["HIST_TEAM_TITLE_FMT"], teamIndex) .. " (" .. #members .. "/" .. maxMembers .. ")")
 
             local cards = historyTeamCards[teamIndex]
             for _, card in ipairs(cards) do
@@ -653,17 +658,18 @@ function DungeonBots:UpdateHistoryTeamsUI()
 
             if #members == 0 then
                 col.emptyLabel:Show()
-                col.scrollChild:SetHeight(1)
                 col.summonBtn:Disable()
                 col.summonBtn:SetText(L["HIST_TEAM_SUMMON_BTN"])
             else
                 col.emptyLabel:Hide()
                 local allInPartyOnline = true
+                local visibleCount = math.min(#members, maxMembers)
 
-                for idx, entry in ipairs(members) do
-                    local card = cards[idx] or CreateTeamMemberCard(col.scrollChild, teamIndex, idx)
+                for idx = 1, visibleCount do
+                    local entry = members[idx]
+                    local card = cards[idx] or CreateTeamMemberCard(col.frame, teamIndex, idx)
                     card:ClearAllPoints()
-                    card:SetPoint("TOPLEFT", col.scrollChild, "TOPLEFT", 1, -((idx - 1) * 49) - 2)
+                    card:SetPoint("TOPLEFT", col.frame, "TOPLEFT", 8, -36 - ((idx - 1) * 53))
                     card:Show()
 
                     local className, classColor, classIcon = DungeonBots:GetClassDisplayInfo(entry.class)
@@ -711,7 +717,6 @@ function DungeonBots:UpdateHistoryTeamsUI()
                     end)
                 end
 
-                col.scrollChild:SetHeight(math.max(1, (#members * 49) + 4))
                 if allInPartyOnline then
                     col.summonBtn:Disable()
                     col.summonBtn:SetText(L["HIST_TEAM_ALL_IN_PARTY"])
@@ -767,7 +772,7 @@ function DungeonBots:BuildHistoryDialog()
     historyTabFrames = {}
     local tabDefs = {
         { name = L["HIST_TAB1_NAME"], desc = L["HIST_TAB1_TIP"], icon = "Interface\\Icons\\INV_Misc_Book_03" },
-        { name = L["HIST_TAB2_NAME"], desc = L["HIST_TAB2_TIP"], icon = "Interface\\Icons\\INV_Misc_GroupLooking" },
+        { name = L["HIST_TAB2_NAME"], desc = L["HIST_TAB2_TIP"], icon = "Interface\\Icons\\INV_Misc_GroupNeedMore" },
     }
     for i, info in ipairs(tabDefs) do
         local tabBtn = CreateFrame("CheckButton", "DungeonBots_HistorySideTab" .. i, hf)
@@ -931,27 +936,19 @@ function DungeonBots:BuildHistoryDialog()
 
         local colTitle = colHeader:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         colTitle:SetPoint("CENTER", colHeader, "CENTER", 0, 0)
-        colTitle:SetText(string.format(L["HIST_TEAM_TITLE_FMT"], teamIndex, 0))
-
-        local colScroll = CreateFrame("ScrollFrame", "DungeonBots_TeamScrollFrame" .. teamIndex, colFrame, "UIPanelScrollFrameTemplate")
-        colScroll:SetPoint("TOPLEFT", colFrame, "TOPLEFT", 6, -32)
-        colScroll:SetPoint("BOTTOMRIGHT", colFrame, "BOTTOMRIGHT", -26, 36)
-
-        local colChild = CreateFrame("Frame", "DungeonBots_TeamScrollChild" .. teamIndex, colScroll)
-        colChild:SetSize(168, 1)
-        colScroll:SetScrollChild(colChild)
+        colTitle:SetText(string.format(L["HIST_TEAM_TITLE_FMT"], teamIndex) .. " (0/" .. (DungeonBots.MAX_BOT_TEAM_MEMBERS or 4) .. ")")
 
         local colEmpty = colFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        colEmpty:SetPoint("CENTER", colFrame, "CENTER", -8, -4)
-        colEmpty:SetWidth(156)
+        colEmpty:SetPoint("CENTER", colFrame, "CENTER", 0, 4)
+        colEmpty:SetWidth(176)
+        colEmpty:SetJustifyH("CENTER")
         colEmpty:SetTextColor(0.65, 0.65, 0.65)
         colEmpty:SetText(L["HIST_TEAM_EMPTY"])
 
         local tIdx = teamIndex
         local summonBtn = CreateFrame("Button", nil, colFrame, "UIPanelButtonTemplate")
-        summonBtn:SetHeight(24)
-        summonBtn:SetPoint("BOTTOMLEFT", colFrame, "BOTTOMLEFT", 8, 7)
-        summonBtn:SetPoint("BOTTOMRIGHT", colFrame, "BOTTOMRIGHT", -8, 7)
+        summonBtn:SetSize(128, 22)
+        summonBtn:SetPoint("BOTTOM", colFrame, "BOTTOM", 0, 10)
         summonBtn:SetText(L["HIST_TEAM_SUMMON_BTN"])
         summonBtn:SetScript("OnClick", function()
             PlaySound("igMainMenuOptionCheckBoxOn")
@@ -962,7 +959,7 @@ function DungeonBots:BuildHistoryDialog()
         summonBtn:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
             GameTooltip:AddLine(L["HIST_TEAM_SUMMON_BTN"], 1, 0.85, 0.2)
-            GameTooltip:AddLine(L["HIST_TEAM_SUMMON_TIP"], 0.85, 0.85, 0.85, true)
+            GameTooltip:AddLine(string.format(L["HIST_TEAM_SUMMON_TIP"], tIdx), 0.85, 0.85, 0.85, true)
             GameTooltip:Show()
         end)
         summonBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -970,7 +967,6 @@ function DungeonBots:BuildHistoryDialog()
         historyTeamColumns[teamIndex] = {
             frame = colFrame,
             titleText = colTitle,
-            scrollChild = colChild,
             emptyLabel = colEmpty,
             summonBtn = summonBtn,
         }
