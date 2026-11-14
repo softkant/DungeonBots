@@ -753,6 +753,7 @@ function DungeonBots:RemoveBot(botName)
     if not cleanBot or cleanBot == "" then return end
     if DungeonBots:IsBot(cleanBot) == false then return end
 
+    DungeonBots.suppressDismissNoiseUntil = NowTime() + 2.5
     DungeonBots:Print(string.format(L["DISMISSING_BOT_FMT"], cleanBot))
 
     local unit, inRaid = FindDismissUnitByName(cleanBot)
@@ -777,6 +778,7 @@ end
 
 -- Remover a todos los bots y sacarlos del grupo (preservando humanos)
 function DungeonBots:RemoveAllBots()
+    DungeonBots.suppressDismissNoiseUntil = NowTime() + 2.5
     DungeonBots:Print(L["DISMISSING_ALL_BOTS"])
 
     local numRaid = (GetNumRaidMembers and GetNumRaidMembers()) or 0
@@ -831,14 +833,13 @@ function DungeonBots:RemoveAllBots()
         DungeonBots:SendDotCommand(".playerbots bot remove *")
     end
 
-    if isLeader and not isLfgRestricted then
+    if not hasHuman and not isLfgRestricted then
+        -- Un solo LeaveParty() disuelve/sale del grupo sin disparar UninviteUnit duplicados ni ERR_NOT_IN_GROUP
+        LeaveParty()
+    elseif isLeader and not isLfgRestricted then
         for _, bot in ipairs(botsToDismiss) do
             UninviteUnit(bot.name)
         end
-    end
-
-    if not hasHuman and not isLfgRestricted then
-        LeaveParty()
     end
 
     if sentAnyLeaveWhisper then

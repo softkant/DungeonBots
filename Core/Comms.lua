@@ -664,12 +664,18 @@ local function ChatEventFilterFunc(self, event, message, sender, ...)
         if not message or message == "" then return false end
         local clean = TrimText(StripWowFormatting(message))
         local lower = string.lower(clean)
+        local isDismissWindow = (DungeonBots.suppressDismissNoiseUntil and NowTime() <= DungeonBots.suppressDismissNoiseUntil) and true or false
         if string.find(lower, "you have added too many bots", 1, true)
             or string.find(lower, "more than 4", 1, true)
             or string.find(lower, "demasiados bots", 1, true)
             or string.find(lower, "character '*' not found", 1, true)
             or string.match(lower, "^add:%s+.+%s+%-%s+ok%s*$")
             or string.match(lower, "^remove:%s+.+%s+%-%s+ok%s*$")
+            or string.match(lower, "^remove:%s+.+%s+%-%s+player is offline%s*$")
+            or string.match(lower, "^remove:%s+.+%s+%-%s+player not found%s*$")
+            or string.match(lower, "^remove:%s+.+%s+%-%s+not found%s*$")
+            or (isDismissWindow and string.match(lower, "^remove:%s+.+%s+%-%s+"))
+            or (isDismissWindow and _G.ERR_NOT_IN_GROUP and _G.ERR_NOT_IN_GROUP ~= "" and lower == string.lower(_G.ERR_NOT_IN_GROUP))
             or string.find(lower, "^add class ")
             or string.find(lower, "^add class\r")
             or string.find(lower, "^add class\n") then
