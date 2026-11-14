@@ -557,6 +557,7 @@ L["CLEAR_HIST_CONFIRM"]    = "Are you sure you want to delete all saved bot hist
 L["CLEAR_HIST_YES"]        = "Yes, clear"
 L["DEL_HIST_TIP_TITLE"]    = "Remove from history"
 L["DEL_HIST_TIP_DESC"]     = "Deletes this bot from the saved list."
+L["DEL_HIST_IN_PARTY_DESC"]= "Cannot be removed while this bot is in your party."
 L["HIST_MODAL_TITLE"]      = "|cff00ccffBot|r |cffffd200History|r"
 L["HIST_TOTAL_ZERO"]       = "Total saved: |cffffd2000|r"
 L["HIST_TOTAL_FMT"]        = "Total saved: |cffffd200%d|r"

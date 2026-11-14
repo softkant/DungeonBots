@@ -556,6 +556,7 @@ L["CLEAR_HIST_CONFIRM"]    = "¿Seguro que quieres borrar todo el historial de b
 L["CLEAR_HIST_YES"]        = "Sí, limpiar"
 L["DEL_HIST_TIP_TITLE"]    = "Eliminar del historial"
 L["DEL_HIST_TIP_DESC"]     = "Borra este bot de la lista guardada."
+L["DEL_HIST_IN_PARTY_DESC"]= "No se puede quitar mientras el bot esté en tu grupo."
 L["HIST_MODAL_TITLE"]      = "|cff00ccffHistorial de|r |cffffd200bots|r"
 L["HIST_TOTAL_ZERO"]       = "Total guardados: |cffffd2000|r"
 L["HIST_TOTAL_FMT"]        = "Total guardados: |cffffd200%d|r"

@@ -1091,10 +1091,28 @@ function DungeonBots:UpdateHistoryUI()
         end
         row.inviteBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-        row.removeBtn:SetScript("OnClick", function()
-            PlaySound("igMainMenuOptionCheckBoxOff")
-            DungeonBots:RemoveFromHistory(botName)
-        end)
+        if inParty then
+            row.removeBtn:Disable()
+            row.removeBtn:SetScript("OnClick", nil)
+            row.removeBtn:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                GameTooltip:AddLine(L["DEL_HIST_TIP_TITLE"], 0.6, 0.6, 0.6)
+                GameTooltip:AddLine(L["DEL_HIST_IN_PARTY_DESC"], 0.8, 0.8, 0.8, true)
+                GameTooltip:Show()
+            end)
+        else
+            row.removeBtn:Enable()
+            row.removeBtn:SetScript("OnClick", function()
+                PlaySound("igMainMenuOptionCheckBoxOff")
+                DungeonBots:RemoveFromHistory(botName)
+            end)
+            row.removeBtn:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                GameTooltip:AddLine(L["DEL_HIST_TIP_TITLE"], 1, 0.3, 0.3)
+                GameTooltip:AddLine(L["DEL_HIST_TIP_DESC"], 0.8, 0.8, 0.8)
+                GameTooltip:Show()
+            end)
+        end
     end
 
     hf.scrollChild:SetHeight(math.max(1, (#list * 54) + 6))
