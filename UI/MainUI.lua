@@ -1685,7 +1685,7 @@ local GUIDE_TOPICS = {
         shortTitle = L["GUIDE_T2_SHORT"],
         title = L["GUIDE_T2_TITLE"],
         category = L["GUIDE_T2_CAT"],
-        icon = "Interface\\Icons\\INV_Misc_GroupLooking",
+        icon = "Interface\\Icons\\Spell_Arcane_PortalDalaran",
         summary = L["GUIDE_T2_SUM"],
         steps = {
             L["GUIDE_T2_S1"],
@@ -1698,7 +1698,7 @@ local GUIDE_TOPICS = {
         shortTitle = L["GUIDE_T3_SHORT"],
         title = L["GUIDE_T3_TITLE"],
         category = L["GUIDE_T3_CAT"],
-        icon = "Interface\\Icons\\Spell_Arcane_PortalDalaran",
+        icon = "Interface\\Icons\\Spell_Nature_TimeStop",
         summary = L["GUIDE_T3_SUM"],
         steps = {
             L["GUIDE_T3_S1"],
