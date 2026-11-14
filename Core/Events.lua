@@ -101,6 +101,9 @@ local function HandlePartyChanged(isEnteringWorld)
         DungeonBots:SetFleeActive(false, "party_empty")
     end
     DungeonBots:SyncPartyToHistory()
+    if DungeonBots.UpdateManualDismissSnapshot then
+        DungeonBots:UpdateManualDismissSnapshot()
+    end
     if DungeonBots.OnResummonPartyActivity then
         DungeonBots:OnResummonPartyActivity()
     end
@@ -243,7 +246,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             DB_Internal.ClearAllPendingQuestCounts()
         end
 
-        DungeonBots:Print(string.format(L["ADDON_LOADED_FMT"], tostring(DungeonBots.VERSION or "1.1.1")))
+        DungeonBots:Print(string.format(L["ADDON_LOADED_FMT"], tostring(DungeonBots.VERSION or "1.2.0")))
         if DungeonBots.InitUI then
             DungeonBots:InitUI()
         end
@@ -255,6 +258,9 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         end
         lastLfgQueueMode = (GetLFGMode and GetLFGMode()) or nil
         DungeonBots:SyncPartyToHistory()
+    if DungeonBots.UpdateManualDismissSnapshot then
+        DungeonBots:UpdateManualDismissSnapshot()
+    end
 
     elseif event == "CHAT_MSG_SYSTEM" then
         local message = ...
@@ -613,9 +619,10 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         end
 
         -- Auto-invite para bots recién invocados o bots del historial con respuesta de bot/addclass pendiente
+        local wasDismissed = (DungeonBots.WasRecentlyDismissed and DungeonBots:WasRecentlyDismissed(cleanSender)) and true or false
         local isExternallyBusy = (whoOtherOwner == true)
             or (DungeonBots.GetExternalBotBusyInfo and (DungeonBots:GetExternalBotBusyInfo(cleanSender) ~= nil))
-        if not inParty and not isExternallyBusy and isKnownOrHistory
+        if not wasDismissed and not inParty and not isExternallyBusy and isKnownOrHistory
             and not DungeonBots:IsRecentBot(cleanSender)
             and DungeonBots:HasPendingClassSummon() then
             if DungeonBots:ConsumePendingClassSummon() then
@@ -625,13 +632,13 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
 
         local isHistoryManaged = (DungeonBots.IsHistoryBotLoading and DungeonBots:IsHistoryBotLoading(cleanSender))
             or (DungeonBots.HasPendingHistoryInvite and DungeonBots:HasPendingHistoryInvite(cleanSender))
-        if isHistoryManaged and not inParty and not isExternallyBusy
+        if not wasDismissed and isHistoryManaged and not inParty and not isExternallyBusy
             and not (DungeonBots.pendingWhoCheck and DungeonBots.pendingWhoCheck[cleanSender])
             and (DungeonBots.recentInvites[cleanSender] or 0) <= NowTime()
             and DungeonBots.SchedulePartyInviteRetry then
             DungeonBots:SchedulePartyInviteRetry(cleanSender, 0.05, 2)
         end
-        local shouldAutoInvite = (not isExternallyBusy) and (not isHistoryManaged) and (DungeonBots:IsRecentBot(cleanSender) or (isKnownOrHistory and isBotResponse))
+        local shouldAutoInvite = (not wasDismissed) and (not isExternallyBusy) and (not isHistoryManaged) and (DungeonBots:IsRecentBot(cleanSender) or (isKnownOrHistory and isBotResponse))
         if shouldAutoInvite and not inParty then
             if DungeonBots:CanInviteToParty() then
                 if (DungeonBots.recentInvites[cleanSender] or 0) <= NowTime() then

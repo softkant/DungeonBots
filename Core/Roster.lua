@@ -65,9 +65,25 @@ function DungeonBots:CanInviteToParty()
     return (numParty == 0 or (IsPartyLeader and IsPartyLeader()))
 end
 
+local recentlyDismissedUntil = {}
+
 function DungeonBots:MarkRecentBot(name, durationSeconds)
-    if not name or name == "" or name == UnitName("player") then return end
-    DungeonBots.recentBots[name] = NowTime() + (durationSeconds or 120)
+    local cleanName = NormalizePlayerName(name)
+    if not cleanName or cleanName == "" or cleanName == UnitName("player") then return end
+    recentlyDismissedUntil[cleanName] = nil
+    DungeonBots.recentBots[cleanName] = NowTime() + (durationSeconds or 120)
+end
+
+function DungeonBots:WasRecentlyDismissed(name)
+    local cleanName = NormalizePlayerName(name)
+    if not cleanName or cleanName == "" then return false end
+    local untilAt = recentlyDismissedUntil[cleanName]
+    if not untilAt then return false end
+    if untilAt <= NowTime() then
+        recentlyDismissedUntil[cleanName] = nil
+        return false
+    end
+    return true
 end
 
 function DungeonBots:IsRecentBot(name)
@@ -686,6 +702,10 @@ function DungeonBots:AddAllBots()
 end
 
 -- Cola diferida de comandos .playerbots bot remove tras enviar susurro 'leave'
+local isInternalDismiss = false
+local recentManualDismissAt = {}
+local lastManualLeaveAt = 0
+local lastPartyBotSnapshot = { bots = {}, isLeader = false, inRaid = false }
 local pendingDismissQueue = {}
 local pendingDismissSeen = {}
 local dismissDelayFrame = CreateFrame("Frame", "DungeonBots_DismissDelayFrame")
@@ -747,12 +767,92 @@ local function SendBotLeaveWhisper(botName, inRaid)
     end
 end
 
+local function SafeInternalUninvite(name)
+    if not UninviteUnit or not name or name == "" then return end
+    isInternalDismiss = true
+    local ok, err = pcall(UninviteUnit, name)
+    isInternalDismiss = false
+    if not ok and err then
+        error(err)
+    end
+end
+
+local function SafeInternalLeaveParty()
+    if not LeaveParty then return end
+    isInternalDismiss = true
+    local ok, err = pcall(LeaveParty)
+    isInternalDismiss = false
+    if not ok and err then
+        error(err)
+    end
+end
+
+local function CollectLivePartyBots()
+    local numRaid = (GetNumRaidMembers and GetNumRaidMembers()) or 0
+    local numParty = (GetNumPartyMembers and GetNumPartyMembers()) or 0
+    local inRaid = (numRaid > 0)
+    local result = {
+        bots = {},
+        isLeader = false,
+        inRaid = inRaid,
+    }
+    if not inRaid and numParty <= 0 then
+        return result
+    end
+
+    result.isLeader = (inRaid and IsRaidLeader and IsRaidLeader())
+        or (not inRaid and IsPartyLeader and IsPartyLeader())
+        or false
+
+    local prefix = inRaid and "raid" or "party"
+    local maxUnits = inRaid and 40 or 4
+    for i = 1, maxUnits do
+        local unit = prefix .. i
+        if UnitExists(unit) and (not inRaid or not UnitIsUnit or not UnitIsUnit(unit, "player")) then
+            local name = UnitName(unit)
+            local clean = NormalizePlayerName(name)
+            if clean and clean ~= "" and DungeonBots:ShouldTreatAsBot(clean) then
+                table.insert(result.bots, {
+                    name = clean,
+                    connected = UnitIsConnected(unit) and true or false,
+                })
+            end
+        end
+    end
+    return result
+end
+
+function DungeonBots:MarkBotDismissed(name, durationSeconds)
+    local cleanName = NormalizePlayerName(name)
+    if not cleanName or cleanName == "" then return end
+    recentlyDismissedUntil[cleanName] = NowTime() + (durationSeconds or 12.0)
+    self:ClearRecentBot(cleanName)
+    pendingSummonConfirm[cleanName] = nil
+    if DungeonBots.recentInvites then
+        DungeonBots.recentInvites[cleanName] = nil
+    end
+    if DungeonBots.pendingWhoCheck then
+        DungeonBots.pendingWhoCheck[cleanName] = nil
+    end
+    if self.CancelPendingHistoryInvite then
+        self:CancelPendingHistoryInvite(cleanName)
+    end
+    if self.ClearHistoryBotLoading then
+        self:ClearHistoryBotLoading(cleanName)
+    end
+end
+
+function DungeonBots:UpdateManualDismissSnapshot()
+    lastPartyBotSnapshot = CollectLivePartyBots()
+end
+
 -- Remover un bot específico y sacarlo del grupo
 function DungeonBots:RemoveBot(botName)
     local cleanBot = NormalizePlayerName(botName)
     if not cleanBot or cleanBot == "" then return end
     if DungeonBots:IsBot(cleanBot) == false then return end
 
+    DungeonBots:MarkBotDismissed(cleanBot, 12.0)
     DungeonBots.suppressDismissNoiseUntil = NowTime() + 2.5
     DungeonBots:Print(string.format(L["DISMISSING_BOT_FMT"], cleanBot))
 
@@ -765,12 +865,12 @@ function DungeonBots:RemoveBot(botName)
         -- Solicitar primero que abandone el grupo mientras sigue conectado
         SendBotLeaveWhisper(cleanBot, inRaid)
         if inGroup and IsPartyLeader() and not isLfgRestricted then
-            UninviteUnit(cleanBot)
+            SafeInternalUninvite(cleanBot)
         end
         QueueDeferredDotCommand(".playerbots bot remove " .. cleanBot, 0.35)
     else
         if unit and inGroup and IsPartyLeader() and not isLfgRestricted then
-            UninviteUnit(cleanBot)
+            SafeInternalUninvite(cleanBot)
         end
         DungeonBots:SendDotCommand(".playerbots bot remove " .. cleanBot)
     end
@@ -823,6 +923,7 @@ function DungeonBots:RemoveAllBots()
     local sentAnyLeaveWhisper = false
 
     for _, bot in ipairs(botsToDismiss) do
+        DungeonBots:MarkBotDismissed(bot.name, 12.0)
         if bot.connected then
             SendBotLeaveWhisper(bot.name, inRaid)
             sentAnyLeaveWhisper = true
@@ -835,10 +936,10 @@ function DungeonBots:RemoveAllBots()
 
     if not hasHuman and not isLfgRestricted then
         -- Un solo LeaveParty() disuelve/sale del grupo sin disparar UninviteUnit duplicados ni ERR_NOT_IN_GROUP
-        LeaveParty()
+        SafeInternalLeaveParty()
     elseif isLeader and not isLfgRestricted then
         for _, bot in ipairs(botsToDismiss) do
-            UninviteUnit(bot.name)
+            SafeInternalUninvite(bot.name)
         end
     end
 
@@ -846,6 +947,86 @@ function DungeonBots:RemoveAllBots()
         for _, bot in ipairs(botsToDismiss) do
             QueueDeferredDotCommand(".playerbots bot remove " .. bot.name, 0.35)
         end
+    end
+end
+
+local function HandleManualUninvite(targetArg)
+    if isInternalDismiss or not targetArg or targetArg == "" then return end
+
+    local numRaid = (GetNumRaidMembers and GetNumRaidMembers()) or 0
+    local numParty = (GetNumPartyMembers and GetNumPartyMembers()) or 0
+    if numRaid == 0 and numParty == 0 then return end
+
+    local isLeader = (numRaid > 0 and IsRaidLeader and IsRaidLeader())
+        or (numRaid == 0 and IsPartyLeader and IsPartyLeader())
+        or false
+    if not isLeader then return end
+
+    local rawName = targetArg
+    if UnitExists and UnitExists(targetArg) then
+        rawName = UnitName(targetArg) or targetArg
+    end
+    local cleanBot = NormalizePlayerName(rawName)
+    if not cleanBot or cleanBot == "" then return end
+
+    local selfName = UnitName and NormalizePlayerName(UnitName("player"))
+    if selfName and cleanBot == selfName then return end
+
+    local knownInSnap = false
+    if lastPartyBotSnapshot and lastPartyBotSnapshot.bots then
+        for _, entry in ipairs(lastPartyBotSnapshot.bots) do
+            if entry.name == cleanBot then
+                knownInSnap = true
+                break
+            end
+        end
+    end
+
+    if not (knownInSnap or DungeonBots:ShouldTreatAsBot(cleanBot)) then return end
+    if DungeonBots:IsBot(cleanBot) == false then return end
+
+    local now = NowTime()
+    if (recentManualDismissAt[cleanBot] or 0) > now then return end
+    recentManualDismissAt[cleanBot] = now + 1.5
+
+    DungeonBots:MarkBotDismissed(cleanBot, 12.0)
+    DungeonBots.suppressDismissNoiseUntil = now + 2.5
+    DungeonBots:Print(string.format(L["DISMISSING_BOT_FMT"], cleanBot))
+    QueueDeferredDotCommand(".playerbots bot remove " .. cleanBot, 0.15)
+end
+
+local function HandleManualLeaveParty()
+    if isInternalDismiss then return end
+
+    local snap = CollectLivePartyBots()
+    if #snap.bots == 0 and lastPartyBotSnapshot and #lastPartyBotSnapshot.bots > 0 then
+        snap = lastPartyBotSnapshot
+    end
+    if not snap.isLeader or #snap.bots == 0 then return end
+
+    local now = NowTime()
+    if (lastManualLeaveAt or 0) > now then return end
+    lastManualLeaveAt = now + 1.5
+
+    DungeonBots.suppressDismissNoiseUntil = now + 2.5
+    DungeonBots:Print(L["DISMISSING_ALL_BOTS"])
+    for _, bot in ipairs(snap.bots) do
+        DungeonBots:MarkBotDismissed(bot.name, 12.0)
+        QueueDeferredDotCommand(".playerbots bot remove " .. bot.name, 0.15)
+    end
+    lastPartyBotSnapshot = { bots = {}, isLeader = false, inRaid = false }
+end
+
+if hooksecurefunc and not DB_Internal.manualDismissHooksInstalled then
+    DB_Internal.manualDismissHooksInstalled = true
+    if UninviteUnit then
+        hooksecurefunc("UninviteUnit", HandleManualUninvite)
+    end
+    if type(UninviteByName) == "function" then
+        hooksecurefunc("UninviteByName", HandleManualUninvite)
+    end
+    if LeaveParty then
+        hooksecurefunc("LeaveParty", HandleManualLeaveParty)
     end
 end
 
@@ -982,6 +1163,7 @@ end
 function DungeonBots:SchedulePartyInviteRetry(botName, initialDelay, maxAttempts)
     local cleanName = NormalizePlayerName(botName)
     if not cleanName or cleanName == "" then return end
+    if DungeonBots:WasRecentlyDismissed(cleanName) then return end
     if DungeonBots:FindPartyUnitByName(cleanName, true) then return end
     if DungeonBots:GetExternalBotBusyInfo(cleanName) then return end
 

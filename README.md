@@ -5,7 +5,7 @@
 Summon, organize, gear, inspect, and direct your 5-player dungeon bots from a clean Blizzard-styled UI — without typing chat commands manually.
 
 ![WoW 3.3.5a](https://img.shields.io/badge/WoW-3.3.5a%20(30300)-blue)
-![Version](https://img.shields.io/badge/Version-1.1.1-gold)
+![Version](https://img.shields.io/badge/Version-1.2.0-gold)
 ![Languages](https://img.shields.io/badge/Languages-English%20%7C%20Espa%C3%B1ol-green)
 
 ---
@@ -51,7 +51,7 @@ Summon, organize, gear, inspect, and direct your 5-player dungeon bots from a cl
 ### Build Party & Teams
 - **Bot History & Teams:** Automatically tracks bots you group with and lets you save reusable **4-bot Teams** for fast summoning.
 - **Summon by Class:** One-click summoning for all 10 classes.
-- **Smart Safety:** Automatic invite for summoned bots, LFD replacement queue protection, and `[BOT]` / `[PLAYER]` tags so real friends never receive bot commands.
+- **Smart Safety:** Automatic invite for summoned bots, LFD replacement queue protection, `[BOT]` / `[PLAYER]` protection for real friends, and automatic bot logout when using standard right-click Uninvite or Leave Party.
 - **Mass Actions:** One-click **Resummon Party**, **Dismiss All**, **Repair Gear**, and **Release Spirit**.
 
 ### Individual Bot Management (`Party Bots`)
