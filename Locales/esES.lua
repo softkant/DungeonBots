@@ -371,7 +371,7 @@ L["TAB_ACTIVE_HINT"]       = "|cff00ff00(Pestaña Activa)|r"
 L["TAB_SWITCH_HINT"]       = "|cff888888(Haz clic para cambiar a esta pestaña)|r"
 
 L["HIST_BOX_TITLE"]        = "|cffffd200Historial de Bots|r"
-L["HIST_BOX_COUNT_FMT"]    = "Lista de bots invitados anteriormente: |cffffd200%d|r"
+L["HIST_BOX_COUNT_FMT"]    = "Revisa el historial y crea equipos de bots"
 L["HIST_BTN_VIEW"]         = "Historial/Equipos"
 L["HIST_BTN_TIP_TITLE"]    = "Abrir Historial de bots"
 L["HIST_BTN_TIP_DESC"]     = "Muestra la lista de bots con los que has jugado, la especialización que tenían y botones para llamarlos e invitarlos uno por uno."
