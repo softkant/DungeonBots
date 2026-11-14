@@ -46,7 +46,7 @@ jobs:
           rm -rf dist "${ZIP_NAME}"
           mkdir -p dist/DungeonBots
           cp DungeonBots.toc README.md dist/DungeonBots/
-          cp -r Core Locales Modules UI dist/DungeonBots/
+          cp -r Core Locales Modules UI screenshots dist/DungeonBots/
           (cd dist && zip -r "../${ZIP_NAME}" DungeonBots)
 
       - name: Create or update GitHub Release
