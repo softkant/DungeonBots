@@ -24,13 +24,62 @@ local function CreateRedIconButton(parent, width, height, text, iconPath, center
     return DB_Internal.CreateRedIconButton(parent, width, height, text, iconPath, centerIcon)
 end
 
+local function FormatDestroyItemLine(itemEntry)
+    if not itemEntry then return "" end
+    local itemDisplay = (itemEntry.displayLink and itemEntry.displayLink ~= "")
+        and itemEntry.displayLink
+        or ("[" .. (itemEntry.name or itemEntry.rawName or L["ITEM_DEFAULT"]) .. "]")
+    if (itemEntry.count or 1) > 1 then
+        itemDisplay = itemDisplay .. " |cffffffffx" .. itemEntry.count .. "|r"
+    end
+    return itemDisplay
+end
+
+local UpdateSlotSelectionUI
+
 StaticPopupDialogs["DUNGEONBOTS_DESTROY_BOT_ITEM"] = {
     text = L["INV_DESTROY_CONFIRM"],
     button1 = L["BTN_DESTROY"],
     button2 = L["BTN_CANCEL"],
+    OnShow = function(self, data)
+        if data and data.confirmText then
+            local textFS = self.text or _G[self:GetName() .. "Text"]
+            if textFS then
+                textFS:SetText(data.confirmText)
+                if StaticPopup_Resize then
+                    StaticPopup_Resize(self, "DUNGEONBOTS_DESTROY_BOT_ITEM")
+                end
+            end
+        end
+    end,
     OnAccept = function(self, data)
-        if data and data.botName and data.item and DungeonBots.DestroyBotItem then
-            DungeonBots:DestroyBotItem(data.botName, data.item)
+        if not data or not data.botName then return end
+        local items = data.items
+        if (not items or #items == 0) and data.item then
+            items = { data.item }
+        end
+        if not items or #items == 0 then return end
+
+        local inv = DungeonBots.inventoryFrame
+        if inv and inv.currentBot == data.botName and inv.selectedItems then
+            local acceptedSet = {}
+            for _, entry in ipairs(items) do
+                acceptedSet[entry] = true
+            end
+            for i = #inv.selectedItems, 1, -1 do
+                if acceptedSet[inv.selectedItems[i]] then
+                    table.remove(inv.selectedItems, i)
+                end
+            end
+            if UpdateSlotSelectionUI then
+                UpdateSlotSelectionUI()
+            end
+        end
+
+        if #items > 1 and DungeonBots.DestroyBotItems then
+            DungeonBots:DestroyBotItems(data.botName, items)
+        elseif DungeonBots.DestroyBotItem then
+            DungeonBots:DestroyBotItem(data.botName, items[1])
         end
     end,
     timeout = 0,
@@ -46,18 +95,36 @@ if DB_Internal.RegisterLocaleRefresh then
     end)
 end
 
-local function ConfirmDestroyBotItem(botName, itemEntry)
-    if not botName or not itemEntry then return end
-    local itemDisplay = (itemEntry.displayLink and itemEntry.displayLink ~= "")
-        and itemEntry.displayLink
-        or ("[" .. (itemEntry.name or itemEntry.rawName or L["ITEM_DEFAULT"]) .. "]")
-    if (itemEntry.count or 1) > 1 then
-        itemDisplay = itemDisplay .. " |cffffffffx" .. itemEntry.count .. "|r"
-    end
+local function ConfirmDestroyBotItems(botName, itemList)
+    if not botName or type(itemList) ~= "table" or #itemList == 0 then return end
     PlaySound("igMainMenuOptionCheckBoxOn")
-    StaticPopup_Show("DUNGEONBOTS_DESTROY_BOT_ITEM", botName, itemDisplay, {
+
+    if #itemList == 1 then
+        local itemEntry = itemList[1]
+        local itemDisplay = FormatDestroyItemLine(itemEntry)
+        StaticPopup_Show("DUNGEONBOTS_DESTROY_BOT_ITEM", botName, itemDisplay, {
+            botName = botName,
+            item = itemEntry,
+            items = { itemEntry },
+        })
+        return
+    end
+
+    local lines = {}
+    local maxPreview = 8
+    local limit = math.min(#itemList, maxPreview)
+    for idx = 1, limit do
+        table.insert(lines, "- " .. FormatDestroyItemLine(itemList[idx]))
+    end
+    if #itemList > maxPreview then
+        table.insert(lines, string.format(L["INV_DESTROY_MORE_FMT"], #itemList - maxPreview))
+    end
+
+    local confirmText = string.format(L["INV_DESTROY_MULTI_CONFIRM"], botName, #itemList, table.concat(lines, "\n"))
+    StaticPopup_Show("DUNGEONBOTS_DESTROY_BOT_ITEM", botName, "", {
         botName = botName,
-        item = itemEntry,
+        items = itemList,
+        confirmText = confirmText,
     })
 end
 
@@ -78,14 +145,64 @@ local function GetQualityColor(rarity)
     return 0.55, 0.58, 0.65
 end
 
-local function UpdateSlotSelectionUI()
+local function GetSelectedItems(inv)
+    if not inv then return {} end
+    if not inv.selectedItems then
+        inv.selectedItems = {}
+    end
+    return inv.selectedItems
+end
+
+local function IsItemSelected(inv, itemEntry)
+    if not inv or not itemEntry or not inv.selectedItems then return false end
+    for _, sel in ipairs(inv.selectedItems) do
+        if sel == itemEntry then
+            return true
+        end
+    end
+    return false
+end
+
+local function ClearSelectedItems(inv)
+    if inv and inv.selectedItems then
+        inv.selectedItems = {}
+    end
+end
+
+local function ToggleSelectedItem(inv, itemEntry)
+    if not inv or not itemEntry then return end
+    local list = GetSelectedItems(inv)
+    for i, sel in ipairs(list) do
+        if sel == itemEntry then
+            table.remove(list, i)
+            return
+        end
+    end
+    table.insert(list, itemEntry)
+end
+
+local function PruneSelectedItems(inv, visibleItems)
+    if not inv or not inv.selectedItems or #inv.selectedItems == 0 then return end
+    local visibleSet = {}
+    for _, item in ipairs(visibleItems) do
+        visibleSet[item] = true
+    end
+    for i = #inv.selectedItems, 1, -1 do
+        if not visibleSet[inv.selectedItems[i]] then
+            table.remove(inv.selectedItems, i)
+        end
+    end
+end
+
+UpdateSlotSelectionUI = function()
     local inv = DungeonBots.inventoryFrame
     if not inv then return end
 
-    local selected = inv.selectedItem
+    local selectedList = GetSelectedItems(inv)
+    local selCount = #selectedList
     for _, slot in ipairs(invSlotButtons) do
         if slot:IsShown() and slot.itemEntry then
-            local isSel = (selected ~= nil and slot.itemEntry == selected)
+            local isSel = IsItemSelected(inv, slot.itemEntry)
             if isSel then
                 slot.selOverlay:Show()
                 slot:SetBackdropBorderColor(1.0, 0.85, 0.15, 1.0)
@@ -97,10 +214,12 @@ local function UpdateSlotSelectionUI()
         end
     end
 
-    if selected then
+    if selCount > 0 then
+        inv.destroyBtn:SetText(string.format(L["BTN_DESTROY_MULTI_FMT"], selCount))
         inv.destroyBtn:Enable()
         inv.destroyBtn:SetAlpha(1.0)
     else
+        inv.destroyBtn:SetText(L["BTN_DESTROY"])
         inv.destroyBtn:Disable()
         inv.destroyBtn:SetAlpha(0.45)
     end
@@ -200,9 +319,7 @@ local function CreateInventorySlotButton(parent, idx)
         if not inv or not item then return end
 
         if mouseBtn == "RightButton" then
-            inv.selectedItem = item
-            UpdateSlotSelectionUI()
-            ConfirmDestroyBotItem(inv.currentBot, item)
+            ConfirmDestroyBotItems(inv.currentBot, { item })
             return
         end
 
@@ -214,11 +331,7 @@ local function CreateInventorySlotButton(parent, idx)
         end
 
         PlaySound("igMainMenuOptionCheckBoxOn")
-        if inv.selectedItem == item then
-            inv.selectedItem = nil
-        else
-            inv.selectedItem = item
-        end
+        ToggleSelectedItem(inv, item)
         UpdateSlotSelectionUI()
     end)
 
@@ -300,7 +413,7 @@ function DungeonBots:BuildInventoryDialog()
         local pendingCap = DungeonBots.pendingInventoryCapture and DungeonBots.pendingInventoryCapture[inv.currentBot]
         if pendingCap then return end
         PlaySound("igMainMenuOptionCheckBoxOn")
-        inv.selectedItem = nil
+        ClearSelectedItems(inv)
         if DungeonBots.QueryBotInventory then
             DungeonBots:QueryBotInventory(inv.currentBot, false, true)
         elseif DungeonBots.QueryBotStats then
@@ -350,7 +463,7 @@ function DungeonBots:BuildInventoryDialog()
     nextBotBtn:SetText(L["BTN_NEXT_BOT"])
     nextBotBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOn")
-        inv.selectedItem = nil
+        ClearSelectedItems(inv)
         if DungeonBots.CycleNextInventoryBot then
             DungeonBots:CycleNextInventoryBot(inv.currentBot)
         end
@@ -381,13 +494,14 @@ function DungeonBots:BuildInventoryDialog()
     end)
     inv.closeFooterBtn = closeFooterBtn
 
-    local destroyBtn = CreateRedIconButton(inv, 112, 24, L["BTN_DESTROY"], "Interface\\Icons\\Spell_ChargeNegative")
+    local destroyBtn = CreateRedIconButton(inv, 122, 24, L["BTN_DESTROY"], "Interface\\Icons\\Spell_ChargeNegative")
     destroyBtn:SetPoint("RIGHT", closeFooterBtn, "LEFT", -8, 0)
     destroyBtn:Disable()
     destroyBtn:SetAlpha(0.45)
     destroyBtn:SetScript("OnClick", function()
-        if not inv.currentBot or not inv.selectedItem then return end
-        ConfirmDestroyBotItem(inv.currentBot, inv.selectedItem)
+        local selected = GetSelectedItems(inv)
+        if not inv.currentBot or #selected == 0 then return end
+        ConfirmDestroyBotItems(inv.currentBot, selected)
     end)
     destroyBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
@@ -430,7 +544,6 @@ function DungeonBots:UpdateInventoryDialog(botName)
     local filterText = string.lower(string.gsub(filterRaw, "^%s*(.-)%s*$", "%1"))
 
     local visibleItems = {}
-    local selectedStillVisible = false
     for _, item in ipairs(allItems) do
         local match = true
         if filterText ~= "" then
@@ -445,14 +558,9 @@ function DungeonBots:UpdateInventoryDialog(botName)
         end
         if match then
             table.insert(visibleItems, item)
-            if inv.selectedItem and inv.selectedItem == item then
-                selectedStillVisible = true
-            end
         end
     end
-    if not selectedStillVisible then
-        inv.selectedItem = nil
-    end
+    PruneSelectedItems(inv, visibleItems)
 
     if inv.bagSpaceLabel then
         local st = DungeonBots.botStats and DungeonBots.botStats[targetBot]
@@ -564,7 +672,7 @@ function DungeonBots:OpenInventoryDialog(botName)
     end
     local inv = DungeonBots.inventoryFrame
     if inv.currentBot ~= botName then
-        inv.selectedItem = nil
+        ClearSelectedItems(inv)
         if inv.searchBox then
             inv.searchBox:SetText("")
         end
