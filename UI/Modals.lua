@@ -452,16 +452,22 @@ local function OpenHistoryTeamContextMenu(entry)
 end
 
 local function ApplyHistoryTabVisualState(selectedIdx)
+    local hf = DungeonBots.historyFrame
+    local baseLevel = (hf and hf.GetFrameLevel and hf:GetFrameLevel()) or 24
     for i, btn in ipairs(historyTabButtons) do
-        if btn and btn.iconTex then
-            if i == selectedIdx then
-                btn:SetChecked(true)
-                btn.iconTex:SetDesaturated(false)
-                btn.iconTex:SetVertexColor(1, 1, 1)
-            else
-                btn:SetChecked(false)
-                btn.iconTex:SetDesaturated(true)
-                btn.iconTex:SetVertexColor(0.7, 0.7, 0.7)
+        if btn then
+            local isSelected = (i == selectedIdx)
+            btn:SetFrameLevel(isSelected and (baseLevel + 3) or (baseLevel + 1))
+            if btn.checked then
+                if isSelected then btn.checked:Show() else btn.checked:Hide() end
+            end
+            if btn.icon then
+                local c = isSelected and 1.0 or 0.52
+                btn.icon:SetVertexColor(c, c, c)
+            end
+            if btn.bg then
+                local bgc = isSelected and 1.0 or 0.75
+                btn.bg:SetVertexColor(bgc, bgc, bgc)
             end
         end
     end
@@ -771,29 +777,35 @@ function DungeonBots:BuildHistoryDialog()
     historyTabButtons = {}
     historyTabFrames = {}
     local tabDefs = {
-        { name = L["HIST_TAB1_NAME"], desc = L["HIST_TAB1_TIP"], icon = "Interface\\Icons\\INV_Misc_Book_03" },
+        { name = L["HIST_TAB1_NAME"], desc = L["HIST_TAB1_TIP"], icon = "Interface\\Icons\\INV_Misc_Note_01" },
         { name = L["HIST_TAB2_NAME"], desc = L["HIST_TAB2_TIP"], icon = "Interface\\Icons\\INV_Misc_GroupNeedMore" },
     }
     for i, info in ipairs(tabDefs) do
-        local tabBtn = CreateFrame("CheckButton", "DungeonBots_HistorySideTab" .. i, hf)
+        local tabBtn = CreateFrame("Button", "DungeonBots_HistorySideTab" .. i, hf)
         tabBtn:SetSize(32, 32)
         tabBtn:SetPoint("TOPLEFT", hf, "TOPRIGHT", -1, -48 - ((i - 1) * 46))
 
         local bg = tabBtn:CreateTexture(nil, "BACKGROUND")
         bg:SetTexture("Interface\\SpellBook\\SpellBook-SkillLineTab")
         bg:SetSize(64, 64)
-        bg:SetPoint("TOPLEFT", -3, 11)
-        tabBtn.bgTex = bg
+        bg:SetPoint("TOPLEFT", tabBtn, "TOPLEFT", -3, 11)
+        tabBtn.bg = bg
 
-        tabBtn:SetNormalTexture(info.icon)
-        tabBtn.iconTex = tabBtn:GetNormalTexture()
-        tabBtn.iconTex:SetTexCoord(0.06, 0.94, 0.06, 0.94)
+        local tIcon = tabBtn:CreateTexture(nil, "BORDER")
+        tIcon:SetSize(26, 26)
+        tIcon:SetPoint("CENTER", 0, 0)
+        tIcon:SetTexture(info.icon)
+        tIcon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+        tabBtn.icon = tIcon
 
-        tabBtn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square")
-        tabBtn:GetHighlightTexture():SetBlendMode("ADD")
+        tabBtn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
 
-        tabBtn:SetCheckedTexture("Interface\\Buttons\\CheckButtonHilight")
-        tabBtn:GetCheckedTexture():SetBlendMode("ADD")
+        local checked = tabBtn:CreateTexture(nil, "OVERLAY")
+        checked:SetTexture("Interface\\Buttons\\CheckButtonHilight")
+        checked:SetBlendMode("ADD")
+        checked:SetSize(30, 30)
+        checked:SetPoint("CENTER", 0, 0)
+        tabBtn.checked = checked
 
         local tabIdx = i
         local tabInfo = info
