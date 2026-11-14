@@ -30,17 +30,17 @@ Summon, organize, gear, inspect, and direct your 5-player dungeon bots from a cl
 
 ---
 
-<!-- Screenshots: add your images to docs/screenshots/ (or drag-and-drop them in GitHub's editor) and remove these comment markers.
 ## Screenshots
 
 | Build Party & Teams | Party Bots & Inspection |
 | :---: | :---: |
-| ![Build Party](docs/screenshots/01-main-build.png) | ![Party Bots](docs/screenshots/02-party-bots.png) |
+| ![Build Party](screenshots/main-build.png) | ![Party Bots](screenshots/party-bots.png) |
 
 | Floating Bars (HUD) | Bot Inventory (Multi-Destroy) |
 | :---: | :---: |
-| ![Floating HUD](docs/screenshots/03-floating-hud.png) | ![Bot Inventory](docs/screenshots/04-inventory.png) |
--->
+| ![Floating HUD](screenshots/floating-hud.png) | ![Bot Inventory](screenshots/inventory.png) |
+
+---
 
 ## Features
 
