@@ -516,7 +516,7 @@ function DungeonBots:ConfirmSummonedBotAdded(botName)
     return confirmed
 end
 
-function DungeonBots:AddBot(botName)
+function DungeonBots:AddBot(botName, inviteDelay, silentPrint)
     local cleanName = NormalizePlayerName(botName)
     if not cleanName or cleanName == "" then return false end
     if not CheckCanSummonBot(true) then return false end
@@ -533,11 +533,13 @@ function DungeonBots:AddBot(botName)
         DungeonBots:RegisterBot(cleanName, true)
     end
     pendingSummonConfirm[cleanName] = now + 12.0
-    DungeonBots:SetHistoryBotLoading(cleanName, 10.0)
-    DungeonBots:Print(string.format(L["BOT_SUMMONING_FMT"], cleanName))
+    DungeonBots:SetHistoryBotLoading(cleanName, 12.0)
+    if not silentPrint then
+        DungeonBots:Print(string.format(L["BOT_SUMMONING_FMT"], cleanName))
+    end
     DungeonBots:SendDotCommand(".playerbots bot add " .. cleanName)
     if DungeonBots.SchedulePartyInviteRetry then
-        DungeonBots:SchedulePartyInviteRetry(cleanName, 0.9, 2)
+        DungeonBots:SchedulePartyInviteRetry(cleanName, inviteDelay or 0.9, 2)
     end
     return true
 end
@@ -1257,6 +1259,28 @@ function DungeonBots:RecordBotHistory(name, classToken, specName, raceIcon)
         lastSeen = (date and date("%d/%m %H:%M")) or (prev.lastSeen or ""),
         timestamp = (time and time()) or (prev.timestamp or 0),
     }
+
+    if DungeonBotsDB.botTeams then
+        local saved = DungeonBotsDB.botHistory[name]
+        for teamIdx = 1, 3 do
+            local teamList = DungeonBotsDB.botTeams[teamIdx]
+            if type(teamList) == "table" then
+                for _, member in ipairs(teamList) do
+                    if type(member) == "table" and member.name == name then
+                        if saved.class and saved.class ~= "UNKNOWN" then
+                            member.class = saved.class
+                        end
+                        if saved.spec and saved.spec ~= "" then
+                            member.spec = saved.spec
+                        end
+                        if saved.raceIcon and saved.raceIcon ~= "" and saved.raceIcon ~= defaultQuestionIcon then
+                            member.raceIcon = saved.raceIcon
+                        end
+                    end
+                end
+            end
+        end
+    end
 end
 
 function DungeonBots:SyncPartyToHistory()
@@ -1400,4 +1424,208 @@ function DungeonBots:SummonAndInviteHistoryBot(botName)
         return
     end
     DungeonBots:AddBot(cleanBot)
+end
+
+-- =========================================================================
+-- Equipos Guardados de Bots (3 Columnas)
+-- =========================================================================
+local MAX_BOT_TEAMS = 3
+
+local function EnsureBotTeamsTable()
+    if not DungeonBotsDB then DungeonBotsDB = {} end
+    if type(DungeonBotsDB.botTeams) ~= "table" then
+        DungeonBotsDB.botTeams = {}
+    end
+    for i = 1, MAX_BOT_TEAMS do
+        if type(DungeonBotsDB.botTeams[i]) ~= "table" then
+            DungeonBotsDB.botTeams[i] = {}
+        end
+    end
+    return DungeonBotsDB.botTeams
+end
+
+local function BuildTeamBotSnapshot(botName, hintEntry)
+    local cleanName = NormalizePlayerName(botName)
+    local hist = DungeonBotsDB and DungeonBotsDB.botHistory and DungeonBotsDB.botHistory[cleanName]
+    local defaultQuestionIcon = "Interface\\Icons\\INV_Misc_QuestionMark"
+
+    local classToken = (hintEntry and hintEntry.class) or (hist and hist.class) or "UNKNOWN"
+    local raceIcon = (hintEntry and hintEntry.raceIcon) or (hist and hist.raceIcon) or defaultQuestionIcon
+    local spec = (hintEntry and hintEntry.spec) or (DungeonBotsDB and DungeonBotsDB.botActiveSpec and DungeonBotsDB.botActiveSpec[cleanName]) or (hist and hist.spec) or ""
+
+    local unit = DungeonBots:FindPartyUnitByName(cleanName, true)
+    if unit then
+        if not classToken or classToken == "" or classToken == "UNKNOWN" then
+            local _, detectedClass = UnitClass(unit)
+            if detectedClass then classToken = detectedClass end
+        end
+        if not raceIcon or raceIcon == "" or raceIcon == defaultQuestionIcon then
+            local detectedIcon = DungeonBots:GetRaceIcon(unit)
+            if detectedIcon and detectedIcon ~= "" then raceIcon = detectedIcon end
+        end
+    end
+    if DungeonBots.CleanSpecText then
+        spec = DungeonBots:CleanSpecText(spec)
+    end
+    return {
+        name = cleanName,
+        class = (classToken and classToken ~= "" and classToken) or "UNKNOWN",
+        spec = spec or "",
+        raceIcon = (raceIcon and raceIcon ~= "" and raceIcon) or defaultQuestionIcon,
+    }
+end
+
+function DungeonBots:GetBotTeam(teamIndex)
+    local idx = tonumber(teamIndex)
+    if not idx or idx < 1 or idx > MAX_BOT_TEAMS then return {} end
+    local teams = EnsureBotTeamsTable()
+    local rawList = teams[idx]
+    local resolved = {}
+    local seen = {}
+    for i = 1, #rawList do
+        local item = rawList[i]
+        local rawName = (type(item) == "table") and item.name or item
+        local cleanName = NormalizePlayerName(rawName)
+        if cleanName and cleanName ~= "" and not seen[cleanName] then
+            seen[cleanName] = true
+            local snap = BuildTeamBotSnapshot(cleanName, type(item) == "table" and item or nil)
+            rawList[i] = snap
+            table.insert(resolved, snap)
+        end
+    end
+    return resolved
+end
+
+function DungeonBots:IsBotInTeam(teamIndex, botName)
+    local cleanName = NormalizePlayerName(botName)
+    if not cleanName or cleanName == "" then return false end
+    local list = DungeonBots:GetBotTeam(teamIndex)
+    for _, entry in ipairs(list) do
+        if entry.name == cleanName then
+            return true
+        end
+    end
+    return false
+end
+
+function DungeonBots:AddBotToTeam(teamIndex, botName, hintEntry)
+    local idx = tonumber(teamIndex)
+    local cleanName = NormalizePlayerName(botName)
+    if not idx or idx < 1 or idx > MAX_BOT_TEAMS or not cleanName or cleanName == "" then
+        return false
+    end
+    local teams = EnsureBotTeamsTable()
+    local list = teams[idx]
+    for i, item in ipairs(list) do
+        local itemName = (type(item) == "table") and item.name or item
+        if NormalizePlayerName(itemName) == cleanName then
+            list[i] = BuildTeamBotSnapshot(cleanName, hintEntry or (type(item) == "table" and item or nil))
+            RefreshHistoryUIIfVisible()
+            return false
+        end
+    end
+    table.insert(list, BuildTeamBotSnapshot(cleanName, hintEntry))
+    if DungeonBots:IsBot(cleanName) ~= false then
+        DungeonBots:RegisterBot(cleanName, true)
+    end
+    DungeonBots:Print(string.format(L["HIST_TEAM_ADDED_FMT"], cleanName, idx))
+    RefreshHistoryUIIfVisible()
+    return true
+end
+
+function DungeonBots:RemoveBotFromTeam(teamIndex, botName)
+    local idx = tonumber(teamIndex)
+    local cleanName = NormalizePlayerName(botName)
+    if not idx or idx < 1 or idx > MAX_BOT_TEAMS or not cleanName or cleanName == "" then
+        return false
+    end
+    local teams = EnsureBotTeamsTable()
+    local list = teams[idx]
+    for i = #list, 1, -1 do
+        local item = list[i]
+        local itemName = (type(item) == "table") and item.name or item
+        if NormalizePlayerName(itemName) == cleanName then
+            table.remove(list, i)
+            DungeonBots:Print(string.format(L["HIST_TEAM_REMOVED_FMT"], cleanName, idx))
+            RefreshHistoryUIIfVisible()
+            return true
+        end
+    end
+    return false
+end
+
+function DungeonBots:SummonBotTeam(teamIndex)
+    local idx = tonumber(teamIndex)
+    if not idx or idx < 1 or idx > MAX_BOT_TEAMS then return end
+    local team = DungeonBots:GetBotTeam(idx)
+    if #team == 0 then return end
+
+    if GetNumRaidMembers and GetNumRaidMembers() > 0 then
+        DungeonBots:Warn(L["GROUP_FULL_CANT_ADD"])
+        return
+    end
+
+    local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
+    local toSummon = {}
+    local hasConnectedBot = false
+    for _, entry in ipairs(team) do
+        local unit = DungeonBots:FindPartyUnitByName(entry.name, true)
+        if unit then
+            if not UnitIsConnected(unit) then
+                table.insert(toSummon, { name = entry.name, alreadyInParty = true })
+            else
+                hasConnectedBot = true
+            end
+        else
+            table.insert(toSummon, { name = entry.name, alreadyInParty = false })
+        end
+    end
+
+    if #toSummon == 0 then
+        if hasConnectedBot then
+            DungeonBots:Print(string.format(L["ALREADY_IN_PARTY_FMT"], string.format(L["HIST_TEAM_TITLE_FMT"], idx)))
+        end
+        return
+    end
+
+    if numParty > 0 and IsPartyLeader and not IsPartyLeader() then
+        local hasNewInvite = false
+        for _, item in ipairs(toSummon) do
+            if not item.alreadyInParty then
+                hasNewInvite = true
+                break
+            end
+        end
+        if hasNewInvite then
+            DungeonBots:Warn(string.format(L["MUST_BE_LEADER_FMT"], string.format(L["HIST_TEAM_TITLE_FMT"], idx)))
+            return
+        end
+    end
+
+    local freeSlots = math.max(0, 4 - numParty)
+    local summonedList = {}
+    for _, item in ipairs(toSummon) do
+        if item.alreadyInParty then
+            table.insert(summonedList, item)
+        elseif freeSlots > 0 then
+            freeSlots = freeSlots - 1
+            table.insert(summonedList, item)
+        end
+    end
+
+    if #summonedList == 0 then
+        DungeonBots:Warn(string.format(L["HIST_TEAM_NO_SLOTS"], idx))
+        return
+    end
+
+    DungeonBots:Print(string.format(L["HIST_TEAM_SUMMONING_FMT"], idx, #summonedList))
+    for orderIdx, item in ipairs(summonedList) do
+        if item.alreadyInParty then
+            DungeonBots:MarkRecentBot(item.name, 60)
+            DungeonBots:SendDotCommand(".playerbots bot add " .. item.name)
+        else
+            DungeonBots:AddBot(item.name, 0.9 + ((orderIdx - 1) * 0.30), true)
+        end
+    end
+    RefreshHistoryUIIfVisible()
 end

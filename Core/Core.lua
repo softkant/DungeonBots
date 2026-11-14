@@ -31,6 +31,7 @@ local DEFAULT_CONFIG = {
     lastWhisperLog = {},
     knownBots = {},
     botHistory = {},
+    botTeams = { {}, {}, {} },
     botSpecs = {},
     botSpecTriplets = {},
     botActiveSpec = {},

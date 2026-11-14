@@ -350,6 +350,13 @@ end
 -- VENTANA DE DIÁLOGO: HISTORIAL DE BOTS
 -- =========================================================================
 local historyRows = {}
+local historyTeamCards = { {}, {}, {} }
+local historyTeamColumns = {}
+local activeHistoryTab = 1
+local historyTabButtons = {}
+local historyTabFrames = {}
+local HISTORY_TAB_WIDTHS = { 540, 646 }
+local HISTORY_FRAME_HEIGHT = 446
 
 StaticPopupDialogs["DUNGEONBOTS_CLEAR_HISTORY"] = {
     text = L["CLEAR_HIST_CONFIRM"],
@@ -381,9 +388,121 @@ function DungeonBots:UpdateHistorySummary()
     )
 end
 
+local historyTeamMenu = nil
+
+local function GetBotTeamTagsText(botName)
+    if not botName or not DungeonBots.IsBotInTeam then return "" end
+    local tags = {}
+    for teamIndex = 1, 3 do
+        if DungeonBots:IsBotInTeam(teamIndex, botName) then
+            table.insert(tags, tostring(teamIndex))
+        end
+    end
+    if #tags == 0 then return "" end
+    return " |cffffd100[" .. table.concat(tags, ", ") .. "]|r"
+end
+
+local function OpenHistoryTeamContextMenu(entry)
+    if not entry or not entry.name then return end
+    if not historyTeamMenu then
+        historyTeamMenu = CreateFrame("Frame", "DungeonBots_HistoryTeamMenu", UIParent, "UIDropDownMenuTemplate")
+    end
+
+    local targetEntry = entry
+    UIDropDownMenu_Initialize(historyTeamMenu, function(self, level)
+        if not level then return end
+        local info = UIDropDownMenu_CreateInfo()
+        info.text = targetEntry.name
+        info.isTitle = true
+        info.notCheckable = true
+        UIDropDownMenu_AddButton(info, level)
+
+        for teamIndex = 1, 3 do
+            local tIdx = teamIndex
+            local inTeam = DungeonBots.IsBotInTeam and DungeonBots:IsBotInTeam(tIdx, targetEntry.name)
+            local btn = UIDropDownMenu_CreateInfo()
+            btn.text = string.format(L["HIST_MENU_TEAM_FMT"], tIdx)
+            btn.checked = inTeam and true or false
+            btn.keepShownOnClick = false
+            btn.func = function()
+                PlaySound("igMainMenuOptionCheckBoxOn")
+                if inTeam then
+                    if DungeonBots.RemoveBotFromTeam then
+                        DungeonBots:RemoveBotFromTeam(tIdx, targetEntry.name)
+                    end
+                else
+                    if DungeonBots.AddBotToTeam then
+                        DungeonBots:AddBotToTeam(tIdx, targetEntry.name, targetEntry)
+                    end
+                end
+            end
+            UIDropDownMenu_AddButton(btn, level)
+        end
+    end, "MENU")
+
+    ToggleDropDownMenu(1, nil, historyTeamMenu, "cursor", 3, -3)
+    if DropDownList1 and DropDownList1:IsShown() then
+        DropDownList1:SetFrameStrata("FULLSCREEN_DIALOG")
+        DropDownList1:Raise()
+    end
+end
+
+local function ApplyHistoryTabVisualState(selectedIdx)
+    for i, btn in ipairs(historyTabButtons) do
+        if btn and btn.iconTex then
+            if i == selectedIdx then
+                btn:SetChecked(true)
+                btn.iconTex:SetDesaturated(false)
+                btn.iconTex:SetVertexColor(1, 1, 1)
+            else
+                btn:SetChecked(false)
+                btn.iconTex:SetDesaturated(true)
+                btn.iconTex:SetVertexColor(0.7, 0.7, 0.7)
+            end
+        end
+    end
+end
+
+function DungeonBots:SelectHistoryTab(tabIndex)
+    if tabIndex ~= 1 and tabIndex ~= 2 then
+        tabIndex = 1
+    end
+    activeHistoryTab = tabIndex
+    CloseDropDownMenus()
+
+    local hf = DungeonBots.historyFrame
+    if not hf then return end
+
+    local width = HISTORY_TAB_WIDTHS[tabIndex] or 540
+    hf:SetSize(width, HISTORY_FRAME_HEIGHT)
+
+    for i, frame in ipairs(historyTabFrames) do
+        if frame then
+            if i == tabIndex then
+                frame:Show()
+            else
+                frame:Hide()
+            end
+        end
+    end
+
+    ApplyHistoryTabVisualState(tabIndex)
+
+    if tabIndex == 1 then
+        if DungeonBots.UpdateHistoryUI then
+            DungeonBots:UpdateHistoryUI()
+        end
+    else
+        if DungeonBots.UpdateHistoryTeamsUI then
+            DungeonBots:UpdateHistoryTeamsUI()
+        end
+    end
+end
+
 local function CreateHistoryRow(parent, idx)
     local row = CreateFrame("Frame", nil, parent)
     row:SetSize(480, 50)
+    row:EnableMouse(true)
     ApplyInsetPanelBackdrop(row, 8)
 
     local iconFrame = CreateFrame("Frame", nil, row)
@@ -432,15 +551,184 @@ local function CreateHistoryRow(parent, idx)
     row.detailText:SetPoint("RIGHT", row.inviteBtn, "LEFT", -8, 0)
     row.detailText:SetJustifyH("LEFT")
 
+    row:SetScript("OnMouseUp", function(self, button)
+        if button == "RightButton" and self.botEntry then
+            PlaySound("igMainMenuOptionCheckBoxOn")
+            OpenHistoryTeamContextMenu(self.botEntry)
+        end
+    end)
+    row:SetScript("OnEnter", function(self)
+        if not self.botEntry then return end
+        local _, classColor = DungeonBots:GetClassDisplayInfo(self.botEntry.class)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine(self.botEntry.name, classColor.r, classColor.g, classColor.b)
+        GameTooltip:AddLine(L["HIST_ROW_RIGHT_CLICK_TIP"], 0.85, 0.85, 0.85, true)
+        GameTooltip:Show()
+    end)
+    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
     historyRows[idx] = row
     return row
+end
+
+local function CreateTeamMemberCard(parent, teamIndex, idx)
+    local card = CreateFrame("Frame", nil, parent)
+    card:SetSize(166, 46)
+    card:EnableMouse(true)
+    ApplyInsetPanelBackdrop(card, 6)
+
+    local iconFrame = CreateFrame("Frame", nil, card)
+    iconFrame:SetSize(24, 24)
+    iconFrame:SetPoint("LEFT", card, "LEFT", 5, 0)
+    ApplyInsetPanelBackdrop(iconFrame, 4)
+    local function StyleTeamIconFrame(f)
+        local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
+        if not p then return end
+        f:SetBackdropColor(p.historyIconBg[1], p.historyIconBg[2], p.historyIconBg[3], p.historyIconBg[4])
+        f:SetBackdropBorderColor(p.headerBorder[1], p.headerBorder[2], p.headerBorder[3], p.headerBorder[4])
+    end
+    StyleTeamIconFrame(iconFrame)
+    if DB_Internal.RegisterThemed then
+        DB_Internal.RegisterThemed(iconFrame, StyleTeamIconFrame)
+    end
+
+    card.icon = iconFrame:CreateTexture(nil, "ARTWORK")
+    card.icon:SetPoint("TOPLEFT", iconFrame, "TOPLEFT", 2, -2)
+    card.icon:SetPoint("BOTTOMRIGHT", iconFrame, "BOTTOMRIGHT", -2, 2)
+    card.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    card.removeBtn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
+    card.removeBtn:SetSize(18, 18)
+    card.removeBtn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -4, -4)
+    card.removeBtn:SetText("X")
+    card.removeBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine(L["HIST_TEAM_REMOVE_TIP"], 1, 0.4, 0.4)
+        GameTooltip:Show()
+    end)
+    card.removeBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    card.nameText = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    card.nameText:SetPoint("TOPLEFT", iconFrame, "TOPRIGHT", 6, 4)
+    card.nameText:SetPoint("RIGHT", card.removeBtn, "LEFT", -3, 0)
+    card.nameText:SetJustifyH("LEFT")
+    card.nameText:SetWordWrap(false)
+
+    card.detailText = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    card.detailText:SetPoint("TOPLEFT", card.nameText, "BOTTOMLEFT", 0, -2)
+    card.detailText:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -6, 3)
+    card.detailText:SetJustifyH("LEFT")
+    card.detailText:SetJustifyV("TOP")
+    card.detailText:SetWordWrap(true)
+
+    card:SetScript("OnEnter", function(self)
+        if not self.botName then return end
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine(self.botName, self.classR or 1, self.classG or 1, self.classB or 1)
+        if self.detailTooltip then
+            GameTooltip:AddLine(self.detailTooltip, 0.75, 0.90, 1.0, true)
+        end
+        GameTooltip:Show()
+    end)
+    card:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    historyTeamCards[teamIndex][idx] = card
+    return card
+end
+
+function DungeonBots:UpdateHistoryTeamsUI()
+    if not DungeonBots.historyFrame then return end
+
+    local defaultQuestionIcon = "Interface\\Icons\\INV_Misc_QuestionMark"
+    for teamIndex = 1, 3 do
+        local col = historyTeamColumns[teamIndex]
+        if col then
+            local members = (DungeonBots.GetBotTeam and DungeonBots:GetBotTeam(teamIndex)) or {}
+            col.titleText:SetText(string.format(L["HIST_TEAM_TITLE_FMT"], teamIndex, #members))
+
+            local cards = historyTeamCards[teamIndex]
+            for _, card in ipairs(cards) do
+                card:Hide()
+            end
+
+            if #members == 0 then
+                col.emptyLabel:Show()
+                col.scrollChild:SetHeight(1)
+                col.summonBtn:Disable()
+                col.summonBtn:SetText(L["HIST_TEAM_SUMMON_BTN"])
+            else
+                col.emptyLabel:Hide()
+                local allInPartyOnline = true
+
+                for idx, entry in ipairs(members) do
+                    local card = cards[idx] or CreateTeamMemberCard(col.scrollChild, teamIndex, idx)
+                    card:ClearAllPoints()
+                    card:SetPoint("TOPLEFT", col.scrollChild, "TOPLEFT", 1, -((idx - 1) * 49) - 2)
+                    card:Show()
+
+                    local className, classColor, classIcon = DungeonBots:GetClassDisplayInfo(entry.class)
+                    local displayIcon = entry.raceIcon
+                    if not displayIcon or displayIcon == "" or displayIcon == defaultQuestionIcon then
+                        displayIcon = classIcon
+                    end
+                    card.icon:SetTexture(displayIcon)
+
+                    local botName = entry.name
+                    local unit = DungeonBots:FindPartyUnitByName(botName)
+                    local inPartyOnline = (unit ~= nil and UnitIsConnected(unit)) and true or false
+                    if not inPartyOnline then
+                        allInPartyOnline = false
+                    end
+
+                    card.botName = botName
+                    card.classR = classColor.r
+                    card.classG = classColor.g
+                    card.classB = classColor.b
+
+                    if unit ~= nil then
+                        card.nameText:SetText(botName .. " |cff44ff44*|r")
+                    else
+                        card.nameText:SetText(botName)
+                    end
+                    card.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
+
+                    local cleanSpec = DungeonBots.CleanSpecText and DungeonBots:CleanSpecText(entry.spec) or (entry.spec or "")
+                    local displaySpec = (cleanSpec ~= "")
+                        and ((DungeonBots.LocalizeSpecText and DungeonBots:LocalizeSpecText(cleanSpec)) or cleanSpec)
+                        or ""
+                    local specText = (displaySpec ~= "") and ("|cff71d5ff" .. displaySpec .. "|r") or L["HIST_DEFAULT_TALENTS"]
+                    local fullDetail = className .. " - " .. specText
+                    card.detailText:SetText(fullDetail)
+                    card.detailTooltip = fullDetail .. (unit ~= nil and L["HIST_IN_PARTY_TAG"] or "")
+
+                    local tIdx = teamIndex
+                    local targetBotName = botName
+                    card.removeBtn:SetScript("OnClick", function()
+                        PlaySound("igMainMenuOptionCheckBoxOff")
+                        if DungeonBots.RemoveBotFromTeam then
+                            DungeonBots:RemoveBotFromTeam(tIdx, targetBotName)
+                        end
+                    end)
+                end
+
+                col.scrollChild:SetHeight(math.max(1, (#members * 49) + 4))
+                if allInPartyOnline then
+                    col.summonBtn:Disable()
+                    col.summonBtn:SetText(L["HIST_TEAM_ALL_IN_PARTY"])
+                else
+                    col.summonBtn:Enable()
+                    col.summonBtn:SetText(L["HIST_TEAM_SUMMON_BTN"])
+                end
+            end
+        end
+    end
 end
 
 function DungeonBots:BuildHistoryDialog()
     if DungeonBots.historyFrame then return end
 
     local hf = CreateFrame("Frame", "DungeonBots_HistoryFrame", UIParent)
-    hf:SetSize(540, 446)
+    hf:SetSize(HISTORY_TAB_WIDTHS[1], HISTORY_FRAME_HEIGHT)
     hf:SetPoint("CENTER", UIParent, "CENTER", 0, 20)
     hf:SetFrameStrata("DIALOG")
     hf:SetFrameLevel(24)
@@ -451,6 +739,7 @@ function DungeonBots:BuildHistoryDialog()
     hf:RegisterForDrag("LeftButton")
     hf:SetScript("OnDragStart", hf.StartMoving)
     hf:SetScript("OnDragStop", hf.StopMovingOrSizing)
+    hf:SetScript("OnHide", function() CloseDropDownMenus() end)
     hf:Hide()
     ApplyBlizzardGoldWindow(hf, 16)
 
@@ -473,23 +762,77 @@ function DungeonBots:BuildHistoryDialog()
         hf:Hide()
     end)
 
-    local countLabel = hf:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    countLabel:SetPoint("TOPLEFT", 14, -44)
+    -- Right-side SpellBook-style tabs (matching MainUI)
+    historyTabButtons = {}
+    historyTabFrames = {}
+    local tabDefs = {
+        { name = L["HIST_TAB1_NAME"], desc = L["HIST_TAB1_TIP"], icon = "Interface\\Icons\\INV_Misc_Book_03" },
+        { name = L["HIST_TAB2_NAME"], desc = L["HIST_TAB2_TIP"], icon = "Interface\\Icons\\INV_Misc_GroupLooking" },
+    }
+    for i, info in ipairs(tabDefs) do
+        local tabBtn = CreateFrame("CheckButton", "DungeonBots_HistorySideTab" .. i, hf)
+        tabBtn:SetSize(32, 32)
+        tabBtn:SetPoint("TOPLEFT", hf, "TOPRIGHT", -1, -48 - ((i - 1) * 46))
+
+        local bg = tabBtn:CreateTexture(nil, "BACKGROUND")
+        bg:SetTexture("Interface\\SpellBook\\SpellBook-SkillLineTab")
+        bg:SetSize(64, 64)
+        bg:SetPoint("TOPLEFT", -3, 11)
+        tabBtn.bgTex = bg
+
+        tabBtn:SetNormalTexture(info.icon)
+        tabBtn.iconTex = tabBtn:GetNormalTexture()
+        tabBtn.iconTex:SetTexCoord(0.06, 0.94, 0.06, 0.94)
+
+        tabBtn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square")
+        tabBtn:GetHighlightTexture():SetBlendMode("ADD")
+
+        tabBtn:SetCheckedTexture("Interface\\Buttons\\CheckButtonHilight")
+        tabBtn:GetCheckedTexture():SetBlendMode("ADD")
+
+        local tabIdx = i
+        local tabInfo = info
+        tabBtn:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(tabInfo.name, 1, 0.82, 0)
+            GameTooltip:AddLine(tabInfo.desc, 1, 1, 1, true)
+            GameTooltip:Show()
+        end)
+        tabBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        tabBtn:SetScript("OnClick", function()
+            PlaySound("igCharacterInfoTab")
+            DungeonBots:SelectHistoryTab(tabIdx)
+        end)
+
+        historyTabButtons[i] = tabBtn
+    end
+
+    -- Tab 1: Bot History
+    local tab1Frame = CreateFrame("Frame", nil, hf)
+    tab1Frame:SetAllPoints(hf)
+    historyTabFrames[1] = tab1Frame
+
+    local countLabel = tab1Frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    countLabel:SetPoint("TOPLEFT", 14, -40)
     countLabel:SetText(L["HIST_TOTAL_ZERO"])
     hf.countLabel = countLabel
 
-    local clearBtn = CreateFrame("Button", nil, hf, "UIPanelButtonTemplate")
+    local rightClickHint = tab1Frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    rightClickHint:SetPoint("TOPLEFT", 14, -55)
+    rightClickHint:SetText("|cffb0b0b0" .. L["HIST_RIGHT_CLICK_HINT"] .. "|r")
+
+    local clearBtn = CreateFrame("Button", nil, tab1Frame, "UIPanelButtonTemplate")
     clearBtn:SetSize(105, 22)
-    clearBtn:SetPoint("TOPRIGHT", hf, "TOPRIGHT", -14, -40)
+    clearBtn:SetPoint("TOPRIGHT", tab1Frame, "TOPRIGHT", -14, -42)
     clearBtn:SetText(L["HIST_CLEAR_ALL"])
     clearBtn:SetScript("OnClick", function()
         PlaySound("igMainMenuOptionCheckBoxOff")
         StaticPopup_Show("DUNGEONBOTS_CLEAR_HISTORY")
     end)
 
-    local scrollBg = CreateFrame("Frame", nil, hf)
-    scrollBg:SetPoint("TOPLEFT", hf, "TOPLEFT", 10, -68)
-    scrollBg:SetPoint("BOTTOMRIGHT", hf, "BOTTOMRIGHT", -10, 52)
+    local scrollBg = CreateFrame("Frame", nil, tab1Frame)
+    scrollBg:SetPoint("TOPLEFT", tab1Frame, "TOPLEFT", 10, -72)
+    scrollBg:SetPoint("BOTTOMRIGHT", tab1Frame, "BOTTOMRIGHT", -10, 52)
     ApplyBlizzardStonePanel(scrollBg, 0.66, 0.54, 0.30, 10, 0.28)
 
     local scrollFrame = CreateFrame("ScrollFrame", "DungeonBots_HistoryScrollFrame", scrollBg, "UIPanelScrollFrameTemplate")
@@ -507,18 +850,18 @@ function DungeonBots:BuildHistoryDialog()
     emptyLabel:SetText(L["HIST_EMPTY_TEXT"])
     hf.emptyLabel = emptyLabel
 
-    local addNameLabel = hf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    addNameLabel:SetPoint("BOTTOMLEFT", hf, "BOTTOMLEFT", 14, 22)
+    local addNameLabel = tab1Frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    addNameLabel:SetPoint("BOTTOMLEFT", tab1Frame, "BOTTOMLEFT", 14, 22)
     addNameLabel:SetText(L["HIST_ADD_LABEL"])
 
-    local addNameBox = CreateFrame("EditBox", "DungeonBots_HistAddNameBox", hf, "InputBoxTemplate")
+    local addNameBox = CreateFrame("EditBox", "DungeonBots_HistAddNameBox", tab1Frame, "InputBoxTemplate")
     addNameBox:SetSize(180, 20)
     addNameBox:SetPoint("LEFT", addNameLabel, "RIGHT", 10, 0)
     addNameBox:SetAutoFocus(false)
     addNameBox:SetMaxLetters(32)
     hf.addNameBox = addNameBox
 
-    local addNameBtn = CreateFrame("Button", nil, hf, "UIPanelButtonTemplate")
+    local addNameBtn = CreateFrame("Button", nil, tab1Frame, "UIPanelButtonTemplate")
     addNameBtn:SetSize(92, 24)
     addNameBtn:SetPoint("LEFT", addNameBox, "RIGHT", 8, 0)
     addNameBtn:SetText(L["BTN_ADD_BOT"])
@@ -559,6 +902,80 @@ function DungeonBots:BuildHistoryDialog()
     end)
     addNameBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
+    -- Tab 2: 3 Saved Bot Team Columns
+    local tab2Frame = CreateFrame("Frame", nil, hf)
+    tab2Frame:SetAllPoints(hf)
+    tab2Frame:Hide()
+    historyTabFrames[2] = tab2Frame
+
+    local teamHintLabel = tab2Frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    teamHintLabel:SetPoint("TOPLEFT", tab2Frame, "TOPLEFT", 14, -44)
+    teamHintLabel:SetText("|cffb0b0b0" .. L["HIST_TEAM_FOOTER_HINT"] .. "|r")
+
+    historyTeamColumns = {}
+    local colWidth = 202
+    local colGap = 8
+    for teamIndex = 1, 3 do
+        local startX = 12 + ((teamIndex - 1) * (colWidth + colGap))
+        local colFrame = CreateFrame("Frame", nil, tab2Frame)
+        colFrame:SetWidth(colWidth)
+        colFrame:SetPoint("TOPLEFT", tab2Frame, "TOPLEFT", startX, -64)
+        colFrame:SetPoint("BOTTOMLEFT", tab2Frame, "BOTTOMLEFT", startX, 50)
+        ApplyBlizzardStonePanel(colFrame, 0.66, 0.54, 0.30, 10, 0.28)
+
+        local colHeader = CreateFrame("Frame", nil, colFrame)
+        colHeader:SetPoint("TOPLEFT", colFrame, "TOPLEFT", 4, -4)
+        colHeader:SetPoint("TOPRIGHT", colFrame, "TOPRIGHT", -4, -4)
+        colHeader:SetHeight(24)
+        ApplyHeaderBackdrop(colHeader)
+
+        local colTitle = colHeader:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        colTitle:SetPoint("CENTER", colHeader, "CENTER", 0, 0)
+        colTitle:SetText(string.format(L["HIST_TEAM_TITLE_FMT"], teamIndex, 0))
+
+        local colScroll = CreateFrame("ScrollFrame", "DungeonBots_TeamScrollFrame" .. teamIndex, colFrame, "UIPanelScrollFrameTemplate")
+        colScroll:SetPoint("TOPLEFT", colFrame, "TOPLEFT", 6, -32)
+        colScroll:SetPoint("BOTTOMRIGHT", colFrame, "BOTTOMRIGHT", -26, 36)
+
+        local colChild = CreateFrame("Frame", "DungeonBots_TeamScrollChild" .. teamIndex, colScroll)
+        colChild:SetSize(168, 1)
+        colScroll:SetScrollChild(colChild)
+
+        local colEmpty = colFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        colEmpty:SetPoint("CENTER", colFrame, "CENTER", -8, -4)
+        colEmpty:SetWidth(156)
+        colEmpty:SetTextColor(0.65, 0.65, 0.65)
+        colEmpty:SetText(L["HIST_TEAM_EMPTY"])
+
+        local tIdx = teamIndex
+        local summonBtn = CreateFrame("Button", nil, colFrame, "UIPanelButtonTemplate")
+        summonBtn:SetHeight(24)
+        summonBtn:SetPoint("BOTTOMLEFT", colFrame, "BOTTOMLEFT", 8, 7)
+        summonBtn:SetPoint("BOTTOMRIGHT", colFrame, "BOTTOMRIGHT", -8, 7)
+        summonBtn:SetText(L["HIST_TEAM_SUMMON_BTN"])
+        summonBtn:SetScript("OnClick", function()
+            PlaySound("igMainMenuOptionCheckBoxOn")
+            if DungeonBots.SummonBotTeam then
+                DungeonBots:SummonBotTeam(tIdx)
+            end
+        end)
+        summonBtn:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:AddLine(L["HIST_TEAM_SUMMON_BTN"], 1, 0.85, 0.2)
+            GameTooltip:AddLine(L["HIST_TEAM_SUMMON_TIP"], 0.85, 0.85, 0.85, true)
+            GameTooltip:Show()
+        end)
+        summonBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+        historyTeamColumns[teamIndex] = {
+            frame = colFrame,
+            titleText = colTitle,
+            scrollChild = colChild,
+            emptyLabel = colEmpty,
+            summonBtn = summonBtn,
+        }
+    end
+
     local closeFooterBtn = CreateFrame("Button", nil, hf, "UIPanelButtonTemplate")
     closeFooterBtn:SetSize(90, 24)
     closeFooterBtn:SetPoint("BOTTOMRIGHT", hf, "BOTTOMRIGHT", -12, 16)
@@ -572,6 +989,7 @@ function DungeonBots:BuildHistoryDialog()
     if DB_Internal.RegisterSubModalDimmer then
         DB_Internal.RegisterSubModalDimmer(hf)
     end
+    DungeonBots:SelectHistoryTab(activeHistoryTab)
 end
 
 function DungeonBots:UpdateHistoryUI()
@@ -588,6 +1006,9 @@ function DungeonBots:UpdateHistoryUI()
     if #list == 0 then
         hf.emptyLabel:Show()
         hf.scrollChild:SetHeight(1)
+        if DungeonBots.UpdateHistoryTeamsUI then
+            DungeonBots:UpdateHistoryTeamsUI()
+        end
         return
     end
 
@@ -599,6 +1020,7 @@ function DungeonBots:UpdateHistoryUI()
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", hf.scrollChild, "TOPLEFT", 2, -((idx - 1) * 54) - 2)
         row:Show()
+        row.botEntry = entry
 
         local className, classColor, classIcon = DungeonBots:GetClassDisplayInfo(entry.class)
         local displayIcon = entry.raceIcon
@@ -621,7 +1043,7 @@ function DungeonBots:UpdateHistoryUI()
             and ((DungeonBots.LocalizeSpecText and DungeonBots:LocalizeSpecText(cleanSpec)) or cleanSpec)
             or ""
         local specText = (displaySpec ~= "") and ("|cff71d5ff" .. displaySpec .. "|r") or L["HIST_DEFAULT_TALENTS"]
-        row.detailText:SetText(className .. " - " .. specText)
+        row.detailText:SetText(className .. " - " .. specText .. GetBotTeamTagsText(botName))
 
         local isLoading = (DungeonBots.IsHistoryBotLoading and DungeonBots:IsHistoryBotLoading(botName)) and true or false
         if inParty then
@@ -668,6 +1090,9 @@ function DungeonBots:UpdateHistoryUI()
     end
 
     hf.scrollChild:SetHeight(math.max(1, (#list * 54) + 6))
+    if DungeonBots.UpdateHistoryTeamsUI then
+        DungeonBots:UpdateHistoryTeamsUI()
+    end
 end
 
 function DungeonBots:ToggleHistoryDialog()
