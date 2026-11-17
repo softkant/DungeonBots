@@ -135,13 +135,19 @@ function DungeonBots:RequestBotWhoCheck(botName, reason, force)
     if not cleanBot or cleanBot == "" then return false end
     local now = NowTime()
     DungeonBots.pendingWhoCheck = DungeonBots.pendingWhoCheck or {}
+    DungeonBots.whoCheckLastSentAt = DungeonBots.whoCheckLastSentAt or {}
     local existing = DungeonBots.pendingWhoCheck[cleanBot]
-    if not force and existing and (existing.requestedAt or 0) + 3.0 > now then
+    if not force and existing and (existing.requestedAt or 0) + 15.0 > now then
         if reason and reason ~= "" then
             existing.reason = reason
         end
         return false
     end
+    local lastSent = DungeonBots.whoCheckLastSentAt[cleanBot] or 0
+    if not force and (lastSent + 15.0) > now then
+        return false
+    end
+    DungeonBots.whoCheckLastSentAt[cleanBot] = now
     DungeonBots.pendingWhoCheck[cleanBot] = {
         reason = reason or "check",
         requestedAt = now,
@@ -507,7 +513,7 @@ function DungeonBots:EvaluateWhisperSender(cleanSender, message, allowPromote)
         isKnownOrHistory = true
     end
 
-    if not isKnownOrHistory and not hasPendingScan and not canConsumeClassSummon then
+    if not isKnownOrHistory and not hasPendingScan and not (canConsumeClassSummon and isBotText) then
         return {
             isBot = false,
             isKnownOrHistory = false,
@@ -536,7 +542,7 @@ function DungeonBots:EvaluateWhisperSender(cleanSender, message, allowPromote)
             justPromoted = true
         end
 
-        if canConsumeClassSummon and not isKnownOrHistory then
+        if canConsumeClassSummon and not isKnownOrHistory and isBotText then
             if DungeonBots:ConsumePendingClassSummon() then
                 DungeonBots:MarkRecentBot(cleanSender, 120)
                 DungeonBots:RegisterBot(cleanSender, true)

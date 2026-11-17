@@ -539,6 +539,12 @@ function DungeonBots:AddBot(botName, inviteDelay, silentPrint)
     local now = NowTime()
     DungeonBots.lastBotCallAttempt = DungeonBots.lastBotCallAttempt or {}
     DungeonBots.lastBotCallAttempt[cleanName] = now
+    if DungeonBots.whoCheckLastSentAt then
+        DungeonBots.whoCheckLastSentAt[cleanName] = nil
+    end
+    if DungeonBots.inviteFailedWhoRetryAt then
+        DungeonBots.inviteFailedWhoRetryAt[cleanName] = nil
+    end
     if DungeonBots.busyExternalBots and DungeonBots.busyExternalBots[cleanName] then
         -- Reiniciar ventana activa para permitir reintentar si el otro jugador lo solto, conservando dueno previo
         DungeonBots.busyExternalBots[cleanName].expiresAt = 0
@@ -1097,9 +1103,10 @@ historyInviteFrame:SetScript("OnUpdate", function(self, elapsed)
                 InviteUnit(botName)
                 hasPending = true
             else
+                local noWho = entry.noWhoOnFail and true or false
                 pendingInviteRetries[botName] = nil
                 local sentWho = false
-                if DungeonBots.RequestBotWhoCheck and DungeonBots:ShouldTreatAsBot(botName) then
+                if (not noWho) and DungeonBots.RequestBotWhoCheck and DungeonBots:ShouldTreatAsBot(botName) then
                     sentWho = DungeonBots:RequestBotWhoCheck(botName, "invite_failed")
                 end
                 if not sentWho then
@@ -1160,7 +1167,7 @@ function DB_Internal.ShowWhoCheckFrame()
     whoCheckFrame:Show()
 end
 
-function DungeonBots:SchedulePartyInviteRetry(botName, initialDelay, maxAttempts)
+function DungeonBots:SchedulePartyInviteRetry(botName, initialDelay, maxAttempts, noWhoOnFail)
     local cleanName = NormalizePlayerName(botName)
     if not cleanName or cleanName == "" then return end
     if DungeonBots:WasRecentlyDismissed(cleanName) then return end
@@ -1178,10 +1185,14 @@ function DungeonBots:SchedulePartyInviteRetry(botName, initialDelay, maxAttempts
     if existing then
         existing.nextAt = math.min(existing.nextAt or (now + delay), now + delay)
         existing.attemptsLeft = math.max(existing.attemptsLeft or 0, attempts)
+        if noWhoOnFail ~= nil then
+            existing.noWhoOnFail = noWhoOnFail and true or false
+        end
     else
         pendingInviteRetries[cleanName] = {
             nextAt = now + delay,
             attemptsLeft = attempts,
+            noWhoOnFail = noWhoOnFail and true or false,
         }
     end
     historyInviteFrame:Show()

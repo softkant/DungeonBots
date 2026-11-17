@@ -246,7 +246,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             DB_Internal.ClearAllPendingQuestCounts()
         end
 
-        DungeonBots:Print(string.format(L["ADDON_LOADED_FMT"], tostring(DungeonBots.VERSION or "1.2.2")))
+        DungeonBots:Print(string.format(L["ADDON_LOADED_FMT"], tostring(DungeonBots.VERSION or "1.2.3")))
         if DungeonBots.InitUI then
             DungeonBots:InitUI()
         end
@@ -359,11 +359,18 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             local busyOwner, isBusyWhisper = DB_Internal.ExtractBusyBotOwnerFromWhisper(message)
             local isSelfOwner = (busyOwner and playerName and busyOwner == playerName)
             if isBusyWhisper and not isSelfOwner then
-                if DungeonBots.NotifyExternalBotBusy then
-                    DungeonBots:NotifyExternalBotBusy(cleanSender, busyOwner, "whisper", true)
-                end
-                if not busyOwner and DungeonBots.RequestBotWhoCheck then
-                    DungeonBots:RequestBotWhoCheck(cleanSender, "busy_owner_lookup")
+                local nowTs = NowTime()
+                local isExpectedBot = DungeonBots:ShouldTreatAsBot(cleanSender)
+                    or (DungeonBots.HasPendingHistoryInvite and DungeonBots:HasPendingHistoryInvite(cleanSender))
+                    or (DungeonBots.IsHistoryBotLoading and DungeonBots:IsHistoryBotLoading(cleanSender))
+                    or (DungeonBots.lastBotCallAttempt and ((DungeonBots.lastBotCallAttempt[cleanSender] or 0) + 30.0 > nowTs))
+                if isExpectedBot then
+                    if DungeonBots.NotifyExternalBotBusy then
+                        DungeonBots:NotifyExternalBotBusy(cleanSender, busyOwner, "whisper", true)
+                    end
+                    if not busyOwner and DungeonBots.RequestBotWhoCheck then
+                        DungeonBots:RequestBotWhoCheck(cleanSender, "busy_owner_lookup")
+                    end
                 end
                 if DungeonBots.OnWhisperReceived then
                     DungeonBots:OnWhisperReceived(cleanSender, message)
@@ -419,8 +426,11 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                         if DungeonBots.NotifyBotAlreadyOnline then
                             DungeonBots:NotifyBotAlreadyOnline(cleanSender, whoInfo)
                         end
-                        if DungeonBots.SchedulePartyInviteRetry then
-                            DungeonBots:SchedulePartyInviteRetry(cleanSender, 0.4, 2)
+                        local lastRetryAt = DungeonBots.inviteFailedWhoRetryAt and DungeonBots.inviteFailedWhoRetryAt[cleanSender] or 0
+                        if DungeonBots.SchedulePartyInviteRetry and (lastRetryAt + 20.0 <= NowTime()) then
+                            DungeonBots.inviteFailedWhoRetryAt = DungeonBots.inviteFailedWhoRetryAt or {}
+                            DungeonBots.inviteFailedWhoRetryAt[cleanSender] = NowTime()
+                            DungeonBots:SchedulePartyInviteRetry(cleanSender, 0.4, 1, true)
                         end
                     elseif whoInfo.zone and whoInfo.zone ~= "" and not inParty then
                         DungeonBots:Warn(string.format(L["JOIN_FAIL_ZONE_FMT"], cleanSender, whoInfo.zone) .. ".")
@@ -638,7 +648,9 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             and DungeonBots.SchedulePartyInviteRetry then
             DungeonBots:SchedulePartyInviteRetry(cleanSender, 0.05, 2)
         end
-        local shouldAutoInvite = (not wasDismissed) and (not isExternallyBusy) and (not isHistoryManaged) and (DungeonBots:IsRecentBot(cleanSender) or (isKnownOrHistory and isBotResponse))
+        local hasRecentCallAttempt = (DungeonBots.lastBotCallAttempt and ((DungeonBots.lastBotCallAttempt[cleanSender] or 0) + 30.0 > NowTime())) and true or false
+        local shouldAutoInvite = (not wasDismissed) and (not isExternallyBusy) and (not isHistoryManaged)
+            and (DungeonBots:IsRecentBot(cleanSender) or (isKnownOrHistory and isBotResponse and hasRecentCallAttempt))
         if shouldAutoInvite and not inParty then
             if DungeonBots:CanInviteToParty() then
                 if (DungeonBots.recentInvites[cleanSender] or 0) <= NowTime() then
