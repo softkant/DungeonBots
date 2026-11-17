@@ -5,7 +5,7 @@
 Summon, organize, gear, inspect, and direct your 5-player dungeon bots from a clean Blizzard-styled UI — without typing chat commands manually.
 
 ![WoW 3.3.5a](https://img.shields.io/badge/WoW-3.3.5a%20(30300)-blue)
-![Version](https://img.shields.io/badge/Version-1.2.2-gold)
+![Version](https://img.shields.io/badge/Version-1.2.3-gold)
 ![Languages](https://img.shields.io/badge/Languages-English%20%7C%20Espa%C3%B1ol-green)
 
 ---

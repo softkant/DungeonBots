@@ -770,6 +770,7 @@ L["SPELL_NO_SPELLS_FMT"]   = "No spells received for |cffffd200%s|r."
 L["SPELL_NOMATCH_FMT"]     = "No spell matches \"%s\"."
 L["GLYPH_EQUIPPED_HINT"]   = "|cff8899aaEquipped glyph  |  Hover for details|r"
 L["SPELL_ROW_HINT"]        = "|cff667788Left-click: select  |  Shift + Click: link|r"
+L["OUTDATED_VERSION_FMT"]  = "A newer version of |cff00ccffDungeon|r|cffffd200Bots|r (|cffffffffv%s|r) is available (your version: v%s). Download the update to fix bugs and get improvements."
 
 for k, v in pairs(L) do
     DungeonBots.L[k] = v

@@ -855,3 +855,147 @@ function DungeonBots:HookSendChatForTalk()
         end
     end)
 end
+
+-- =========================================================================
+-- Chequeo Silencioso de Versión entre Clientes (SendAddonMessage)
+-- =========================================================================
+local ADDON_COMM_PREFIX = "DungeonBots"
+local VERSION_BROADCAST_COOLDOWN = {
+    GUILD = 300.0,
+    RAID = 60.0,
+    PARTY = 60.0,
+}
+
+local versionBroadcastLastAt = {}
+local versionReplyLastAt = {}
+local outdatedVersionNotified = false
+local versionCheckPendingAt = nil
+local versionCheckFrame = CreateFrame("Frame")
+versionCheckFrame:Hide()
+
+local function ParseSemverTuple(verStr)
+    if type(verStr) ~= "string" then return nil end
+    local maj, min, pat = string.match(verStr, "^(%d+)%.(%d+)%.?(%d*)$")
+    if not maj or not min then return nil end
+    return { tonumber(maj) or 0, tonumber(min) or 0, tonumber(pat) or 0 }
+end
+
+local function CompareVersionStrings(verA, verB)
+    local a = ParseSemverTuple(verA)
+    local b = ParseSemverTuple(verB)
+    if not a or not b then return 0 end
+    for i = 1, 3 do
+        if a[i] > b[i] then return 1 end
+        if a[i] < b[i] then return -1 end
+    end
+    return 0
+end
+
+local function PartyHasPotentialHumanMember()
+    if GetNumRaidMembers and GetNumRaidMembers() > 0 then
+        return true
+    end
+    local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
+    if numParty <= 0 then return false end
+    for i = 1, 4 do
+        local unit = "party" .. i
+        if UnitExists and UnitExists(unit) then
+            local memberName = UnitName and UnitName(unit)
+            if memberName and memberName ~= "" and memberName ~= UNKNOWNOBJECT and memberName ~= "Unknown" then
+                if not (DungeonBots.ShouldTreatAsBot and DungeonBots:ShouldTreatAsBot(memberName)) then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+local function SafeSendVersionAddonMessage(channel, target)
+    if not SendAddonMessage or not DungeonBots.VERSION then return end
+    local localVer = tostring(DungeonBots.VERSION)
+    if not ParseSemverTuple(localVer) then return end
+    pcall(SendAddonMessage, ADDON_COMM_PREFIX, "VER:" .. localVer, channel, target)
+end
+
+function DungeonBots:BroadcastAddonVersion(forceGuild)
+    if not SendAddonMessage then return end
+    local now = NowTime()
+    if IsInGuild and IsInGuild() then
+        local lastGuild = versionBroadcastLastAt.GUILD or 0
+        if forceGuild or (lastGuild + VERSION_BROADCAST_COOLDOWN.GUILD) <= now then
+            versionBroadcastLastAt.GUILD = now
+            SafeSendVersionAddonMessage("GUILD")
+        end
+    end
+    if GetNumRaidMembers and GetNumRaidMembers() > 0 then
+        if (versionBroadcastLastAt.RAID or 0) + VERSION_BROADCAST_COOLDOWN.RAID <= now then
+            versionBroadcastLastAt.RAID = now
+            SafeSendVersionAddonMessage("RAID")
+        end
+    elseif GetNumPartyMembers and GetNumPartyMembers() > 0 and PartyHasPotentialHumanMember() then
+        if (versionBroadcastLastAt.PARTY or 0) + VERSION_BROADCAST_COOLDOWN.PARTY <= now then
+            versionBroadcastLastAt.PARTY = now
+            SafeSendVersionAddonMessage("PARTY")
+        end
+    end
+end
+
+function DungeonBots:ScheduleVersionBroadcast(delaySeconds, includeGuild)
+    local now = NowTime()
+    local targetAt = now + (delaySeconds or 3.5)
+    if not versionCheckPendingAt or targetAt < versionCheckPendingAt then
+        versionCheckPendingAt = targetAt
+    end
+    if includeGuild then
+        versionCheckFrame.includeGuild = true
+    end
+    versionCheckFrame:Show()
+end
+
+versionCheckFrame:SetScript("OnUpdate", function(self)
+    if not versionCheckPendingAt then
+        self:Hide()
+        return
+    end
+    if NowTime() >= versionCheckPendingAt then
+        local forceGuild = self.includeGuild and true or false
+        versionCheckPendingAt = nil
+        self.includeGuild = false
+        self:Hide()
+        DungeonBots:BroadcastAddonVersion(forceGuild)
+    end
+end)
+
+function DB_Internal.HandleVersionAddonMessage(prefix, message, channel, sender)
+    if prefix ~= ADDON_COMM_PREFIX or type(message) ~= "string" then return end
+    if channel ~= "GUILD" and channel ~= "PARTY" and channel ~= "RAID" and channel ~= "BATTLEGROUND" and channel ~= "WHISPER" then
+        return
+    end
+    local cleanSender = NormalizePlayerName(sender)
+    local myName = UnitName and NormalizePlayerName(UnitName("player"))
+    if not cleanSender or cleanSender == "" or (myName and cleanSender == myName) then
+        return
+    end
+
+    local remoteVer = string.match(message, "^VER:(%d+%.%d+%.?%d*)$")
+    if not remoteVer then return end
+
+    local localVer = tostring(DungeonBots.VERSION or "")
+    local cmp = CompareVersionStrings(remoteVer, localVer)
+    if cmp > 0 then
+        if not outdatedVersionNotified then
+            outdatedVersionNotified = true
+            local msgFmt = (DungeonBots.L and DungeonBots.L["OUTDATED_VERSION_FMT"]) or L["OUTDATED_VERSION_FMT"]
+            if DungeonBots.Print and msgFmt then
+                DungeonBots:Print(string.format(msgFmt, remoteVer, localVer))
+            end
+        end
+    elseif cmp < 0 then
+        local now = NowTime()
+        if (versionReplyLastAt[cleanSender] or 0) + 300.0 <= now then
+            versionReplyLastAt[cleanSender] = now
+            SafeSendVersionAddonMessage("WHISPER", cleanSender)
+        end
+    end
+end

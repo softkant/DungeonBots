@@ -762,6 +762,7 @@ L["SPELL_NO_SPELLS_FMT"]   = "No se recibieron poderes para |cffffd200%s|r."
 L["SPELL_NOMATCH_FMT"]     = "Ningún poder coincide con \"%s\"."
 L["GLYPH_EQUIPPED_HINT"]   = "|cff8899aaGlifo equipado  |  Pasa el ratón para ver detalles|r"
 L["SPELL_ROW_HINT"]        = "|cff667788Clic izq.: seleccionar  |  Shift + Clic: enlazar|r"
+L["OUTDATED_VERSION_FMT"]  = "Hay una versión más nueva de |cff00ccffDungeon|r|cffffd200Bots|r (|cffffffffv%s|r) disponible (tu versión: v%s). Descarga la actualización para corregir errores y tener mejoras."
 
 -- =========================================================================
 -- Diccionario visual de ramas y clases devueltas por mod-playerbots

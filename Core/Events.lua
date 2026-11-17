@@ -42,6 +42,7 @@ eventFrame:RegisterEvent("UNIT_CONNECTION")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 eventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
+eventFrame:RegisterEvent("CHAT_MSG_ADDON")
 
 local lastInventoryFullWarnAt = {}
 local lastLfgQueueMode = nil
@@ -127,6 +128,9 @@ local function HandlePartyChanged(isEnteringWorld)
             DungeonBots:RequestDungeonLockInfo(false)
         end
         DungeonBots:UpdateDungeonAccessUI()
+    end
+    if not isEnteringWorld and DungeonBots.ScheduleVersionBroadcast then
+        DungeonBots:ScheduleVersionBroadcast(3.0, false)
     end
 end
 
@@ -255,6 +259,9 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         end
         if DB_Internal.RefreshTheme then
             DB_Internal.RefreshTheme()
+        end
+        if DungeonBots.ScheduleVersionBroadcast then
+            DungeonBots:ScheduleVersionBroadcast(5.0, true)
         end
         lastLfgQueueMode = (GetLFGMode and GetLFGMode()) or nil
         DungeonBots:SyncPartyToHistory()
@@ -732,6 +739,11 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     elseif event == "PLAYER_TARGET_CHANGED" then
         if DungeonBots.UpdateHUDTalkButtonState then
             DungeonBots:UpdateHUDTalkButtonState()
+        end
+
+    elseif event == "CHAT_MSG_ADDON" then
+        if DB_Internal.HandleVersionAddonMessage then
+            DB_Internal.HandleVersionAddonMessage(...)
         end
     end
 end)
