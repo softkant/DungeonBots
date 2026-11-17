@@ -250,7 +250,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             DB_Internal.ClearAllPendingQuestCounts()
         end
 
-        DungeonBots:Print(string.format(L["ADDON_LOADED_FMT"], tostring(DungeonBots.VERSION or "1.2.3")))
+        DungeonBots:Print(string.format(L["ADDON_LOADED_FMT"], tostring(DungeonBots.VERSION or "1.2.4")))
         if DungeonBots.InitUI then
             DungeonBots:InitUI()
         end
@@ -276,6 +276,26 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             NotifyBotInventoryFull(fullBot)
             return
         end
+        if message and DB_Internal.ParseBotRosterSystemMessage and DB_Internal.HandleBotRosterSystemMessage then
+            local roster = DB_Internal.ParseBotRosterSystemMessage(message)
+            if roster then
+                DB_Internal.HandleBotRosterSystemMessage(roster)
+                return
+            end
+        end
+        if message and DB_Internal.ExtractMissingPlayerFromSystem and DungeonBots.RecordMissingBotFeedback then
+            local missingBot, missingKind = DB_Internal.ExtractMissingPlayerFromSystem(message)
+            if missingBot and DungeonBots:RecordMissingBotFeedback(missingBot, missingKind) then
+                return
+            end
+        end
+        if message and DB_Internal.ExtractClassAddRejectionFromSystem and DungeonBots.HasPendingClassSummon and DungeonBots:HasPendingClassSummon() then
+            local rejectReason = DB_Internal.ExtractClassAddRejectionFromSystem(message)
+            if rejectReason and DungeonBots.CancelPendingClassSummonOnRejection then
+                DungeonBots:CancelPendingClassSummonOnRejection(rejectReason)
+                return
+            end
+        end
         if message and DB_Internal.ExtractAddedBotFromSystem and DungeonBots.ConfirmPartyBotIdentity then
             local addedBot = DB_Internal.ExtractAddedBotFromSystem(message)
             if addedBot and DungeonBots:IsBot(addedBot) ~= false then
@@ -286,6 +306,10 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                     end
                     DungeonBots:ConfirmPartyBotIdentity(addedBot, DungeonBots:IsRecentBot(addedBot) and true or false)
                     return
+                elseif DungeonBots.HasPendingClassSummon and DungeonBots:HasPendingClassSummon() and DungeonBots.ConfirmClassBotFromSystem then
+                    if DungeonBots:ConfirmClassBotFromSystem(addedBot) then
+                        return
+                    end
                 end
             end
         end

@@ -468,6 +468,129 @@ function DB_Internal.ExtractAddedBotFromSystem(message)
     return nil
 end
 
+local ROSTER_CLASS_TO_TOKEN = {
+    ["warrior"] = "WARRIOR", ["guerrero"] = "WARRIOR",
+    ["paladin"] = "PALADIN", ["paladín"] = "PALADIN",
+    ["hunter"] = "HUNTER", ["cazador"] = "HUNTER",
+    ["rogue"] = "ROGUE", ["pícaro"] = "ROGUE", ["picaro"] = "ROGUE",
+    ["priest"] = "PRIEST", ["sacerdote"] = "PRIEST",
+    ["death knight"] = "DEATHKNIGHT", ["deathknight"] = "DEATHKNIGHT", ["caballero de la muerte"] = "DEATHKNIGHT",
+    ["shaman"] = "SHAMAN", ["chamán"] = "SHAMAN", ["chaman"] = "SHAMAN",
+    ["mage"] = "MAGE", ["mago"] = "MAGE",
+    ["warlock"] = "WARLOCK", ["brujo"] = "WARLOCK",
+    ["druid"] = "DRUID", ["druida"] = "DRUID",
+}
+
+local function BuildFormatCapturePattern(fmtStr)
+    if type(fmtStr) ~= "string" or fmtStr == "" then return nil end
+    local esc = string.gsub(fmtStr, "([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1")
+    esc = string.gsub(esc, "%%%%s", "(.+)")
+    return "^" .. esc .. "$"
+end
+
+function DB_Internal.ExtractMissingPlayerFromSystem(message)
+    local cleanMsg = TrimText(StripWowFormatting(message or ""))
+    if cleanMsg == "" then return nil, nil end
+
+    local badNamePat = BuildFormatCapturePattern(_G.ERR_BAD_PLAYER_NAME_S)
+    if badNamePat then
+        local m = string.match(cleanMsg, badNamePat)
+        if m and m ~= "" then
+            return NormalizePlayerName(m), "invite_missing"
+        end
+    end
+
+    local notFoundPat = BuildFormatCapturePattern(_G.ERR_CHAT_PLAYER_NOT_FOUND_S)
+    if notFoundPat then
+        local m = string.match(cleanMsg, notFoundPat)
+        if m and m ~= "" then
+            return NormalizePlayerName(m), "whisper_missing"
+        end
+    end
+
+    local lowerMsg = string.lower(cleanMsg)
+    local invRaw = string.match(cleanMsg, "[Cc]annot find player '([^']+)'")
+        or string.match(cleanMsg, "[Nn]o se encuentra al jugador '([^']+)'")
+    if invRaw and invRaw ~= "" then
+        return NormalizePlayerName(invRaw), "invite_missing"
+    end
+
+    local wspRaw = string.match(cleanMsg, "[Nn]o player named '([^']+)' is currently playing")
+        or string.match(cleanMsg, "[Nn]o hay ning.+jugador llamado '([^']+)'")
+    if wspRaw and wspRaw ~= "" then
+        return NormalizePlayerName(wspRaw), "whisper_missing"
+    end
+    if string.find(lowerMsg, "not currently playing", 1, true) then
+        local q = string.match(cleanMsg, "'([^']+)'")
+        if q and q ~= "" then
+            return NormalizePlayerName(q), "whisper_missing"
+        end
+    end
+    return nil, nil
+end
+
+function DB_Internal.ParseBotRosterSystemMessage(message)
+    local cleanMsg = TrimText(StripWowFormatting(message or ""))
+    if cleanMsg == "" then return nil end
+    local body = string.match(cleanMsg, "^[Bb]ot%s+[Rr]oster:%s*(.*)$")
+    if not body then return nil end
+
+    local roster = { isRoster = true, online = {}, offline = {}, all = {} }
+    for seg in string.gmatch(body, "([^,]+)") do
+        local s = TrimText(seg)
+        local sign, namePart, classPart = string.match(s, "^([%+%-])%s*([^%s]+)%s+(.+)$")
+        if sign and namePart then
+            local cleanName = NormalizePlayerName(namePart)
+            local rawClass = TrimText(classPart)
+            local classToken = ROSTER_CLASS_TO_TOKEN[string.lower(rawClass)]
+            if cleanName and cleanName ~= "" then
+                local entry = {
+                    name = cleanName,
+                    online = (sign == "+"),
+                    classToken = classToken,
+                    rawClass = rawClass,
+                }
+                roster.all[cleanName] = entry
+                if sign == "+" then
+                    roster.online[cleanName] = entry
+                else
+                    roster.offline[cleanName] = entry
+                end
+            end
+        end
+    end
+    return roster
+end
+
+function DB_Internal.ExtractClassAddRejectionFromSystem(message)
+    local cleanMsg = TrimText(StripWowFormatting(message or ""))
+    if cleanMsg == "" then return nil end
+    local lower = string.lower(cleanMsg)
+    if string.find(lower, "you have added too many bots", 1, true)
+        or string.find(lower, "more than 4", 1, true)
+        or string.find(lower, "demasiados bots", 1, true)
+        or string.find(lower, "^failure:") then
+        return cleanMsg
+    end
+    local hasExplicitErr = string.find(lower, "fail", 1, true)
+        or string.find(lower, "error", 1, true)
+        or string.find(lower, "cannot", 1, true)
+        or string.find(lower, "can't", 1, true)
+        or string.find(lower, "unable", 1, true)
+        or string.find(lower, "limit", 1, true)
+        or string.find(lower, "full", 1, true)
+    if (string.find(lower, "^add class ") or string.find(lower, "^addclass")) and hasExplicitErr then
+        return cleanMsg
+    end
+    if string.find(lower, "no bots available", 1, true)
+        or string.find(lower, "cannot add bot", 1, true)
+        or string.find(lower, "can't add bot", 1, true)
+        or string.find(lower, "unable to add", 1, true) then
+        return cleanMsg
+    end
+    return nil
+end
+
 function DungeonBots:EvaluateWhisperSender(cleanSender, message, allowPromote)
     if not cleanSender or cleanSender == "" then
         return { isBot = false }
@@ -543,13 +666,19 @@ function DungeonBots:EvaluateWhisperSender(cleanSender, message, allowPromote)
         end
 
         if canConsumeClassSummon and not isKnownOrHistory and isBotText then
-            if DungeonBots:ConsumePendingClassSummon() then
+            local consumed = DungeonBots:ConsumePendingClassSummon(nil, cleanSender)
+            if consumed then
+                DungeonBots.confirmedBots[cleanSender] = true
                 DungeonBots:MarkRecentBot(cleanSender, 120)
                 DungeonBots:RegisterBot(cleanSender, true)
-                DungeonBots:RecordBotHistory(cleanSender)
+                DungeonBots:RecordBotHistory(cleanSender, consumed.classToken, nil, nil)
                 DungeonBots.justPromotedBotWhisper[cleanSender] = NowTime() + 1.0
                 isKnownOrHistory = true
                 justPromoted = true
+                local fmt = (DungeonBots.L and DungeonBots.L["BOT_ADDED_FMT"]) or L["BOT_ADDED_FMT"]
+                if DungeonBots.Print and fmt then
+                    DungeonBots:Print(string.format(fmt, cleanSender))
+                end
             end
         end
     end
@@ -671,6 +800,16 @@ local function ChatEventFilterFunc(self, event, message, sender, ...)
         local clean = TrimText(StripWowFormatting(message))
         local lower = string.lower(clean)
         local isDismissWindow = (DungeonBots.suppressDismissNoiseUntil and NowTime() <= DungeonBots.suppressDismissNoiseUntil) and true or false
+        local isRosterWindow = (DungeonBots.suppressBotRosterUntil and NowTime() <= DungeonBots.suppressBotRosterUntil) and true or false
+        if isRosterWindow and string.find(lower, "^bot%s+roster:") then
+            return true
+        end
+        if DungeonBots.suppressMissingPlayerUntil and DB_Internal.ExtractMissingPlayerFromSystem then
+            local missingName = DB_Internal.ExtractMissingPlayerFromSystem(clean)
+            if missingName and (DungeonBots.suppressMissingPlayerUntil[missingName] or 0) >= NowTime() then
+                return true
+            end
+        end
         if string.find(lower, "you have added too many bots", 1, true)
             or string.find(lower, "more than 4", 1, true)
             or string.find(lower, "demasiados bots", 1, true)
