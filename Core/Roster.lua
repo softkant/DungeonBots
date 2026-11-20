@@ -51,9 +51,37 @@ local function BuildCurrentPartyBotSet()
     return set
 end
 
+DungeonBots.rosterConfirmedBots = DungeonBots.rosterConfirmedBots or {}
+DungeonBots.pendingBusyRosterVerify = DungeonBots.pendingBusyRosterVerify or {}
+DungeonBots.pendingInaccessibleCheck = DungeonBots.pendingInaccessibleCheck or {}
+
+local function CleanupInaccessibleRosterBot(botName)
+    local cleanName = NormalizePlayerName(botName)
+    if not cleanName or cleanName == "" then return false end
+    if DungeonBots:FindPartyUnitByName(cleanName, true) then
+        return false
+    end
+    DungeonBots.rosterConfirmedBots[cleanName] = nil
+    if DungeonBots.pendingInaccessibleCheck then
+        DungeonBots.pendingInaccessibleCheck[cleanName] = nil
+    end
+    if DungeonBots.pendingBusyRosterVerify then
+        DungeonBots.pendingBusyRosterVerify[cleanName] = nil
+    end
+    DungeonBots.suppressDismissNoiseUntil = math.max(DungeonBots.suppressDismissNoiseUntil or 0, NowTime() + 3.5)
+    DungeonBots:ClearPendingBotInteractions(cleanName)
+    DungeonBots:SendDotCommand(".playerbots bot remove " .. cleanName)
+    DungeonBots:Warn(string.format(L["BOT_INACCESSIBLE_FREED_FMT"], cleanName))
+    return true
+end
+
 local function ExpireClassSummonTicket(ticket)
     if not ticket or ticket.notifiedEnd then return end
     ticket.notifiedEnd = true
+    if ticket.candidateName and not DungeonBots:FindPartyUnitByName(ticket.candidateName, true) then
+        CleanupInaccessibleRosterBot(ticket.candidateName)
+        return
+    end
     local disp = ticket.classDisplay or ticket.classId or "Bot"
     DungeonBots:Warn(string.format(L["BOT_CLASS_TIMEOUT_FMT"], disp))
 end
@@ -167,33 +195,80 @@ classSummonFrame:SetScript("OnUpdate", function(self)
     local now = NowTime()
     PrunePendingClassSummons()
     local list = DungeonBots.pendingClassSummons
-    if not list or #list == 0 then
+    local hasClassTickets = (list and #list > 0) and true or false
+    if not hasClassTickets then
         DungeonBots.pendingPreClassRoster = false
-        self:Hide()
-        return
-    end
-
-    local needFollowupRoster = false
-    for _, ticket in ipairs(list) do
-        if not ticket.dispatched and now >= (ticket.dispatchAt or 0) then
-            DungeonBots.pendingPreClassRoster = false
-            DispatchClassSummonTicket(ticket, nil, now)
-        elseif ticket.dispatched and (ticket.rosterChecksLeft or 0) > 0 and now >= (ticket.rosterCheckAt or 0) then
-            needFollowupRoster = true
-        end
-    end
-
-    if needFollowupRoster then
+    else
+        local needFollowupRoster = false
         for _, ticket in ipairs(list) do
-            if ticket.dispatched and (ticket.rosterChecksLeft or 0) > 0 and now >= (ticket.rosterCheckAt or 0) then
-                ticket.rosterChecksLeft = (ticket.rosterChecksLeft or 1) - 1
-                ticket.rosterCheckAt = now + 0.9
+            if not ticket.dispatched and now >= (ticket.dispatchAt or 0) then
+                DungeonBots.pendingPreClassRoster = false
+                DispatchClassSummonTicket(ticket, nil, now)
+            elseif ticket.dispatched and not ticket.candidateName and (ticket.rosterChecksLeft or 0) > 0 and now >= (ticket.rosterCheckAt or 0) then
+                needFollowupRoster = true
             end
         end
-        DungeonBots.suppressBotRosterUntil = math.max(DungeonBots.suppressBotRosterUntil or 0, now + 4.0)
-        DungeonBots:SendDotCommand(".playerbots bot list")
+
+        if needFollowupRoster then
+            for _, ticket in ipairs(list) do
+                if ticket.dispatched and not ticket.candidateName and (ticket.rosterChecksLeft or 0) > 0 and now >= (ticket.rosterCheckAt or 0) then
+                    ticket.rosterChecksLeft = (ticket.rosterChecksLeft or 1) - 1
+                    ticket.rosterCheckAt = now + 0.9
+                end
+            end
+            DungeonBots.suppressBotRosterUntil = math.max(DungeonBots.suppressBotRosterUntil or 0, now + 4.0)
+            DungeonBots:SendDotCommand(".playerbots bot list")
+        end
+    end
+
+    if DungeonBots.pendingBusyRosterVerify then
+        for botName, vEntry in pairs(DungeonBots.pendingBusyRosterVerify) do
+            if DungeonBots:FindPartyUnitByName(botName, true) then
+                DungeonBots.pendingBusyRosterVerify[botName] = nil
+            elseif now >= (vEntry.expiresAt or 0) then
+                DungeonBots.pendingBusyRosterVerify[botName] = nil
+                if DungeonBots.NotifyExternalBotBusy then
+                    DungeonBots:NotifyExternalBotBusy(botName, vEntry.cachedOwner, "already_in_group", true, vEntry.cachedZone)
+                end
+            end
+        end
+    end
+
+    if DungeonBots.pendingInaccessibleCheck then
+        for botName, deadline in pairs(DungeonBots.pendingInaccessibleCheck) do
+            if DungeonBots:FindPartyUnitByName(botName, true) then
+                DungeonBots.pendingInaccessibleCheck[botName] = nil
+                DungeonBots.rosterConfirmedBots[botName] = nil
+            elseif now >= (deadline or 0) then
+                CleanupInaccessibleRosterBot(botName)
+            end
+        end
+    end
+
+    local hasBusyVerify = (DungeonBots.pendingBusyRosterVerify and next(DungeonBots.pendingBusyRosterVerify) ~= nil) and true or false
+    local hasInaccessible = (DungeonBots.pendingInaccessibleCheck and next(DungeonBots.pendingInaccessibleCheck) ~= nil) and true or false
+    if not hasClassTickets and not hasBusyVerify and not hasInaccessible then
+        self:Hide()
     end
 end)
+
+function DungeonBots:RequestImmediateClassRosterCheck()
+    local list = DungeonBots.pendingClassSummons
+    if not list or #list == 0 then return end
+    local now = NowTime()
+    local touched = false
+    for _, ticket in ipairs(list) do
+        if ticket.dispatched and not ticket.candidateName and (ticket.rosterChecksLeft or 0) > 0 then
+            if (ticket.rosterCheckAt or 0) > (now + 0.25) then
+                ticket.rosterCheckAt = now + 0.15
+                touched = true
+            end
+        end
+    end
+    if touched then
+        classSummonFrame:Show()
+    end
+end
 
 function DungeonBots:MarkPendingClassSummon(classId, classDisplay)
     PrunePendingClassSummons()
@@ -250,10 +325,21 @@ function DungeonBots:ConsumePendingClassSummon(expectedClassToken, joiningName)
     if #list == 0 then return nil end
 
     local cleanJoin = joiningName and NormalizePlayerName(joiningName) or nil
+    if cleanJoin then
+        for i, item in ipairs(list) do
+            if item.candidateName and item.candidateName == cleanJoin then
+                table.remove(list, i)
+                item.notifiedEnd = true
+                MarkNameClaimedInPendingClassTickets(cleanJoin)
+                return item
+            end
+        end
+    end
+
     for i, item in ipairs(list) do
         local notPreExisting = (not cleanJoin) or (not (item.baselineParty and item.baselineParty[cleanJoin]))
         local classMatches = (not expectedClassToken or expectedClassToken == "" or not item.classToken or item.classToken == expectedClassToken)
-        if notPreExisting and classMatches then
+        if not item.candidateName and notPreExisting and classMatches then
             table.remove(list, i)
             item.notifiedEnd = true
             if cleanJoin then
@@ -270,28 +356,99 @@ local function FinalizeConfirmedClassBot(botName, classToken)
     if not cleanName or cleanName == "" then return false end
 
     MarkNameClaimedInPendingClassTickets(cleanName)
+    DungeonBots.rosterConfirmedBots[cleanName] = nil
+    if DungeonBots.pendingInaccessibleCheck then
+        DungeonBots.pendingInaccessibleCheck[cleanName] = nil
+    end
+    if DungeonBots.pendingBusyRosterVerify then
+        DungeonBots.pendingBusyRosterVerify[cleanName] = nil
+    end
     DungeonBots.confirmedBots[cleanName] = true
     DungeonBots:MarkRecentBot(cleanName, 120)
     DungeonBots:RegisterBot(cleanName, true)
     DungeonBots:RecordBotHistory(cleanName, classToken, nil, nil)
+    if DB_Internal.ResolveHeldWhispersForSender then
+        DB_Internal.ResolveHeldWhispersForSender(cleanName, true)
+    end
     DungeonBots:Print(string.format(L["BOT_ADDED_FMT"], cleanName))
 
     if DungeonBots.UpdatePartyUI then
         DungeonBots:UpdatePartyUI()
     end
-    if not DungeonBots:FindPartyUnitByName(cleanName, true) and DungeonBots:CanInviteToParty() then
-        DungeonBots.recentInvites[cleanName] = NowTime() + 1.2
-        InviteUnit(cleanName)
-        if DungeonBots.SchedulePartyInviteRetry then
-            DungeonBots:SchedulePartyInviteRetry(cleanName, 2.0, 2)
+    return true
+end
+
+local function StageClassBotCandidate(ticket, ticketIdx, botName, classToken)
+    local cleanName = NormalizePlayerName(botName)
+    if not cleanName or cleanName == "" then return false end
+    local list = DungeonBots.pendingClassSummons
+    local resolvedClass = classToken or (ticket and ticket.classToken)
+
+    if DungeonBots:FindPartyUnitByName(cleanName, true) then
+        if ticket and ticketIdx and list[ticketIdx] == ticket then
+            table.remove(list, ticketIdx)
+            ticket.notifiedEnd = true
         end
+        return FinalizeConfirmedClassBot(cleanName, resolvedClass)
     end
+
+    local now = NowTime()
+    if ticket then
+        ticket.candidateName = cleanName
+        if resolvedClass and resolvedClass ~= "" and not ticket.classToken then
+            ticket.classToken = resolvedClass
+        end
+        ticket.rosterChecksLeft = 0
+        ticket.expiresAt = now + 3.5
+    end
+    MarkNameClaimedInPendingClassTickets(cleanName)
+    DungeonBots.rosterConfirmedBots[cleanName] = now + 5.0
+    DungeonBots.confirmedBots[cleanName] = true
+    DungeonBots:MarkRecentBot(cleanName, 120)
+    DungeonBots:RegisterBot(cleanName, true)
+    DungeonBots:RecordBotHistory(cleanName, resolvedClass, nil, nil)
+    if DB_Internal.ResolveHeldWhispersForSender then
+        DB_Internal.ResolveHeldWhispersForSender(cleanName, true)
+    end
+    if DungeonBots:CanInviteToParty() and (DungeonBots.recentInvites[cleanName] or 0) <= now then
+        DungeonBots.recentInvites[cleanName] = now + 2.0
+        InviteUnit(cleanName)
+    end
+    classSummonFrame:Show()
     return true
 end
 
 function DB_Internal.HandleBotRosterSystemMessage(roster)
     if not roster or type(roster.online) ~= "table" then return end
     local now = NowTime()
+
+    if DB_Internal.ResolveHeldWhispersWithRoster then
+        DB_Internal.ResolveHeldWhispersWithRoster(roster)
+    end
+
+    if DungeonBots.pendingBusyRosterVerify then
+        local snapshot = {}
+        for botName, vEntry in pairs(DungeonBots.pendingBusyRosterVerify) do
+            snapshot[botName] = vEntry
+            DungeonBots.pendingBusyRosterVerify[botName] = nil
+        end
+        for botName, vEntry in pairs(snapshot) do
+            if not DungeonBots:FindPartyUnitByName(botName, true) then
+                if roster.online[botName] then
+                    DungeonBots.rosterConfirmedBots[botName] = now + 5.0
+                    DungeonBots.pendingInaccessibleCheck[botName] = now + 3.5
+                    classSummonFrame:Show()
+                    if DungeonBots:CanInviteToParty() and (DungeonBots.recentInvites[botName] or 0) <= now then
+                        DungeonBots.recentInvites[botName] = now + 2.0
+                        InviteUnit(botName)
+                    end
+                elseif DungeonBots.NotifyExternalBotBusy then
+                    DungeonBots:NotifyExternalBotBusy(botName, vEntry.cachedOwner, "already_in_group", true, vEntry.cachedZone)
+                end
+            end
+        end
+    end
+
     PrunePendingClassSummons()
     local list = DungeonBots.pendingClassSummons
     if not list or #list == 0 then
@@ -299,11 +456,17 @@ function DB_Internal.HandleBotRosterSystemMessage(roster)
         return
     end
 
-    -- Primero comprobar si algún ticket ya despachado coincide con un +Nombre nuevo
     local usedNames = {}
+    for _, ticket in ipairs(list) do
+        if ticket and ticket.candidateName then
+            usedNames[ticket.candidateName] = true
+        end
+    end
+
+    -- Primero comprobar si algún ticket ya despachado coincide con un +Nombre nuevo
     for i = #list, 1, -1 do
         local ticket = list[i]
-        if ticket and ticket.dispatched then
+        if ticket and ticket.dispatched and not ticket.candidateName then
             local matchedEntry = nil
             for candName, entry in pairs(roster.online) do
                 if not usedNames[candName]
@@ -321,9 +484,7 @@ function DB_Internal.HandleBotRosterSystemMessage(roster)
             end
             if matchedEntry then
                 usedNames[matchedEntry.name] = true
-                ticket.notifiedEnd = true
-                table.remove(list, i)
-                FinalizeConfirmedClassBot(matchedEntry.name, matchedEntry.classToken or ticket.classToken)
+                StageClassBotCandidate(ticket, i, matchedEntry.name, matchedEntry.classToken or ticket.classToken)
             end
         end
     end
@@ -340,9 +501,49 @@ end
 function DungeonBots:ConfirmClassBotFromSystem(botName)
     local cleanName = NormalizePlayerName(botName)
     if not cleanName or cleanName == "" then return false end
-    local consumed = DungeonBots:ConsumePendingClassSummon(nil, cleanName)
-    if not consumed then return false end
-    return FinalizeConfirmedClassBot(cleanName, consumed.classToken)
+    PrunePendingClassSummons()
+    local list = DungeonBots.pendingClassSummons
+    if not list or #list == 0 then return false end
+
+    for i, ticket in ipairs(list) do
+        if ticket.candidateName == cleanName then
+            return StageClassBotCandidate(ticket, i, cleanName, ticket.classToken)
+        end
+    end
+    for i, ticket in ipairs(list) do
+        if not ticket.candidateName then
+            return StageClassBotCandidate(ticket, i, cleanName, ticket.classToken)
+        end
+    end
+    return false
+end
+
+function DungeonBots:VerifyBotAlreadyInGroupWithRoster(botName, cachedOwner, cachedZone)
+    local cleanName = NormalizePlayerName(botName)
+    if not cleanName or cleanName == "" then return end
+    if DungeonBots:FindPartyUnitByName(cleanName, true) then
+        return
+    end
+    local now = NowTime()
+    if DungeonBots.rosterConfirmedBots and (DungeonBots.rosterConfirmedBots[cleanName] or 0) > now then
+        return
+    end
+    if DungeonBots.pendingClassSummons then
+        for _, ticket in ipairs(DungeonBots.pendingClassSummons) do
+            if ticket and ticket.candidateName == cleanName then
+                return
+            end
+        end
+    end
+    DungeonBots.pendingBusyRosterVerify = DungeonBots.pendingBusyRosterVerify or {}
+    DungeonBots.pendingBusyRosterVerify[cleanName] = {
+        expiresAt = now + 2.5,
+        cachedOwner = cachedOwner,
+        cachedZone = cachedZone,
+    }
+    DungeonBots.suppressBotRosterUntil = math.max(DungeonBots.suppressBotRosterUntil or 0, now + 4.0)
+    DungeonBots:SendDotCommand(".playerbots bot list")
+    classSummonFrame:Show()
 end
 
 function DungeonBots:CancelPendingClassSummonOnRejection(reasonText)
@@ -383,6 +584,27 @@ function DungeonBots:ShouldTreatAsBot(name)
 end
 
 function DungeonBots:ResolvePendingPartyBots()
+    for i = 1, 4 do
+        local unit = "party" .. i
+        if UnitExists(unit) then
+            local rawName = UnitName(unit)
+            if rawName and rawName ~= "" and rawName ~= UNKNOWNOBJECT and rawName ~= "Unknown" then
+                local cleanName = NormalizePlayerName(rawName)
+                if cleanName and cleanName ~= "" then
+                    if DungeonBots.rosterConfirmedBots then
+                        DungeonBots.rosterConfirmedBots[cleanName] = nil
+                    end
+                    if DungeonBots.pendingBusyRosterVerify then
+                        DungeonBots.pendingBusyRosterVerify[cleanName] = nil
+                    end
+                    if DungeonBots.pendingInaccessibleCheck then
+                        DungeonBots.pendingInaccessibleCheck[cleanName] = nil
+                    end
+                end
+            end
+        end
+    end
+
     if not DungeonBots:HasPendingClassSummon() then return end
     for i = 1, 4 do
         local unit = "party" .. i
@@ -399,6 +621,9 @@ function DungeonBots:ResolvePendingPartyBots()
                         DungeonBots:MarkRecentBot(cleanName, 120)
                         DungeonBots:RegisterBot(cleanName, true)
                         DungeonBots:RecordBotHistory(cleanName, classToken, nil, DungeonBots:GetRaceIcon(unit))
+                        if DB_Internal.ResolveHeldWhispersForSender then
+                            DB_Internal.ResolveHeldWhispersForSender(cleanName, true)
+                        end
                         DungeonBots:Print(string.format(L["BOT_ADDED_FMT"], cleanName))
                     end
                 end

@@ -636,7 +636,7 @@ function DungeonBots:EvaluateWhisperSender(cleanSender, message, allowPromote)
         isKnownOrHistory = true
     end
 
-    if not isKnownOrHistory and not hasPendingScan and not (canConsumeClassSummon and isBotText) then
+    if not isKnownOrHistory and not hasPendingScan then
         return {
             isBot = false,
             isKnownOrHistory = false,
@@ -664,23 +664,6 @@ function DungeonBots:EvaluateWhisperSender(cleanSender, message, allowPromote)
             isKnownOrHistory = true
             justPromoted = true
         end
-
-        if canConsumeClassSummon and not isKnownOrHistory and isBotText then
-            local consumed = DungeonBots:ConsumePendingClassSummon(nil, cleanSender)
-            if consumed then
-                DungeonBots.confirmedBots[cleanSender] = true
-                DungeonBots:MarkRecentBot(cleanSender, 120)
-                DungeonBots:RegisterBot(cleanSender, true)
-                DungeonBots:RecordBotHistory(cleanSender, consumed.classToken, nil, nil)
-                DungeonBots.justPromotedBotWhisper[cleanSender] = NowTime() + 1.0
-                isKnownOrHistory = true
-                justPromoted = true
-                local fmt = (DungeonBots.L and DungeonBots.L["BOT_ADDED_FMT"]) or L["BOT_ADDED_FMT"]
-                if DungeonBots.Print and fmt then
-                    DungeonBots:Print(string.format(fmt, cleanSender))
-                end
-            end
-        end
     end
 
     return {
@@ -692,6 +675,116 @@ function DungeonBots:EvaluateWhisperSender(cleanSender, message, allowPromote)
         isBotText = isBotText,
         justPromoted = justPromoted,
     }
+end
+
+local heldClassWhispers = {}
+local heldWhisperDedup = {}
+local heldWhisperFrame = CreateFrame("Frame")
+heldWhisperFrame:Hide()
+
+local function EmitHeldWhisperToChat(entry)
+    if not entry or not entry.message then return end
+    local senderName = entry.rawSender or entry.cleanSender or "Unknown"
+    local prefix = (_G.CHAT_WHISPER_GET and string.format(_G.CHAT_WHISPER_GET, "|Hplayer:" .. senderName .. "|h[" .. senderName .. "]|h"))
+        or ("[" .. senderName .. "]: ")
+    local info = ChatTypeInfo and ChatTypeInfo["WHISPER"]
+    if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
+        DEFAULT_CHAT_FRAME:AddMessage(
+            prefix .. tostring(entry.message),
+            info and info.r or 1.0,
+            info and info.g or 0.5,
+            info and info.b or 1.0
+        )
+    end
+end
+
+heldWhisperFrame:SetScript("OnUpdate", function(self)
+    if #heldClassWhispers == 0 then
+        self:Hide()
+        return
+    end
+    local now = NowTime()
+    for i = #heldClassWhispers, 1, -1 do
+        local entry = heldClassWhispers[i]
+        local confirmedBot = entry and entry.cleanSender and (
+            DungeonBots:ShouldTreatAsBot(entry.cleanSender)
+            or (DungeonBots.rosterConfirmedBots and (DungeonBots.rosterConfirmedBots[entry.cleanSender] or 0) > now)
+            or (DungeonBots:FindPartyUnitByName(entry.cleanSender, true) ~= nil)
+        )
+        if not entry or confirmedBot then
+            table.remove(heldClassWhispers, i)
+        elseif now >= (entry.expiresAt or 0) then
+            table.remove(heldClassWhispers, i)
+            EmitHeldWhisperToChat(entry)
+        end
+    end
+    if #heldClassWhispers == 0 then
+        self:Hide()
+    end
+end)
+
+function DB_Internal.HoldWhisperForClassSummon(cleanSender, message, rawSender)
+    if not cleanSender or cleanSender == "" or not message then return end
+    local now = NowTime()
+    local dedupKey = cleanSender .. "\t" .. tostring(message)
+    for k, exp in pairs(heldWhisperDedup) do
+        if exp <= now then
+            heldWhisperDedup[k] = nil
+        end
+    end
+    if heldWhisperDedup[dedupKey] and heldWhisperDedup[dedupKey] > now then
+        return
+    end
+    heldWhisperDedup[dedupKey] = now + 0.5
+
+    table.insert(heldClassWhispers, {
+        cleanSender = cleanSender,
+        rawSender = rawSender or cleanSender,
+        message = message,
+        heldAt = now,
+        expiresAt = now + 1.5,
+    })
+    heldWhisperFrame:Show()
+    if DungeonBots.RequestImmediateClassRosterCheck then
+        DungeonBots:RequestImmediateClassRosterCheck()
+    end
+end
+
+function DB_Internal.ResolveHeldWhispersForSender(cleanSender, isBot)
+    if not cleanSender or cleanSender == "" or #heldClassWhispers == 0 then return end
+    for i = #heldClassWhispers, 1, -1 do
+        local entry = heldClassWhispers[i]
+        if entry and entry.cleanSender == cleanSender then
+            table.remove(heldClassWhispers, i)
+            if not isBot then
+                EmitHeldWhisperToChat(entry)
+            end
+        end
+    end
+    if #heldClassWhispers == 0 then
+        heldWhisperFrame:Hide()
+    end
+end
+
+function DB_Internal.ResolveHeldWhispersWithRoster(roster)
+    if not roster or #heldClassWhispers == 0 then return end
+    local toResolve = {}
+    local seen = {}
+    for _, entry in ipairs(heldClassWhispers) do
+        local sender = entry and entry.cleanSender
+        if sender and not seen[sender] then
+            seen[sender] = true
+            local inRoster = (roster.all and roster.all[sender] ~= nil) or (roster.online and roster.online[sender] ~= nil)
+            if inRoster or DungeonBots:ShouldTreatAsBot(sender) then
+                toResolve[sender] = true
+            elseif not DungeonBots.pendingPreClassRoster then
+                toResolve[sender] = false
+            end
+        end
+    end
+    for sender, isBot in pairs(toResolve) do
+        DB_Internal.ResolveHeldWhispersForSender(sender, isBot)
+    end
 end
 
 function DungeonBots:ShouldSuppressChatEvent(event, message, sender)
@@ -730,11 +823,18 @@ function DungeonBots:ShouldSuppressChatEvent(event, message, sender)
         if whisperMode == "off" then
             return false
         end
+        if DungeonBots.rosterConfirmedBots and (DungeonBots.rosterConfirmedBots[cleanName] or 0) > NowTime() then
+            return true
+        end
         local eval = DungeonBots:EvaluateWhisperSender(cleanName, message, true)
         if eval and eval.isBusyExternal then
             return true
         end
         if not eval or not eval.isBot then
+            if DungeonBots.HasPendingClassSummon and DungeonBots:HasPendingClassSummon() then
+                DB_Internal.HoldWhisperForClassSummon(cleanName, message, sender)
+                return true
+            end
             return false
         end
         return true

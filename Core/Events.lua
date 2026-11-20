@@ -93,6 +93,21 @@ local function HandlePartyChanged(isEnteringWorld)
             if UnitExists(unit) then
                 local pName = UnitName(unit)
                 if pName and pName ~= "" and pName ~= UNKNOWNOBJECT and pName ~= "Unknown" then
+                    local cleanMember = NormalizePlayerName(pName)
+                    if cleanMember and cleanMember ~= "" then
+                        if DungeonBots.busyExternalBots and DungeonBots.busyExternalBots[cleanMember] then
+                            DungeonBots.busyExternalBots[cleanMember] = nil
+                            if StaticPopup_Hide then
+                                StaticPopup_Hide("DUNGEONBOTS_BOT_BUSY_ALERT")
+                            end
+                        end
+                        if DungeonBots.pendingBusyRosterVerify then
+                            DungeonBots.pendingBusyRosterVerify[cleanMember] = nil
+                        end
+                        if DungeonBots.pendingInaccessibleCheck then
+                            DungeonBots.pendingInaccessibleCheck[cleanMember] = nil
+                        end
+                    end
                     DungeonBots:ConfirmSummonedBotAdded(pName)
                 end
             end
@@ -250,7 +265,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             DB_Internal.ClearAllPendingQuestCounts()
         end
 
-        DungeonBots:Print(string.format(L["ADDON_LOADED_FMT"], tostring(DungeonBots.VERSION or "1.2.4")))
+        DungeonBots:Print(string.format(L["ADDON_LOADED_FMT"], tostring(DungeonBots.VERSION or "1.2.5")))
         if DungeonBots.InitUI then
             DungeonBots:InitUI()
         end
@@ -341,7 +356,9 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                         local cachedWho = DungeonBots.botWhoInfo and DungeonBots.botWhoInfo[busyBot]
                         local cachedOwner = cachedWho and cachedWho.playingWith or nil
                         local cachedZone = cachedWho and cachedWho.zone or nil
-                        if DungeonBots.NotifyExternalBotBusy then
+                        if DungeonBots.VerifyBotAlreadyInGroupWithRoster then
+                            DungeonBots:VerifyBotAlreadyInGroupWithRoster(busyBot, cachedOwner, cachedZone)
+                        elseif DungeonBots.NotifyExternalBotBusy then
                             DungeonBots:NotifyExternalBotBusy(busyBot, cachedOwner, "already_in_group", true, cachedZone)
                         end
                     end
@@ -659,17 +676,10 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             end
         end
 
-        -- Auto-invite para bots recién invocados o bots del historial con respuesta de bot/addclass pendiente
+        -- Auto-invite para bots conocidos con llamada activa (no consumir tickets de AddClass por susurro)
         local wasDismissed = (DungeonBots.WasRecentlyDismissed and DungeonBots:WasRecentlyDismissed(cleanSender)) and true or false
         local isExternallyBusy = (whoOtherOwner == true)
             or (DungeonBots.GetExternalBotBusyInfo and (DungeonBots:GetExternalBotBusyInfo(cleanSender) ~= nil))
-        if not wasDismissed and not inParty and not isExternallyBusy and isKnownOrHistory
-            and not DungeonBots:IsRecentBot(cleanSender)
-            and DungeonBots:HasPendingClassSummon() then
-            if DungeonBots:ConsumePendingClassSummon() then
-                DungeonBots:MarkRecentBot(cleanSender, 120)
-            end
-        end
 
         local isHistoryManaged = (DungeonBots.IsHistoryBotLoading and DungeonBots:IsHistoryBotLoading(cleanSender))
             or (DungeonBots.HasPendingHistoryInvite and DungeonBots:HasPendingHistoryInvite(cleanSender))
@@ -679,8 +689,9 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             and DungeonBots.SchedulePartyInviteRetry then
             DungeonBots:SchedulePartyInviteRetry(cleanSender, 0.05, 2)
         end
+        local isRosterCandidate = (DungeonBots.rosterConfirmedBots and ((DungeonBots.rosterConfirmedBots[cleanSender] or 0) > NowTime())) and true or false
         local hasRecentCallAttempt = (DungeonBots.lastBotCallAttempt and ((DungeonBots.lastBotCallAttempt[cleanSender] or 0) + 30.0 > NowTime())) and true or false
-        local shouldAutoInvite = (not wasDismissed) and (not isExternallyBusy) and (not isHistoryManaged)
+        local shouldAutoInvite = (not wasDismissed) and (not isExternallyBusy) and (not isHistoryManaged) and (not isRosterCandidate)
             and (DungeonBots:IsRecentBot(cleanSender) or (isKnownOrHistory and isBotResponse and hasRecentCallAttempt))
         if shouldAutoInvite and not inParty then
             if DungeonBots:CanInviteToParty() then
