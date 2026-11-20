@@ -1037,6 +1037,13 @@ function DungeonBots:BuildTab2(parent)
         infoText:SetText(L["CARD_LEVEL_DEFAULT"])
         card.infoText = infoText
 
+        local factionText = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        factionText:SetPoint("TOPLEFT", infoText, "BOTTOMLEFT", 0, -4)
+        factionText:SetJustifyH("LEFT")
+        factionText:SetText("")
+        factionText:Hide()
+        card.factionText = factionText
+
         local specDisplay = CreateFrame("Frame", "DungeonBots_SpecDisplay_" .. i, card)
         specDisplay:SetSize(158, 15)
         specDisplay:SetPoint("TOPLEFT", infoText, "BOTTOMLEFT", 0, -2)
@@ -1098,9 +1105,12 @@ function DungeonBots:BuildTab2(parent)
         end
 
         local humanNotice = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        humanNotice:SetPoint("TOPLEFT", card, "TOPLEFT", 224, -14)
-        humanNotice:SetPoint("RIGHT", botBadge, "LEFT", -12, 0)
+        humanNotice:SetPoint("TOPLEFT", card, "TOPLEFT", 220, -8)
+        humanNotice:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -112, 8)
         humanNotice:SetJustifyH("LEFT")
+        if humanNotice.SetJustifyV then
+            humanNotice:SetJustifyV("MIDDLE")
+        end
         humanNotice:SetText(L["CARD_HUMAN_LOCK_NOTE"])
         humanNotice:Hide()
         card.humanNotice = humanNotice
@@ -1203,15 +1213,61 @@ function DungeonBots:UpdatePartyUI()
                 card.infoText:SetText(string.format(L["CARD_LEVEL_FMT"], tostring(level > 0 and level or 80), classDisplay))
 
                 local isBot = DungeonBots:ShouldTreatAsBot(name)
+                local cleanName = (DB_Internal.NormalizePlayerName and DB_Internal.NormalizePlayerName(name)) or name
+                local isOppFaction, botFaction = false, nil
+                if isBot and DungeonBots.IsOppositeFactionBot then
+                    local histEntry = (cleanName and DungeonBotsDB and DungeonBotsDB.botHistory and DungeonBotsDB.botHistory[cleanName]) or nil
+                    isOppFaction, botFaction = DungeonBots:IsOppositeFactionBot(cleanName, histEntry)
+                end
 
                 local raceIcon = DungeonBots:GetRaceIcon(unit)
                 card.classIcon:SetTexture(raceIcon)
                 card.classIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
-                if isBot then
+                if isBot and cleanName and cleanName ~= "" and cleanName ~= UNKNOWNOBJECT and cleanName ~= "Unknown" then
+                    local defaultQuestionIcon = "Interface\\Icons\\INV_Misc_QuestionMark"
+                    local hist = DungeonBotsDB and DungeonBotsDB.botHistory and DungeonBotsDB.botHistory[cleanName]
+                    local resolvedFaction = botFaction or (DungeonBots.GetUnitFaction and DungeonBots:GetUnitFaction(unit)) or nil
+                    local needsReg = (DungeonBots.IsBot and DungeonBots:IsBot(cleanName) == nil) and true or false
+                    local needsHist = (not hist)
+                        or (hist.class == "UNKNOWN" and classToken and classToken ~= "")
+                        or (resolvedFaction and (not hist.faction or hist.faction == ""))
+                        or ((not hist.raceIcon or hist.raceIcon == "" or hist.raceIcon == defaultQuestionIcon) and raceIcon and raceIcon ~= defaultQuestionIcon)
+                    if needsReg and DungeonBots.RegisterBot then
+                        DungeonBots:RegisterBot(cleanName, true)
+                    end
+                    if needsHist and DungeonBots.RecordBotHistory then
+                        DungeonBots:RecordBotHistory(cleanName, classToken, nil, raceIcon, resolvedFaction)
+                    end
+                end
+
+                if isBot and isOppFaction then
                     card.botBadge.text:SetText(L["CARD_TAG_BOT_RICH"])
                     card.botBadge:SetBackdropBorderColor(0.2, 0.8, 1.0, 0.9)
                     card.botBadge:SetBackdropColor(0.08, 0.16, 0.22, 0.95)
+                    if botFaction == "Horde" then
+                        if card.factionText then
+                            card.factionText:SetText(L["CARD_TAG_HORDE_RICH"])
+                            card.factionText:Show()
+                        end
+                        card.humanNotice:SetText(L["CARD_OPP_HORDE_LOCK_NOTE"])
+                    else
+                        if card.factionText then
+                            card.factionText:SetText(L["CARD_TAG_ALLIANCE_RICH"])
+                            card.factionText:Show()
+                        end
+                        card.humanNotice:SetText(L["CARD_OPP_ALLIANCE_LOCK_NOTE"])
+                    end
+                    card.humanNotice:Show()
+                    card.specDisplay:Hide()
+                    card.armorDisplay:Hide()
+                    SetCardActionButtonsVisible(card, false)
+                    card.kickBtn:Show()
+                elseif isBot then
+                    card.botBadge.text:SetText(L["CARD_TAG_BOT_RICH"])
+                    card.botBadge:SetBackdropBorderColor(0.2, 0.8, 1.0, 0.9)
+                    card.botBadge:SetBackdropColor(0.08, 0.16, 0.22, 0.95)
+                    if card.factionText then card.factionText:Hide() end
                     card.humanNotice:Hide()
                     card.specDisplay:Show()
                     card.armorDisplay:Show()
@@ -1232,6 +1288,8 @@ function DungeonBots:UpdatePartyUI()
                     card.botBadge.text:SetText(L["CARD_TAG_HUMAN_RICH"])
                     card.botBadge:SetBackdropBorderColor(1.0, 0.7, 0.2, 0.9)
                     card.botBadge:SetBackdropColor(0.20, 0.14, 0.08, 0.95)
+                    if card.factionText then card.factionText:Hide() end
+                    card.humanNotice:SetText(L["CARD_HUMAN_LOCK_NOTE"])
                     card.humanNotice:Show()
                     card.specDisplay:Hide()
                     card.armorDisplay:Hide()
@@ -1246,7 +1304,11 @@ function DungeonBots:UpdatePartyUI()
 
                 card.botBadge:SetScript("OnEnter", function(self)
                     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                    if isBot then
+                    if isBot and isOppFaction then
+                        GameTooltip:AddLine((botFaction == "Horde") and L["CARD_ROLE_OPP_HORDE_TITLE"] or L["CARD_ROLE_OPP_ALLIANCE_TITLE"], 1, 1, 1)
+                        GameTooltip:AddLine(L["CARD_ROLE_OPP_DESC"], 0.7, 0.8, 1.0, true)
+                        GameTooltip:AddLine(L["CARD_ROLE_BOT_CLICK"], 1, 0.8, 0.2)
+                    elseif isBot then
                         GameTooltip:AddLine(L["CARD_ROLE_BOT_TITLE"], 1, 1, 1)
                         GameTooltip:AddLine(L["CARD_ROLE_BOT_DESC"], 0.7, 0.8, 1.0)
                         GameTooltip:AddLine(L["CARD_ROLE_BOT_CLICK"], 1, 0.8, 0.2)

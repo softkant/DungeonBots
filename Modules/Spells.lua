@@ -752,6 +752,12 @@ function DungeonBots:QueryBotSpells(botName, mode, filterText, isSilent)
         end
         return
     end
+    if DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(cleanBot) then
+        if not isSilent then
+            DungeonBots:Warn(string.format(L["BOT_OPP_FACTION_WHISPER_BLOCKED_FMT"], cleanBot))
+        end
+        return
+    end
 
     local targetMode = MODE_COMMANDS[mode] and mode or "gear"
     local cleanFilter = TrimText(filterText or "")

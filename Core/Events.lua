@@ -39,6 +39,8 @@ eventFrame:RegisterEvent("LFG_LOCK_INFO_RECEIVED")
 eventFrame:RegisterEvent("LFG_UPDATE")
 eventFrame:RegisterEvent("UNIT_NAME_UPDATE")
 eventFrame:RegisterEvent("UNIT_CONNECTION")
+eventFrame:RegisterEvent("PARTY_MEMBER_ENABLE")
+eventFrame:RegisterEvent("UNIT_PORTRAIT_UPDATE")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 eventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
@@ -85,6 +87,22 @@ local function HandlePartyChanged(isEnteringWorld)
         if DB_Internal.ClearWhisperQueue then DB_Internal.ClearWhisperQueue() end
         if DB_Internal.ClearPendingJoinQueries then DB_Internal.ClearPendingJoinQueries() end
         if DB_Internal.ClearAllPendingQuestCounts then DB_Internal.ClearAllPendingQuestCounts() end
+        DungeonBots.notifiedOppositeFactionBots = DungeonBots.notifiedOppositeFactionBots or {}
+        for i = 1, 4 do
+            local unit = "party" .. i
+            if UnitExists(unit) then
+                local pName = UnitName(unit)
+                if pName and pName ~= "" and pName ~= UNKNOWNOBJECT and pName ~= "Unknown" then
+                    local cleanMember = NormalizePlayerName(pName)
+                    if cleanMember and cleanMember ~= ""
+                        and (not (DungeonBots.IsRecentBot and DungeonBots:IsRecentBot(cleanMember)))
+                        and DungeonBots.ShouldTreatAsBot and DungeonBots:ShouldTreatAsBot(cleanMember)
+                        and DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(cleanMember) then
+                        DungeonBots.notifiedOppositeFactionBots[cleanMember] = true
+                    end
+                end
+            end
+        end
     end
     DungeonBots:ResolvePendingPartyBots()
     if DungeonBots.ConfirmSummonedBotAdded then
@@ -190,9 +208,28 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         DungeonBotsDB.autoInvite = true
 
         DungeonBotsDB.botHistory = DungeonBotsDB.botHistory or {}
-        for _, entry in pairs(DungeonBotsDB.botHistory) do
-            if entry and entry.spec and entry.spec ~= "" then
-                entry.spec = DungeonBots:CleanSpecText(entry.spec)
+        DungeonBots.oppositeFactionBots = DungeonBots.oppositeFactionBots or {}
+        local myLoginFac = DungeonBots.GetPlayerFaction and DungeonBots:GetPlayerFaction() or nil
+        local defaultQuestionIcon = "Interface\\Icons\\INV_Misc_QuestionMark"
+        for bName, entry in pairs(DungeonBotsDB.botHistory) do
+            if type(entry) == "table" then
+                if entry.spec and entry.spec ~= "" then
+                    entry.spec = DungeonBots:CleanSpecText(entry.spec)
+                end
+                local iconFac = DungeonBots.InferFactionFromRaceIcon and DungeonBots:InferFactionFromRaceIcon(entry.raceIcon) or nil
+                if iconFac then
+                    entry.faction = iconFac
+                elseif myLoginFac and entry.faction == myLoginFac
+                    and (not entry.raceIcon or entry.raceIcon == "" or entry.raceIcon == defaultQuestionIcon)
+                    and (not entry.spec or entry.spec == "") then
+                    entry.faction = nil
+                end
+                if myLoginFac and entry.faction and entry.faction ~= myLoginFac then
+                    local cleanHistName = NormalizePlayerName(bName) or bName
+                    if cleanHistName and cleanHistName ~= "" then
+                        DungeonBots.oppositeFactionBots[cleanHistName] = entry.faction
+                    end
+                end
             end
         end
         if DungeonBotsDB.botActiveSpec then
@@ -265,7 +302,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             DB_Internal.ClearAllPendingQuestCounts()
         end
 
-        DungeonBots:Print(string.format(L["ADDON_LOADED_FMT"], tostring(DungeonBots.VERSION or "1.2.6")))
+        DungeonBots:Print(string.format(L["ADDON_LOADED_FMT"], tostring(DungeonBots.VERSION or "1.2.7")))
         if DungeonBots.InitUI then
             DungeonBots:InitUI()
         end
@@ -289,6 +326,29 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         local fullBot = message and DB_Internal.ExtractInventoryFullBotName and DB_Internal.ExtractInventoryFullBotName(message, nil)
         if fullBot then
             NotifyBotInventoryFull(fullBot)
+            return
+        end
+        if message and DB_Internal.IsWrongFactionSystemMessage and DB_Internal.IsWrongFactionSystemMessage(message) then
+            local target = DungeonBots.lastAddonWhisperTarget
+            if target and DungeonBots.lastAddonWhisperAt
+                and (NowTime() - DungeonBots.lastAddonWhisperAt) <= 3.0 then
+                local pendingWho = DungeonBots.pendingWhoCheck and DungeonBots.pendingWhoCheck[target]
+                if DungeonBots.MarkOppositeFactionBot then
+                    DungeonBots:MarkOppositeFactionBot(target)
+                end
+                if pendingWho and not DungeonBots:FindPartyUnitByName(target, true) then
+                    if pendingWho.reason == "already_logged_in" and DungeonBots.SchedulePartyInviteRetry then
+                        DungeonBots:SchedulePartyInviteRetry(target, 0.1, 2, true)
+                    elseif pendingWho.reason == "invite_failed" then
+                        if DungeonBots.ClearHistoryBotLoading then
+                            DungeonBots:ClearHistoryBotLoading(target)
+                        end
+                        if DungeonBots.NotifyBotAlreadyOnline then
+                            DungeonBots:NotifyBotAlreadyOnline(target, nil)
+                        end
+                    end
+                end
+            end
             return
         end
         if message and DB_Internal.ParseBotRosterSystemMessage and DB_Internal.HandleBotRosterSystemMessage then
@@ -764,6 +824,21 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                 DungeonBots:OnResummonPartyActivity()
             end
             HandlePartyChanged(false)
+        end
+
+    elseif event == "PARTY_MEMBER_ENABLE" then
+        local unit = ...
+        if not unit or string.match(unit, "^party%d$") then
+            HandlePartyChanged(false)
+        end
+
+    elseif event == "UNIT_PORTRAIT_UPDATE" then
+        local unit = ...
+        if unit and string.match(unit, "^party%d$") then
+            DungeonBots:SyncPartyToHistory()
+            if DungeonBots.UpdatePartyUI then
+                DungeonBots:UpdatePartyUI()
+            end
         end
 
     elseif event == "ZONE_CHANGED_NEW_AREA" then

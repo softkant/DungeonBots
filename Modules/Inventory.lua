@@ -754,6 +754,12 @@ function DungeonBots:QueryBotInventory(botName, isSilent, forceStats)
         end
         return
     end
+    if DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(cleanBot) then
+        if not isSilent then
+            DungeonBots:Warn(string.format(L["BOT_OPP_FACTION_WHISPER_BLOCKED_FMT"], cleanBot))
+        end
+        return
+    end
 
     local now = NowTime()
     if DungeonBots.pendingInventoryRefresh then

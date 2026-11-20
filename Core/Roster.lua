@@ -440,6 +440,9 @@ local function FinalizeConfirmedClassBot(botName, classToken)
         DB_Internal.ResolveHeldWhispersForSender(cleanName, true)
     end
     DungeonBots:Print(string.format(L["BOT_ADDED_FMT"], cleanName))
+    if DungeonBots.NotifyOppositeFactionBotAdded then
+        DungeonBots:NotifyOppositeFactionBotAdded(cleanName)
+    end
 
     if DungeonBots.UpdatePartyUI then
         DungeonBots:UpdatePartyUI()
@@ -665,13 +668,17 @@ end
 
 function DungeonBots:ShouldTreatAsBot(name)
     if not name or name == "" then return false end
-    if UnitName and name == UnitName("player") then return false end
-    local reg = DungeonBots:IsBot(name)
+    local cleanName = NormalizePlayerName(name) or name
+    if not cleanName or cleanName == "" then return false end
+    if UnitName and cleanName == UnitName("player") then return false end
+    local reg = DungeonBots:IsBot(cleanName)
     if reg == false then return false end
     if reg == true then return true end
-    if DungeonBots.confirmedBots and DungeonBots.confirmedBots[name] then return true end
-    if DungeonBots:IsRecentBot(name) then return true end
-    if DungeonBots:IsInHistory(name) then return true end
+    if DungeonBots.confirmedBots and DungeonBots.confirmedBots[cleanName] then return true end
+    if DungeonBots:IsRecentBot(cleanName) then return true end
+    if DungeonBots:IsInHistory(cleanName) then return true end
+    if DungeonBots.oppositeFactionBots and DungeonBots.oppositeFactionBots[cleanName] then return true end
+    if DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(cleanName) then return true end
     return false
 end
 
@@ -717,6 +724,9 @@ function DungeonBots:ResolvePendingPartyBots()
                             DB_Internal.ResolveHeldWhispersForSender(cleanName, true)
                         end
                         DungeonBots:Print(string.format(L["BOT_ADDED_FMT"], cleanName))
+                        if DungeonBots.NotifyOppositeFactionBotAdded then
+                            DungeonBots:NotifyOppositeFactionBotAdded(cleanName)
+                        end
                     end
                 end
             end
@@ -949,21 +959,30 @@ function DungeonBots:ScanPartyBots()
     end
 
     local checkedNames = {}
+    local confirmedOppositeCount = 0
     local now = NowTime()
     for i = 1, 4 do
         local unit = "party" .. i
         if UnitExists(unit) and UnitIsConnected(unit) then
             local name = UnitName(unit)
             if name and name ~= "" and DungeonBots:IsBot(name) ~= false and not DungeonBots.confirmedBots[name] then
-                DungeonBots.pendingScan[name] = now + 15
-                DungeonBots:SendWhisperCommand(name, "follow info")
-                table.insert(checkedNames, name)
+                if DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(name) then
+                    if DungeonBots:ConfirmPartyBotIdentity(name, false) then
+                        confirmedOppositeCount = confirmedOppositeCount + 1
+                    end
+                else
+                    DungeonBots.pendingScan[name] = now + 15
+                    DungeonBots:SendWhisperCommand(name, "follow info")
+                    table.insert(checkedNames, name)
+                end
             end
         end
     end
 
     if #checkedNames == 0 then
-        DungeonBots:Print(L["ALL_BOTS_CONFIRMED"])
+        if confirmedOppositeCount == 0 then
+            DungeonBots:Print(L["ALL_BOTS_CONFIRMED"])
+        end
     else
         local muteMode = (DungeonBotsDB and DungeonBotsDB.whisperMuteMode) or "auto"
         if muteMode ~= "off" then
@@ -1067,12 +1086,28 @@ function DungeonBots:ConfirmSummonedBotAdded(botName)
     if not cleanName or cleanName == "" then return false end
     local confirmed = false
     pendingMissingPlayerHits[cleanName] = nil
+    local inParty = DungeonBots:FindPartyUnitByName(cleanName, true)
     if pendingSummonConfirm[cleanName] and pendingSummonConfirm[cleanName] > NowTime() then
         pendingSummonConfirm[cleanName] = nil
         DungeonBots:Print(string.format(L["BOT_ADDED_FMT"], cleanName))
         confirmed = true
     end
-    if DungeonBots:FindPartyUnitByName(cleanName, true) or not DungeonBots:HasPendingHistoryInvite(cleanName) then
+    if confirmed or (inParty and DungeonBots:IsRecentBot(cleanName)) then
+        if DungeonBots.provisionalSummonBots then
+            DungeonBots.provisionalSummonBots[cleanName] = nil
+        end
+        if DungeonBots:IsBot(cleanName) ~= false then
+            DungeonBots.confirmedBots[cleanName] = true
+            DungeonBots:RegisterBot(cleanName, true)
+            DungeonBots:RecordBotHistory(cleanName)
+            if DungeonBots.NotifyOppositeFactionBotAdded then
+                DungeonBots:NotifyOppositeFactionBotAdded(cleanName)
+            end
+        end
+    elseif inParty and DungeonBots.provisionalSummonBots then
+        DungeonBots.provisionalSummonBots[cleanName] = nil
+    end
+    if inParty or not DungeonBots:HasPendingHistoryInvite(cleanName) then
         DungeonBots:ClearHistoryBotLoading(cleanName)
     end
     return confirmed
@@ -1105,6 +1140,20 @@ function DungeonBots:FailPendingBotSummon(botName)
     DungeonBots.suppressMissingPlayerUntil = DungeonBots.suppressMissingPlayerUntil or {}
     DungeonBots.suppressMissingPlayerUntil[cleanName] = NowTime() + 2.5
     DungeonBots:ClearPendingBotInteractions(cleanName)
+    if DungeonBots.provisionalSummonBots and DungeonBots.provisionalSummonBots[cleanName]
+        and not DungeonBots:FindPartyUnitByName(cleanName, true) then
+        DungeonBots.provisionalSummonBots[cleanName] = nil
+        DungeonBots.confirmedBots[cleanName] = nil
+        DungeonBots:RegisterBot(cleanName, nil)
+        if DungeonBotsDB and DungeonBotsDB.botHistory and DungeonBotsDB.botHistory[cleanName]
+            and DungeonBotsDB.botHistory[cleanName].class == "UNKNOWN" then
+            DungeonBotsDB.botHistory[cleanName] = nil
+            if DungeonBots.UpdateHistorySummary then
+                DungeonBots:UpdateHistorySummary()
+            end
+            RefreshHistoryUIIfVisible()
+        end
+    end
     DungeonBots:Warn(string.format(L["BOT_ADD_SILENT_FAIL_FMT"], cleanName))
     return true
 end
@@ -1149,10 +1198,19 @@ function DungeonBots:AddBot(botName, inviteDelay, silentPrint)
         DungeonBots.busyExternalBots[cleanName].expiresAt = 0
     end
     local wasKnown = DungeonBots:IsInHistory(cleanName) or (DungeonBots:IsBot(cleanName) == true)
-    DungeonBots:MarkRecentBot(cleanName, 120)
-    if wasKnown then
-        DungeonBots:RegisterBot(cleanName, true)
+    DungeonBots.provisionalSummonBots = DungeonBots.provisionalSummonBots or {}
+    if not wasKnown then
+        DungeonBots.provisionalSummonBots[cleanName] = true
+    else
+        DungeonBots.provisionalSummonBots[cleanName] = nil
     end
+    if DungeonBots.notifiedOppositeFactionBots then
+        DungeonBots.notifiedOppositeFactionBots[cleanName] = nil
+    end
+    DungeonBots.confirmedBots[cleanName] = true
+    DungeonBots:MarkRecentBot(cleanName, 120)
+    DungeonBots:RegisterBot(cleanName, true)
+    DungeonBots:RecordBotHistory(cleanName)
     pendingSummonConfirm[cleanName] = now + 12.0
     DungeonBots:SetHistoryBotLoading(cleanName, 12.0)
     if not silentPrint then
@@ -1432,6 +1490,9 @@ function DungeonBots:MarkBotDismissed(name, durationSeconds)
     if not cleanName or cleanName == "" then return end
     recentlyDismissedUntil[cleanName] = NowTime() + (durationSeconds or 12.0)
     self:ClearRecentBot(cleanName)
+    if DungeonBots.notifiedOppositeFactionBots then
+        DungeonBots.notifiedOppositeFactionBots[cleanName] = nil
+    end
     pendingSummonConfirm[cleanName] = nil
     if DungeonBots.recentInvites then
         DungeonBots.recentInvites[cleanName] = nil
@@ -1465,8 +1526,9 @@ function DungeonBots:RemoveBot(botName)
     local isLfgRestricted = (HasLFGRestrictions and HasLFGRestrictions()) and true or false
     local inGroup = (GetNumPartyMembers and GetNumPartyMembers() > 0) or (GetNumRaidMembers and GetNumRaidMembers() > 0)
     local isConnected = unit and UnitIsConnected(unit) and true or false
+    local isOppFaction = (DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(cleanBot)) and true or false
 
-    if isConnected then
+    if isConnected and not isOppFaction then
         -- Solicitar primero que abandone el grupo mientras sigue conectado
         SendBotLeaveWhisper(cleanBot, inRaid)
         if inGroup and IsPartyLeader() and not isLfgRestricted then
@@ -1550,7 +1612,8 @@ function DungeonBots:RemoveAllBots()
     for _, bot in ipairs(botsToDismiss) do
         if bot.name then
             DungeonBots:MarkBotDismissed(bot.name, 12.0)
-            if bot.connected then
+            local isOppFaction = (DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(bot.name)) and true or false
+            if bot.connected and not isOppFaction then
                 SendBotLeaveWhisper(bot.name, inRaid)
                 sentAnyLeaveWhisper = true
             end
@@ -2043,13 +2106,14 @@ function DungeonBots:NotifyExternalBotBusy(botName, ownerName, sourceTag, forceA
     return true
 end
 
-function DungeonBots:RecordBotHistory(name, classToken, specName, raceIcon)
+function DungeonBots:RecordBotHistory(name, classToken, specName, raceIcon, factionToken)
     if not name or name == "" then return end
     if DungeonBots:IsBot(name) == false then return end
     if not DungeonBotsDB then DungeonBotsDB = {} end
     DungeonBotsDB.botHistory = DungeonBotsDB.botHistory or {}
 
-    local unit = DungeonBots:FindPartyUnitByName(name)
+    local unit = DungeonBots:FindPartyUnitByName(name, true)
+    local unitFaction = nil
     if unit then
         if not classToken or classToken == "" then
             local _, detectedClass = UnitClass(unit)
@@ -2057,6 +2121,9 @@ function DungeonBots:RecordBotHistory(name, classToken, specName, raceIcon)
         end
         if not raceIcon or raceIcon == "" then
             raceIcon = DungeonBots:GetRaceIcon(unit)
+        end
+        if DungeonBots.GetUnitFaction then
+            unitFaction = DungeonBots:GetUnitFaction(unit)
         end
     end
 
@@ -2074,12 +2141,16 @@ function DungeonBots:RecordBotHistory(name, classToken, specName, raceIcon)
     if raceIcon and raceIcon ~= "" and raceIcon ~= defaultQuestionIcon then
         resolvedIcon = raceIcon
     end
+    local iconFaction = (DungeonBots.InferFactionFromRaceIcon and DungeonBots:InferFactionFromRaceIcon(resolvedIcon)) or nil
+    local oppCached = (DungeonBots.oppositeFactionBots and DungeonBots.oppositeFactionBots[name]) or nil
+    local resolvedFaction = oppCached or unitFaction or iconFaction or factionToken or prev.faction or nil
 
     DungeonBotsDB.botHistory[name] = {
         name = name,
         class = (classToken and classToken ~= "" and classToken) or prev.class or "UNKNOWN",
         spec = resolvedSpec,
         raceIcon = resolvedIcon,
+        faction = resolvedFaction,
         lastSeen = (date and date("%d/%m %H:%M")) or (prev.lastSeen or ""),
         timestamp = (time and time()) or (prev.timestamp or 0),
     }
@@ -2100,6 +2171,9 @@ function DungeonBots:RecordBotHistory(name, classToken, specName, raceIcon)
                         if saved.raceIcon and saved.raceIcon ~= "" and saved.raceIcon ~= defaultQuestionIcon then
                             member.raceIcon = saved.raceIcon
                         end
+                        if saved.faction and saved.faction ~= "" then
+                            member.faction = saved.faction
+                        end
                     end
                 end
             end
@@ -2115,10 +2189,12 @@ function DungeonBots:SyncPartyToHistory()
         local unit = "party" .. i
         if UnitExists(unit) and UnitIsConnected(unit) then
             local name = UnitName(unit)
-            if name and name ~= "" and DungeonBots:ShouldTreatAsBot(name) then
+            if name and name ~= "" and name ~= UNKNOWNOBJECT and name ~= "Unknown" and DungeonBots:ShouldTreatAsBot(name) then
                 local _, classToken = UnitClass(unit)
                 local raceIcon = DungeonBots:GetRaceIcon(unit)
-                DungeonBots:RecordBotHistory(name, classToken, nil, raceIcon)
+                local unitFaction = DungeonBots.GetUnitFaction and DungeonBots:GetUnitFaction(unit) or nil
+                DungeonBots:RegisterBot(name, true)
+                DungeonBots:RecordBotHistory(name, classToken, nil, raceIcon, unitFaction)
             end
         end
     end
@@ -2293,11 +2369,16 @@ local function BuildTeamBotSnapshot(botName, hintEntry)
     if DungeonBots.CleanSpecText then
         spec = DungeonBots:CleanSpecText(spec)
     end
+    local resolvedFaction = (DungeonBots.GetBotFaction and DungeonBots:GetBotFaction(cleanName, hintEntry))
+        or (hintEntry and hintEntry.faction)
+        or (hist and hist.faction)
+        or nil
     return {
         name = cleanName,
         class = (classToken and classToken ~= "" and classToken) or "UNKNOWN",
         spec = spec or "",
         raceIcon = (raceIcon and raceIcon ~= "" and raceIcon) or defaultQuestionIcon,
+        faction = resolvedFaction,
     }
 end
 

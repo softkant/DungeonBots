@@ -3,7 +3,7 @@
 -- =========================================================================
 
 DungeonBots = DungeonBots or {}
-DungeonBots.VERSION = "1.2.6"
+DungeonBots.VERSION = "1.2.7"
 DungeonBots.Internal = DungeonBots.Internal or {}
 
 local DB_Internal = DungeonBots.Internal
@@ -224,6 +224,8 @@ DungeonBots.pendingPartyTalkUntil = 0
 DungeonBots.lastTalkBot = nil
 DungeonBots.localizedQuestTitles = {}
 DungeonBots.localizedItemNames = {}
+DungeonBots.oppositeFactionBots = {}
+DungeonBots.notifiedOppositeFactionBots = {}
 
 DB_Internal.CLASS_TOKEN_BY_ID = {}
 for _, cls in ipairs(DungeonBots.CLASSES) do
@@ -306,6 +308,238 @@ function DungeonBots:GetRaceIcon(unit)
     local sex = UnitSex(unit)
     local gender = (sex == 3) and "Female" or "Male"
     return string.format("Interface\\Icons\\Achievement_Character_%s_%s", enRace, gender)
+end
+
+local function NormalizeRaceKey(rawRace)
+    if type(rawRace) ~= "string" or rawRace == "" then return nil end
+    local k = string.lower(rawRace)
+    k = string.gsub(k, "[%s%-_]+", "")
+    return k
+end
+
+local RACE_TO_FACTION = {
+    human = "Alliance",
+    humano = "Alliance",
+    humana = "Alliance",
+    dwarf = "Alliance",
+    enano = "Alliance",
+    enana = "Alliance",
+    nightelf = "Alliance",
+    elfodelanoche = "Alliance",
+    elfadelanoche = "Alliance",
+    gnome = "Alliance",
+    gnomo = "Alliance",
+    gnoma = "Alliance",
+    draenei = "Alliance",
+    orc = "Horde",
+    orco = "Horde",
+    orca = "Horde",
+    scourge = "Horde",
+    undead = "Horde",
+    nomuerto = "Horde",
+    nomuerta = "Horde",
+    tauren = "Horde",
+    troll = "Horde",
+    trol = "Horde",
+    bloodelf = "Horde",
+    elfodesangre = "Horde",
+    elfadesangre = "Horde",
+}
+
+function DungeonBots:InferFactionFromRaceIcon(raceIcon)
+    if type(raceIcon) ~= "string" or raceIcon == "" then return nil end
+    local raceKey = string.match(string.lower(raceIcon), "achievement_character_([^_]+)_")
+    local normKey = NormalizeRaceKey(raceKey)
+    if normKey then
+        return RACE_TO_FACTION[normKey]
+    end
+    return nil
+end
+
+function DungeonBots:GetUnitFaction(unit)
+    if not unit or not UnitExists or not UnitExists(unit) then return nil end
+    if UnitRace then
+        local locRace, enRace = UnitRace(unit)
+        local keyEn = NormalizeRaceKey(enRace)
+        if keyEn and RACE_TO_FACTION[keyEn] then
+            return RACE_TO_FACTION[keyEn]
+        end
+        local keyLoc = NormalizeRaceKey(locRace)
+        if keyLoc and RACE_TO_FACTION[keyLoc] then
+            return RACE_TO_FACTION[keyLoc]
+        end
+    end
+    -- Solo usar UnitFactionGroup en 'player'; en party1..4 AzerothCore devuelve la faccion del jugador cuando es cruzada o lejana
+    if unit == "player" then
+        local facGroup = UnitFactionGroup and UnitFactionGroup(unit)
+        if facGroup == "Alliance" or facGroup == "Horde" then
+            return facGroup
+        end
+    end
+    return nil
+end
+
+function DungeonBots:GetPlayerFaction()
+    return self:GetUnitFaction("player")
+end
+
+function DungeonBots:GetBotFaction(botName, hintEntry)
+    local cleanName = DB_Internal.NormalizePlayerName and DB_Internal.NormalizePlayerName(botName) or botName
+    if not cleanName or cleanName == "" then return nil end
+
+    -- Prioridad 1: Confirmado como faccion contraria en esta sesion
+    local cached = self.oppositeFactionBots and self.oppositeFactionBots[cleanName]
+    if cached == "Alliance" or cached == "Horde" then
+        return cached
+    end
+
+    -- Prioridad 2: Raza real de la unidad en el grupo
+    if self.FindPartyUnitByName then
+        local unit = self:FindPartyUnitByName(cleanName, true)
+        if unit then
+            local fac = self:GetUnitFaction(unit)
+            if fac then return fac end
+            if self.GetRaceIcon then
+                local inferred = self:InferFactionFromRaceIcon(self:GetRaceIcon(unit))
+                if inferred then return inferred end
+            end
+        end
+    end
+
+    -- Prioridad 3: Hint recibido (priorizando el icono de raza sobre faction)
+    if type(hintEntry) == "table" then
+        local inferred = self:InferFactionFromRaceIcon(hintEntry.raceIcon)
+        if inferred then return inferred end
+        if hintEntry.faction == "Alliance" or hintEntry.faction == "Horde" then
+            return hintEntry.faction
+        end
+    end
+
+    -- Prioridad 4: Historial guardado (priorizando icono de raza real sobre faction guardada)
+    local hist = DungeonBotsDB and DungeonBotsDB.botHistory and DungeonBotsDB.botHistory[cleanName]
+    if hist then
+        local inferred = self:InferFactionFromRaceIcon(hist.raceIcon)
+        if inferred then return inferred end
+        if hist.faction == "Alliance" or hist.faction == "Horde" then
+            return hist.faction
+        end
+    end
+
+    -- Prioridad 5: Equipos guardados en DungeonBotsDB.botTeams
+    if DungeonBotsDB and type(DungeonBotsDB.botTeams) == "table" then
+        for teamIdx = 1, 3 do
+            local teamList = DungeonBotsDB.botTeams[teamIdx]
+            if type(teamList) == "table" then
+                for _, member in ipairs(teamList) do
+                    if type(member) == "table" then
+                        local memberName = DB_Internal.NormalizePlayerName and DB_Internal.NormalizePlayerName(member.name) or member.name
+                        if memberName == cleanName then
+                            local inferred = self:InferFactionFromRaceIcon(member.raceIcon)
+                            if inferred then return inferred end
+                            if member.faction == "Alliance" or member.faction == "Horde" then
+                                return member.faction
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return nil
+end
+
+function DungeonBots:IsOppositeFactionBot(botName, hintEntry)
+    local myFac = self:GetPlayerFaction()
+    local botFac = self:GetBotFaction(botName, hintEntry)
+    if myFac and botFac and myFac ~= botFac then
+        return true, botFac
+    end
+    return false, botFac
+end
+
+function DungeonBots:HasOppositeFactionPartyBot()
+    for i = 1, 4 do
+        local unit = "party" .. i
+        if UnitExists and UnitExists(unit) and (not UnitIsConnected or UnitIsConnected(unit)) then
+            local rawName = UnitName and UnitName(unit)
+            local clean = DB_Internal.NormalizePlayerName and DB_Internal.NormalizePlayerName(rawName) or rawName
+            if clean and clean ~= "" and clean ~= UNKNOWNOBJECT and clean ~= "Unknown" then
+                if self.ShouldTreatAsBot and self:ShouldTreatAsBot(clean) and self:IsOppositeFactionBot(clean) then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+function DungeonBots:NotifyOppositeFactionBotAdded(botName)
+    local cleanName = DB_Internal.NormalizePlayerName and DB_Internal.NormalizePlayerName(botName) or botName
+    if not cleanName or cleanName == "" then return false end
+    if not (self.IsOppositeFactionBot and self:IsOppositeFactionBot(cleanName)) then
+        return false
+    end
+    self.notifiedOppositeFactionBots = self.notifiedOppositeFactionBots or {}
+    if self.notifiedOppositeFactionBots[cleanName] then
+        return false
+    end
+    self.notifiedOppositeFactionBots[cleanName] = true
+    if self.Warn then
+        self:Warn(L["OPP_FACTION_BOT_ADDED_WARN"])
+    end
+    return true
+end
+
+function DungeonBots:MarkOppositeFactionBot(botName)
+    local cleanName = DB_Internal.NormalizePlayerName and DB_Internal.NormalizePlayerName(botName) or botName
+    if not cleanName or cleanName == "" then return end
+    local myFac = self:GetPlayerFaction()
+    local oppFac = (myFac == "Alliance" and "Horde") or (myFac == "Horde" and "Alliance") or nil
+    if not oppFac then return end
+
+    self.oppositeFactionBots = self.oppositeFactionBots or {}
+    local changed = (self.oppositeFactionBots[cleanName] ~= oppFac)
+    self.oppositeFactionBots[cleanName] = oppFac
+    if DungeonBotsDB and DungeonBotsDB.botHistory and DungeonBotsDB.botHistory[cleanName] then
+        DungeonBotsDB.botHistory[cleanName].faction = oppFac
+    end
+    if self.IsBot and self:IsBot(cleanName) ~= false then
+        self.confirmedBots = self.confirmedBots or {}
+        self.confirmedBots[cleanName] = true
+        if self.RegisterBot then
+            self:RegisterBot(cleanName, true)
+        end
+        if self.RecordBotHistory then
+            self:RecordBotHistory(cleanName, nil, nil, nil, oppFac)
+        end
+    end
+
+    if DB_Internal.RemoveBotFromWhisperQueue then
+        DB_Internal.RemoveBotFromWhisperQueue(cleanName)
+    end
+    if self.pendingWhoCheck then self.pendingWhoCheck[cleanName] = nil end
+    if self.pendingScan then self.pendingScan[cleanName] = nil end
+    if self.pendingSpecReset then self.pendingSpecReset[cleanName] = nil end
+    if self.pendingListReset then self.pendingListReset[cleanName] = nil end
+    if DB_Internal.queryStates then DB_Internal.queryStates[cleanName] = nil end
+    if self.pendingQuestCountCapture then self.pendingQuestCountCapture[cleanName] = nil end
+    if self.pendingQuestCapture then self.pendingQuestCapture[cleanName] = nil end
+    if self.pendingTalkCapture then self.pendingTalkCapture[cleanName] = nil end
+    if self.pendingInventoryCapture then self.pendingInventoryCapture[cleanName] = nil end
+    if self.pendingSpellsCapture then self.pendingSpellsCapture[cleanName] = nil end
+
+    if changed then
+        if self.UpdatePartyUI then self:UpdatePartyUI() end
+        if self.UpdateHistoryUI and self.historyFrame and self.historyFrame:IsShown() then
+            self:UpdateHistoryUI()
+        end
+        if self.UpdateHUDTalkButtonState then self:UpdateHUDTalkButtonState() end
+    end
+    if (self.FindPartyUnitByName and self:FindPartyUnitByName(cleanName, true))
+        or (self.IsRecentBot and self:IsRecentBot(cleanName)) then
+        self:NotifyOppositeFactionBotAdded(cleanName)
+    end
 end
 
 function DungeonBots:GetClassDisplayInfo(classToken, compactName)

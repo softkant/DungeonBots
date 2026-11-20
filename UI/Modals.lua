@@ -153,7 +153,7 @@ function DungeonBots:BuildSettingsDialog()
 
     local versionLabel = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     versionLabel:SetPoint("BOTTOMLEFT", title, "BOTTOMRIGHT", 6, 1)
-    versionLabel:SetText(string.format(L["SETTINGS_FOOTER_VER"], (DungeonBots.VERSION or "1.2.6")))
+    versionLabel:SetText(string.format(L["SETTINGS_FOOTER_VER"], (DungeonBots.VERSION or "1.2.7")))
     sf.versionLabel = versionLabel
 
     local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
@@ -839,11 +839,15 @@ function DungeonBots:UpdateHistoryTeamsUI()
                     card.classG = classColor.g
                     card.classB = classColor.b
 
-                    if unit ~= nil then
-                        card.nameText:SetText(botName .. " |cff44ff44*|r")
-                    else
-                        card.nameText:SetText(botName)
+                    local isOppFaction, botFaction = false, nil
+                    if DungeonBots.IsOppositeFactionBot then
+                        isOppFaction, botFaction = DungeonBots:IsOppositeFactionBot(botName, entry)
                     end
+                    local factionTag = isOppFaction
+                        and ((botFaction == "Horde") and L["HIST_TEAM_OPP_HORDE_TAG"] or L["HIST_TEAM_OPP_ALLIANCE_TAG"])
+                        or ""
+                    local inPartyMark = (unit ~= nil) and " |cff44ff44*|r" or ""
+                    card.nameText:SetText(botName .. factionTag .. inPartyMark)
                     card.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
 
                     local cleanSpec = DungeonBots.CleanSpecText and DungeonBots:CleanSpecText(entry.spec) or (entry.spec or "")
@@ -1181,11 +1185,14 @@ function DungeonBots:UpdateHistoryUI()
 
         local botName = entry.name
         local inParty = (DungeonBots:FindPartyUnitByName(botName) ~= nil)
-        if inParty then
-            row.nameText:SetText(botName .. L["HIST_IN_PARTY_TAG"])
-        else
-            row.nameText:SetText(botName)
+        local isOppFaction, botFaction = false, nil
+        if DungeonBots.IsOppositeFactionBot then
+            isOppFaction, botFaction = DungeonBots:IsOppositeFactionBot(botName, entry)
         end
+        local factionTag = isOppFaction
+            and ((botFaction == "Horde") and L["HIST_OPP_HORDE_TAG"] or L["HIST_OPP_ALLIANCE_TAG"])
+            or ""
+        row.nameText:SetText(botName .. factionTag .. (inParty and L["HIST_IN_PARTY_TAG"] or ""))
         row.nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
 
         local cleanSpec = DungeonBots.CleanSpecText and DungeonBots:CleanSpecText(entry.spec) or (entry.spec or "")

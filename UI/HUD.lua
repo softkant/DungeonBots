@@ -274,7 +274,11 @@ local function OpenHudBotDropdown(anchorBtn, headerTitle, emptyWarnMsg, onSelect
     local bots = DungeonBots.GetPartyBotsList and DungeonBots:GetPartyBotsList() or {}
     if #bots == 0 then
         if CloseDropDownMenus then CloseDropDownMenus() end
-        DungeonBots:Warn(emptyWarnMsg)
+        if DungeonBots.HasOppositeFactionPartyBot and DungeonBots:HasOppositeFactionPartyBot() then
+            DungeonBots:Warn(L["HUD_OPP_FACTION_ONLY_WARN"])
+        else
+            DungeonBots:Warn(emptyWarnMsg)
+        end
         return
     end
     if directIfSingle and #bots == 1 then
@@ -600,13 +604,14 @@ local function ApplyBarVisibility(barFrame, visibleKey, canUseByLeader)
         barFrame:Hide()
         return false
     end
+    local inFiveManDungeon = DungeonBots:IsInFiveManDungeon()
     local onlyInGroup = (not DungeonBotsDB) or (DungeonBotsDB.hudOnlyInGroup ~= false)
-    if onlyInGroup and not DungeonBots:IsInPlayerGroup() then
+    if onlyInGroup and not DungeonBots:IsInPlayerGroup() and not inFiveManDungeon then
         barFrame:Hide()
         return false
     end
     local onlyInDungeon = (DungeonBotsDB and DungeonBotsDB.hudOnlyInDungeon == true) and true or false
-    if onlyInDungeon and not DungeonBots:IsInFiveManDungeon() then
+    if onlyInDungeon and not inFiveManDungeon then
         barFrame:Hide()
         return false
     end
@@ -968,7 +973,7 @@ function DungeonBots:ToggleHUD()
             -- El aviso de que las barras se ocultan por no ser líder ya lo muestra UpdateHUDVisibility
         elseif nowAnyShown then
             DungeonBots:Print(L["HUD_VISIBLE_MSG"])
-        elseif ((not DungeonBotsDB) or (DungeonBotsDB.hudOnlyInGroup ~= false)) and not DungeonBots:IsInPlayerGroup() then
+        elseif ((not DungeonBotsDB) or (DungeonBotsDB.hudOnlyInGroup ~= false)) and not DungeonBots:IsInPlayerGroup() and not DungeonBots:IsInFiveManDungeon() then
             DungeonBots:Print(L["HUD_ARMED_GROUP_MSG"])
         else
             DungeonBots:Print(L["HUD_ARMED_DUNGEON_MSG"])

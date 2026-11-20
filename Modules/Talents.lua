@@ -934,12 +934,16 @@ end
 function DungeonBots:QueryBotLiveInfo(botName)
     if not botName or botName == "" then return end
     if not DungeonBots:ShouldTreatAsBot(botName) then return end
+    if DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(botName) then
+        return
+    end
 
     -- Al entrar al mundo o unirse un bot: 0 comandos si su rama ya esta guardada (/reload);
     -- si es un bot nuevo sin rama en cache, consulta tambien 'talents spec list' si faltan sus tripletes.
     if not HasCachedActiveSpec(botName) then
         local needList = not HasCachedTriplets(botName)
-        StartTalentQuery(botName, false, needList, false)
+        local unknownFac = (DungeonBots.GetBotFaction and DungeonBots:GetBotFaction(botName) == nil) and true or false
+        StartTalentQuery(botName, unknownFac, needList, false)
     end
 
     -- 'stats' y 'quests all' solo se consultan al entrar si la ventana principal esta visible.
@@ -955,6 +959,9 @@ function DungeonBots:QueryBotStats(botName, force)
     if not botName or botName == "" then return end
     if not DungeonBots:FindPartyUnitByName(botName) then return end
     if not DungeonBots:ShouldTreatAsBot(botName) then return end
+    if DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(botName) then
+        return
+    end
     local now = NowTime()
     local st = DungeonBots.botStats and DungeonBots.botStats[botName]
     if not force then
@@ -999,10 +1006,16 @@ function DungeonBots:CheckPartyForNewBots()
             if name and name ~= "" and name ~= UNKNOWNOBJECT and name ~= "Unknown" then
                 currentMembers[name] = true
                 if DungeonBots:ShouldTreatAsBot(name) and not DungeonBots.sessionQueriedBots[name] and not pendingJoinQueries[name] then
-                    if HasCachedActiveSpec(name) and not mainVisible then
+                    if DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(name) then
+                        DungeonBots.sessionQueriedBots[name] = true
+                        if DungeonBots.NotifyOppositeFactionBotAdded then
+                            DungeonBots:NotifyOppositeFactionBotAdded(name)
+                        end
+                    elseif HasCachedActiveSpec(name) and not mainVisible then
                         DungeonBots.sessionQueriedBots[name] = true
                     else
-                        pendingJoinQueries[name] = 1.2
+                        local joinDelay = (DungeonBots.GetBotFaction and DungeonBots:GetBotFaction(name) == nil) and 0.20 or 1.2
+                        pendingJoinQueries[name] = joinDelay
                         joinQueryFrame:Show()
                     end
                 end
@@ -1017,6 +1030,9 @@ function DungeonBots:CheckPartyForNewBots()
             lastStatsQueryAt[queriedName] = nil
             lastSpecListQueryAt[queriedName] = nil
             pendingSpecSwitches[queriedName] = nil
+            if DungeonBots.notifiedOppositeFactionBots then
+                DungeonBots.notifiedOppositeFactionBots[queriedName] = nil
+            end
             if DungeonBots.botSpecListFetched then
                 DungeonBots.botSpecListFetched[queriedName] = nil
             end

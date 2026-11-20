@@ -42,6 +42,8 @@ function DungeonBots:MarkAddonOutgoingWhisper(botName, cmd, ttlSeconds)
     local cleanBot = NormalizePlayerName(botName)
     if not cleanBot or not cmd or cmd == "" then return end
     local now = NowTime()
+    DungeonBots.lastAddonWhisperAt = now
+    DungeonBots.lastAddonWhisperTarget = cleanBot
     DungeonBots.recentOutgoingAddonWhispers = DungeonBots.recentOutgoingAddonWhispers or {}
     local list = DungeonBots.recentOutgoingAddonWhispers[cleanBot]
     if not list then
@@ -93,6 +95,9 @@ end
 function DungeonBots:SendWhisperCommand(botName, cmd)
     if not botName or botName == "" or not cmd or cmd == "" then return end
     local cleanBot = NormalizePlayerName(botName)
+    if DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(cleanBot) then
+        return
+    end
     local unit = DungeonBots:FindPartyUnitByName(cleanBot)
     if not unit or not UnitIsConnected(unit) then
         return
@@ -108,6 +113,9 @@ function DungeonBots:SendBotWhisperUnchecked(botName, cmd)
     if not cleanBot or cleanBot == "" or not cmd or cmd == "" then return false end
     local playerName = UnitName and UnitName("player")
     if cleanBot == playerName then return false end
+    if DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(cleanBot) then
+        return false
+    end
     DungeonBots:MarkAddonOutgoingWhisper(cleanBot, cmd, 4.0)
     isSendingAddonWhisper = true
     SendChatMessage(cmd, "WHISPER", nil, cleanBot)
@@ -133,6 +141,9 @@ end
 function DungeonBots:RequestBotWhoCheck(botName, reason, force)
     local cleanBot = NormalizePlayerName(botName)
     if not cleanBot or cleanBot == "" then return false end
+    if DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(cleanBot) then
+        return false
+    end
     local now = NowTime()
     DungeonBots.pendingWhoCheck = DungeonBots.pendingWhoCheck or {}
     DungeonBots.whoCheckLastSentAt = DungeonBots.whoCheckLastSentAt or {}
@@ -199,9 +210,23 @@ function DB_Internal.ClearWhisperQueue()
     whisperQueue = {}
 end
 
+function DB_Internal.RemoveBotFromWhisperQueue(botName)
+    local cleanBot = NormalizePlayerName(botName)
+    if not cleanBot or cleanBot == "" then return end
+    for i = #whisperQueue, 1, -1 do
+        local item = whisperQueue[i]
+        if item and NormalizePlayerName(item.botName) == cleanBot then
+            table.remove(whisperQueue, i)
+        end
+    end
+end
+
 function DungeonBots:QueueWhisperCommand(botName, cmd, atFront)
     if not botName or botName == "" or not cmd or cmd == "" then return end
     local cleanBot = NormalizePlayerName(botName)
+    if DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(cleanBot) then
+        return
+    end
     local unit = DungeonBots:FindPartyUnitByName(cleanBot)
     if not unit or not UnitIsConnected(unit) then
         return
@@ -562,6 +587,28 @@ function DB_Internal.ParseBotRosterSystemMessage(message)
     return roster
 end
 
+function DB_Internal.IsWrongFactionSystemMessage(message)
+    local cleanMsg = TrimText(StripWowFormatting(message or ""))
+    if cleanMsg == "" then return false end
+    local lower = string.lower(cleanMsg)
+    if type(_G.ERR_CHAT_WRONG_FACTION) == "string" and _G.ERR_CHAT_WRONG_FACTION ~= "" then
+        local exactErr = string.lower(TrimText(StripWowFormatting(_G.ERR_CHAT_WRONG_FACTION)))
+        if lower == exactErr then
+            return true
+        end
+    end
+    if string.find(lower, "only whisper to members of your alliance", 1, true)
+        or string.find(lower, "only whisper to members of your own alliance", 1, true)
+        or string.find(lower, "only whisper to members of your faction", 1, true)
+        or string.find(lower, "miembros de tu alianza", 1, true)
+        or string.find(lower, "miembros de tu propia alianza", 1, true)
+        or string.find(lower, "miembros de tu facci", 1, true)
+        or string.find(lower, "wrong faction", 1, true) then
+        return true
+    end
+    return false
+end
+
 function DB_Internal.ExtractClassAddRejectionFromSystem(message)
     local cleanMsg = TrimText(StripWowFormatting(message or ""))
     if cleanMsg == "" then return nil end
@@ -904,6 +951,11 @@ local function ChatEventFilterFunc(self, event, message, sender, ...)
         local isRosterWindow = (DungeonBots.suppressBotRosterUntil and NowTime() <= DungeonBots.suppressBotRosterUntil) and true or false
         if isRosterWindow and string.find(lower, "^bot%s+roster:") then
             return true
+        end
+        if DB_Internal.IsWrongFactionSystemMessage and DB_Internal.IsWrongFactionSystemMessage(clean) then
+            if DungeonBots.lastAddonWhisperAt and (NowTime() - DungeonBots.lastAddonWhisperAt) <= 3.0 then
+                return true
+            end
         end
         if DungeonBots.suppressMissingPlayerUntil and DB_Internal.ExtractMissingPlayerFromSystem then
             local missingName = DB_Internal.ExtractMissingPlayerFromSystem(clean)

@@ -90,6 +90,12 @@ end
 function DungeonBots:QueryQuests(botName, isSilent, suppressDialog, retriedSilent)
     local cleanBot = NormalizePlayerName(botName)
     if not cleanBot then return end
+    if DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(cleanBot) then
+        if not isSilent and not suppressDialog then
+            DungeonBots:Warn(string.format(L["BOT_OPP_FACTION_WHISPER_BLOCKED_FMT"], cleanBot))
+        end
+        return
+    end
     local now = NowTime()
     if not suppressDialog then
         RemoveQueuedQuestCount(cleanBot)
@@ -179,6 +185,7 @@ function DungeonBots:QueryBotQuestCount(botName, force, delaySeconds, isRetry)
     if not cleanBot then return end
     if DungeonBots.FindPartyUnitByName and not DungeonBots:FindPartyUnitByName(cleanBot) then return end
     if DungeonBots.ShouldTreatAsBot and not DungeonBots:ShouldTreatAsBot(cleanBot) then return end
+    if DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(cleanBot) then return end
 
     local now = NowTime()
     local cached = DungeonBots.botQuestCounts and DungeonBots.botQuestCounts[cleanBot]
@@ -410,7 +417,7 @@ function DungeonBots:GetPartyBotsList()
             local rawName = UnitName(unit)
             local name = NormalizePlayerName(rawName)
             if name and name ~= "" and name ~= UNKNOWNOBJECT and name ~= "Unknown" and not seen[name] then
-                if DungeonBots:ShouldTreatAsBot(name) then
+                if DungeonBots:ShouldTreatAsBot(name) and not (DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(name)) then
                     seen[name] = true
                     local _, classToken = UnitClass(unit)
                     local activeSpec = DungeonBotsDB and DungeonBotsDB.botActiveSpec and DungeonBotsDB.botActiveSpec[name]
@@ -468,23 +475,24 @@ end
 function DungeonBots:FindDefaultTalkBot()
     if UnitExists("target") and UnitIsPlayer("target") then
         local targetName = NormalizePlayerName(UnitName("target"))
-        if targetName and DungeonBots:ShouldTreatAsBot(targetName) then
+        if targetName and DungeonBots:ShouldTreatAsBot(targetName) and not (DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(targetName)) then
             return targetName
         end
     end
-    if DungeonBots.lastTalkBot and DungeonBots:FindPartyUnitByName(DungeonBots.lastTalkBot) then
+    if DungeonBots.lastTalkBot and DungeonBots:FindPartyUnitByName(DungeonBots.lastTalkBot)
+        and not (DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(DungeonBots.lastTalkBot)) then
         return DungeonBots.lastTalkBot
     end
     for i = 1, 4 do
         local unit = "party" .. i
         if UnitExists(unit) then
             local name = NormalizePlayerName(UnitName(unit))
-            if name and DungeonBots:ShouldTreatAsBot(name) then
+            if name and DungeonBots:ShouldTreatAsBot(name) and not (DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(name)) then
                 return name
             end
         end
     end
-    return DungeonBots.lastTalkBot
+    return nil
 end
 
 function DungeonBots:ArmTalkCapture(botName, cmd, resetLines)
@@ -564,7 +572,15 @@ end
 function DungeonBots:SendTalkCommand(botName, cmd)
     local cleanBot = NormalizePlayerName(botName) or DungeonBots:FindDefaultTalkBot()
     if not cleanBot then
-        DungeonBots:Warn(L["NO_BOT_FOR_NPC"])
+        if DungeonBots.HasOppositeFactionPartyBot and DungeonBots:HasOppositeFactionPartyBot() then
+            DungeonBots:Warn(L["HUD_OPP_FACTION_ONLY_WARN"])
+        else
+            DungeonBots:Warn(L["NO_BOT_FOR_NPC"])
+        end
+        return
+    end
+    if DungeonBots.IsOppositeFactionBot and DungeonBots:IsOppositeFactionBot(cleanBot) then
+        DungeonBots:Warn(string.format(L["BOT_OPP_FACTION_WHISPER_BLOCKED_FMT"], cleanBot))
         return
     end
     local cleanCmd = TrimText(cmd or "talk")
