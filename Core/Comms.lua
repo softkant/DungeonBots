@@ -768,6 +768,7 @@ end
 
 function DB_Internal.ResolveHeldWhispersWithRoster(roster)
     if not roster or #heldClassWhispers == 0 then return end
+    local now = NowTime()
     local toResolve = {}
     local seen = {}
     for _, entry in ipairs(heldClassWhispers) do
@@ -777,7 +778,7 @@ function DB_Internal.ResolveHeldWhispersWithRoster(roster)
             local inRoster = (roster.all and roster.all[sender] ~= nil) or (roster.online and roster.online[sender] ~= nil)
             if inRoster or DungeonBots:ShouldTreatAsBot(sender) then
                 toResolve[sender] = true
-            elseif not DungeonBots.pendingPreClassRoster then
+            elseif not DungeonBots.pendingPreClassRoster and (now - (entry.heldAt or 0)) >= 0.6 then
                 toResolve[sender] = false
             end
         end

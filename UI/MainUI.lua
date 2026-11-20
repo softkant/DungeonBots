@@ -623,6 +623,7 @@ function DungeonBots:BuildTab1(parent)
     local btnH = 62
     local spacingX = 7
     local spacingY = 7
+    DungeonBots.classButtons = {}
 
     for i, cls in ipairs(DungeonBots.CLASSES) do
         local col = ((i - 1) % 5)
@@ -642,10 +643,12 @@ function DungeonBots:BuildTab1(parent)
         cIcon:SetPoint("TOP", cBtn, "TOP", 0, -6)
         cIcon:SetTexture(cls.icon)
         cIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        cBtn.icon = cIcon
 
         local cText = cBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         cText:SetPoint("BOTTOM", 0, 6)
         cText:SetText(classDisplay)
+        cBtn.label = cText
         local function StyleClassBtnText(fs)
             local p = DB_Internal.GetThemePalette and DB_Internal.GetThemePalette()
             local c = (p and p.guideTitle) or { 1.0, 0.82, 0.0 }
@@ -681,6 +684,7 @@ function DungeonBots:BuildTab1(parent)
             StyleClassBtnText(cText)
             GameTooltip:Hide()
         end)
+        table.insert(DungeonBots.classButtons, cBtn)
     end
 
     -- Caja 3: Acciones Globales de Grupo
@@ -773,6 +777,25 @@ function DungeonBots:BuildTab1(parent)
         GameTooltip:Show()
     end)
     releaseBtn:HookScript("OnLeave", function() GameTooltip:Hide() end)
+    DungeonBots:UpdateClassButtonsState()
+end
+
+function DungeonBots:UpdateClassButtonsState()
+    local buttons = DungeonBots.classButtons
+    if not buttons then return end
+    local numParty = (GetNumPartyMembers and GetNumPartyMembers()) or 0
+    local inRaid = (GetNumRaidMembers and GetNumRaidMembers() > 0) and true or false
+    local pendingCount = (DungeonBots.GetPendingClassSummonCount and DungeonBots:GetPendingClassSummonCount()) or 0
+    local isFull = inRaid or ((numParty + pendingCount) >= 4)
+    for _, btn in ipairs(buttons) do
+        if isFull then
+            btn:SetAlpha(0.45)
+            if btn.icon then btn.icon:SetDesaturated(true) end
+        else
+            btn:SetAlpha(1.0)
+            if btn.icon then btn.icon:SetDesaturated(false) end
+        end
+    end
 end
 
 -- Botones de acción rápida en cada tarjeta de bot de la pestaña "Bots en el grupo".
@@ -1123,6 +1146,9 @@ end
 
 -- Actualiza la lista de miembros y sus tarjetas
 function DungeonBots:UpdatePartyUI()
+    if DungeonBots.UpdateClassButtonsState then
+        DungeonBots:UpdateClassButtonsState()
+    end
     local numMembers = GetNumPartyMembers()
     local botCount = 0
     for i = 1, 4 do

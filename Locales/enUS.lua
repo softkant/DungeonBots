@@ -185,6 +185,7 @@ L["LFG_QUEUED_CANT_ADD"]   = "Dungeon Finder is searching for a player (LFD eye 
 L["LFG_BACKFILL_NAME_HIST_ONLY"] = "The LFD Eye is searching for a replacement: you can now only add a bot from |cffffd200Bot History|r (adding by class is blocked while queued)."
 L["BOT_SUMMONING_FMT"]     = "Summoning bot: |cffffd200%s|r..."
 L["BOT_CLASS_REQUESTING_FMT"] = "Requesting |cffffd200%s|r bot..."
+L["BOT_CLASS_QUEUED_FMT"]  = "Queued |cffffd200%s|r bot (waiting for current bot to join)..."
 L["BOT_CLASS_TIMEOUT_FMT"] = "The server did not create or add any |cffffd200%s|r bot (blocked, at bot limit, or no response)."
 L["BOT_CLASS_BLOCKED_FMT"] = "Could not add |cffffd200%s|r bot: %s"
 L["BOT_ADD_SILENT_FAIL_FMT"] = "|cffffd200%s|r did not come online or was not created by the server."
@@ -225,7 +226,7 @@ L["JOIN_FAIL_ZONE_FMT"]    = "|cffffd200%s|r could not join the party (current l
 L["SPEC_CHANGE_FAIL_FMT"]  = "Could not change |cffffd200%s|r's spec (%s)."
 L["SPEC_CHANGED_FMT"]      = "|cffffd200%s|r's talents changed to |cff71d5ff%s|r."
 L["SPEC_UNCHANGED_FMT"]    = "|cffffd200%s|r's spec is still |cff71d5ff%s|r (the bot did not apply the change)."
-L["BOT_CONFIRMED_FMT"]     = "Confirmed bot: |cff00e5ff%s|r (replied automatically as a bot)."
+L["BOT_CONFIRMED_FMT"]     = "Confirmed bot: |cff00e5ff%s|r."
 L["AUTO_INVITE_BOT_FMT"]   = "Auto-inviting detected bot: |cffffd200%s|r"
 L["HUD_POS_RESTORED"]      = "Floating bar positions restored."
 

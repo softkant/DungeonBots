@@ -177,6 +177,7 @@ L["LFG_QUEUED_CANT_ADD"]   = "El Buscador de Mazmorras está buscando jugador (e
 L["LFG_BACKFILL_NAME_HIST_ONLY"] = "El Ojo está buscando reemplazo: ahora solo podrás agregar un bot desde el |cffffd200Historial de Bots|r (agregar por clase queda bloqueado en cola)."
 L["BOT_SUMMONING_FMT"]     = "Invocando bot: |cffffd200%s|r..."
 L["BOT_CLASS_REQUESTING_FMT"] = "Solicitando bot (|cffffd200%s|r)..."
+L["BOT_CLASS_QUEUED_FMT"]  = "En cola: bot (|cffffd200%s|r) (esperando a que entre el bot actual)..."
 L["BOT_CLASS_TIMEOUT_FMT"] = "El servidor no creó ni agregó ningún bot (|cffffd200%s|r) (bloqueado, límite alcanzado o sin respuesta)."
 L["BOT_CLASS_BLOCKED_FMT"] = "No se pudo agregar el bot (|cffffd200%s|r): %s"
 L["BOT_ADD_SILENT_FAIL_FMT"] = "El servidor no creó ni conectó al bot |cffffd200%s|r."
@@ -217,7 +218,7 @@ L["JOIN_FAIL_ZONE_FMT"]    = "|cffffd200%s|r no pudo unirse al grupo (ubicación
 L["SPEC_CHANGE_FAIL_FMT"]  = "No se pudo cambiar la rama de |cffffd200%s|r (%s)."
 L["SPEC_CHANGED_FMT"]      = "Talentos de |cffffd200%s|r cambiados a |cff71d5ff%s|r."
 L["SPEC_UNCHANGED_FMT"]    = "La rama de |cffffd200%s|r sigue en |cff71d5ff%s|r (el bot no aplicó el cambio)."
-L["BOT_CONFIRMED_FMT"]     = "Bot confirmado: |cff00e5ff%s|r (respondió automáticamente como bot)."
+L["BOT_CONFIRMED_FMT"]     = "Bot confirmado: |cff00e5ff%s|r."
 L["AUTO_INVITE_BOT_FMT"]   = "Auto-invitando bot detectado: |cffffd200%s|r"
 L["HUD_POS_RESTORED"]      = "Posición de las barras flotantes restaurada."
 
