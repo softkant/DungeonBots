@@ -352,9 +352,10 @@ L["HUD_BARS_LOCKED"]       = "Floating bars: |cff9d9d9dLocked|r (fixed in place)
 L["HUD_BARS_UNLOCKED"]     = "Floating bars: |cff34c759Unlocked|r (you can drag all bars)."
 L["HUD_TIP_OPEN_TITLE"]    = "Open DungeonBots Panel"
 L["HUD_TIP_OPEN_DESC"]     = "Opens the full configuration, class summons, and talent management window."
-L["HUD_HIDDEN_MSG"]        = "Tactical HUD hidden. Type |cffffd200/db hud|r to show it."
-L["HUD_VISIBLE_MSG"]       = "Tactical HUD visible."
-L["HUD_ARMED_DUNGEON_MSG"] = "Tactical HUD enabled (will appear automatically when entering a 5-player dungeon). You can change this in Settings (the gear icon)."
+L["HUD_HIDDEN_MSG"]        = "Floating bars hidden. Type |cffffd200/db hud|r to show them."
+L["HUD_VISIBLE_MSG"]       = "Floating bars visible."
+L["HUD_ARMED_GROUP_MSG"]   = "Floating bars enabled (will appear automatically when you are in a group). You can change this in Settings (the gear icon)."
+L["HUD_ARMED_DUNGEON_MSG"] = "Floating bars enabled (will appear automatically when entering a 5-player dungeon). You can change this in Settings (the gear icon)."
 L["HUD_HIDDEN_NOT_LEADER"] = "You are not the group leader: floating bars are hidden because addon controls are leader-only."
 
 -- =========================================================================
@@ -516,7 +517,7 @@ L["GUIDE_T5_NOTE"]  = "If after autogearing you see the |cffffd200inventory full
 L["MINIMAP_TITLE"]         = "|cff00ccffDungeon|r|cffffd200Bots|r |cff71d5ff(Dungeon Eye)|r"
 L["MINIMAP_SUB"]           = "Tactical Dungeon Bot Manager"
 L["MINIMAP_LCLICK"]        = "\n|cffffd200Left-Click:|r Open / Close Main Panel"
-L["MINIMAP_RCLICK"]        = "|cffffd200Right-Click:|r Toggle Tactical Bar (HUD)"
+L["MINIMAP_RCLICK"]        = "|cffffd200Right-Click:|r Toggle Floating Bars (HUD)"
 L["MINIMAP_DRAG"]          = "|cffffd200Drag:|r Move this icon around the minimap"
 L["LFG_EYE_TIP"]           = "Opens the dungeon bot assistant."
 
@@ -531,6 +532,9 @@ L["SET_SHOW_HUD_DESC"]     = "Shows the floating quick bar for combat commands.\
 L["SET_SHOW_UTIL_LABEL"]   = "Show floating Utility Bar"
 L["SET_SHOW_UTIL_TITLE"]   = "Floating Utility Bar"
 L["SET_SHOW_UTIL_DESC"]    = "Shows the second floating bar with shortcuts for Talk NPC, Party Bots, Inventory, Character Info, and Quests.\n\nUncheck to hide this bar completely."
+L["SET_GROUP_ONLY_LBL"]    = "Show floating bars only while in a group"
+L["SET_GROUP_ONLY_TTL"]    = "In a Group Only"
+L["SET_GROUP_ONLY_DSC"]    = "When enabled, both floating bars (Tactical and Utility) hide while solo and appear automatically when you form or join a group."
 L["SET_DUNGEON_ONLY_LBL"]  = "Show floating bars only inside 5-player dungeons"
 L["SET_DUNGEON_ONLY_TTL"]  = "5-Player Dungeons Only"
 L["SET_DUNGEON_ONLY_DSC"]  = "When enabled, floating bars (Tactical and Utility) hide outside 5-player dungeons and appear automatically upon entering."
@@ -543,6 +547,7 @@ L["SET_MUTE_GROUP_DSC"]    = "Also filters public bot messages in Party (/p), Ye
 
 L["SET_BAR_HUD"]           = "Tactical Bar (HUD)"
 L["SET_BAR_UTIL"]          = "Utility Bar"
+L["SET_MSG_GROUP_ONLY"]    = "Floating bars in group only: %s"
 L["SET_MSG_DUNG_ONLY"]     = "Floating bars in 5p dungeons only: %s"
 L["SET_MSG_MUTE_WHISP"]    = "Hide bot whispers: %s"
 L["SET_MSG_MUTE_GROUP"]    = "Hide bot Party/Say chat: %s"

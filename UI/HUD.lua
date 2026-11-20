@@ -544,6 +544,12 @@ local function HandleUtilActionClick(anchorBtn, action)
     end
 end
 
+function DungeonBots:IsInPlayerGroup()
+    local numParty = (GetNumPartyMembers and GetNumPartyMembers()) or 0
+    local numRaid = (GetNumRaidMembers and GetNumRaidMembers()) or 0
+    return (numParty > 0 or numRaid > 0) and true or false
+end
+
 function DungeonBots:IsInFiveManDungeon()
     local inInstance, instanceType = IsInInstance()
     return (inInstance and instanceType == "party") and true or false
@@ -591,6 +597,11 @@ local function ApplyBarVisibility(barFrame, visibleKey, canUseByLeader)
         return false
     end
     if DungeonBotsDB and DungeonBotsDB[visibleKey] == false then
+        barFrame:Hide()
+        return false
+    end
+    local onlyInGroup = (not DungeonBotsDB) or (DungeonBotsDB.hudOnlyInGroup ~= false)
+    if onlyInGroup and not DungeonBots:IsInPlayerGroup() then
         barFrame:Hide()
         return false
     end
@@ -930,21 +941,35 @@ end
 
 function DungeonBots:ToggleHUD()
     local justInited = false
-    if not hudFrame then
+    if not hudFrame or not utilHudFrame then
         DungeonBots:InitHUD()
         justInited = true
     end
-    if hudFrame:IsShown() then
-        hudFrame:Hide()
-        if DungeonBotsDB then DungeonBotsDB.hudVisible = false end
+    local anyShown = (hudFrame and hudFrame:IsShown()) or (utilHudFrame and utilHudFrame:IsShown())
+    if anyShown then
+        if hudFrame then hudFrame:Hide() end
+        if utilHudFrame then utilHudFrame:Hide() end
+        if hudBotDropDown and UIDROPDOWNMENU_OPEN_MENU == hudBotDropDown and CloseDropDownMenus then
+            CloseDropDownMenus()
+        end
+        if DungeonBotsDB then
+            DungeonBotsDB.hudVisible = false
+            DungeonBotsDB.utilHudVisible = false
+        end
         DungeonBots:Print(L["HUD_HIDDEN_MSG"])
     else
-        if DungeonBotsDB then DungeonBotsDB.hudVisible = true end
+        if DungeonBotsDB then
+            DungeonBotsDB.hudVisible = true
+            DungeonBotsDB.utilHudVisible = true
+        end
         DungeonBots:UpdateHUDVisibility(not justInited)
+        local nowAnyShown = (hudFrame and hudFrame:IsShown()) or (utilHudFrame and utilHudFrame:IsShown())
         if not DungeonBots:CanUseHUDAsLeader() then
             -- El aviso de que las barras se ocultan por no ser líder ya lo muestra UpdateHUDVisibility
-        elseif hudFrame:IsShown() then
+        elseif nowAnyShown then
             DungeonBots:Print(L["HUD_VISIBLE_MSG"])
+        elseif ((not DungeonBotsDB) or (DungeonBotsDB.hudOnlyInGroup ~= false)) and not DungeonBots:IsInPlayerGroup() then
+            DungeonBots:Print(L["HUD_ARMED_GROUP_MSG"])
         else
             DungeonBots:Print(L["HUD_ARMED_DUNGEON_MSG"])
         end

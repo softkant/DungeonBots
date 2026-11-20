@@ -53,21 +53,25 @@ function DungeonBots:UpdateSettingsDialog()
     local hudShow = (not DungeonBotsDB) or (DungeonBotsDB.hudVisible ~= false)
     local utilHudShow = (not DungeonBotsDB) or (DungeonBotsDB.utilHudVisible ~= false)
     local anyBarShow = hudShow or utilHudShow
+    local hudGroupOnly = (not DungeonBotsDB) or (DungeonBotsDB.hudOnlyInGroup ~= false)
     local hudDungeonOnly = (DungeonBotsDB and DungeonBotsDB.hudOnlyInDungeon == true) and true or false
     local muteShow = (not DungeonBotsDB) or (DungeonBotsDB.whisperMuteMode ~= "off")
     local muteGroup = (DungeonBotsDB and DungeonBotsDB.muteBotGroupChat) and true or false
 
     sf.hudVisibleCheck:SetChecked(hudShow)
     sf.utilHudVisibleCheck:SetChecked(utilHudShow)
+    sf.hudGroupCheck:SetChecked(hudGroupOnly)
     sf.hudDungeonCheck:SetChecked(hudDungeonOnly)
     sf.muteWhispersCheck:SetChecked(muteShow)
     sf.muteGroupCheck:SetChecked(muteGroup)
 
     sf.muteWhispersCheck:ClearAllPoints()
     if anyBarShow then
+        sf.hudGroupCheck:Show()
         sf.hudDungeonCheck:Show()
         sf.muteWhispersCheck:SetPoint("TOPLEFT", sf.hudDungeonCheck, "BOTTOMLEFT", -18, -10)
     else
+        sf.hudGroupCheck:Hide()
         sf.hudDungeonCheck:Hide()
         sf.muteWhispersCheck:SetPoint("TOPLEFT", sf.utilHudVisibleCheck, "BOTTOMLEFT", 0, -10)
     end
@@ -107,7 +111,7 @@ function DungeonBots:UpdateSettingsDialog()
         end
     end
 
-    local totalH = 266 + (anyBarShow and 26 or 0) + (muteShow and 26 or 0)
+    local totalH = 266 + (anyBarShow and 52 or 0) + (muteShow and 26 or 0)
     sf:SetHeight(totalH)
 end
 
@@ -179,14 +183,24 @@ function DungeonBots:BuildSettingsDialog()
     utilHudVisibleCheck:SetPoint("TOPLEFT", hudVisibleCheck, "BOTTOMLEFT", 0, -2)
     sf.utilHudVisibleCheck = utilHudVisibleCheck
 
-    -- Opción 1b (dependiente): Solo en mazmorras de 5 jugadores
+    -- Opción 1b (dependiente): Solo cuando estés en un grupo
+    local hudGroupCheck = CreateSettingsCheckbox(
+        sf, "DungeonBots_HudGroupCheck",
+        L["SET_GROUP_ONLY_LBL"],
+        L["SET_GROUP_ONLY_TTL"],
+        L["SET_GROUP_ONLY_DSC"]
+    )
+    hudGroupCheck:SetPoint("TOPLEFT", utilHudVisibleCheck, "BOTTOMLEFT", 18, -2)
+    sf.hudGroupCheck = hudGroupCheck
+
+    -- Opción 1c (dependiente): Solo en mazmorras de 5 jugadores
     local hudDungeonCheck = CreateSettingsCheckbox(
         sf, "DungeonBots_HudDungeonCheck",
         L["SET_DUNGEON_ONLY_LBL"],
         L["SET_DUNGEON_ONLY_TTL"],
         L["SET_DUNGEON_ONLY_DSC"]
     )
-    hudDungeonCheck:SetPoint("TOPLEFT", utilHudVisibleCheck, "BOTTOMLEFT", 18, -2)
+    hudDungeonCheck:SetPoint("TOPLEFT", hudGroupCheck, "BOTTOMLEFT", 0, -2)
     sf.hudDungeonCheck = hudDungeonCheck
 
     -- Opción 2: Ocultar susurros de bots
@@ -225,6 +239,16 @@ function DungeonBots:BuildSettingsDialog()
 
     BindBarVisibilityToggle(hudVisibleCheck, "hudVisible", "hudFrame", L["SET_BAR_HUD"])
     BindBarVisibilityToggle(utilHudVisibleCheck, "utilHudVisible", "utilHudFrame", L["SET_BAR_UTIL"])
+
+    hudGroupCheck:SetScript("OnClick", function(self)
+        local val = self:GetChecked() and true or false
+        if DungeonBotsDB then DungeonBotsDB.hudOnlyInGroup = val end
+        PlaySound(val and "igMainMenuOptionCheckBoxOn" or "igMainMenuOptionCheckBoxOff")
+        if DungeonBots.UpdateHUDVisibility then
+            DungeonBots:UpdateHUDVisibility()
+        end
+        DungeonBots:Print(string.format(L["SET_MSG_GROUP_ONLY"], (val and L["STATE_ENABLED_GREEN"] or L["STATE_DISABLED_AMBER"])))
+    end)
 
     hudDungeonCheck:SetScript("OnClick", function(self)
         local val = self:GetChecked() and true or false

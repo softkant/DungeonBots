@@ -344,9 +344,10 @@ L["HUD_BARS_LOCKED"]       = "Barras flotantes: |cff9d9d9dBloqueadas|r (fijadas 
 L["HUD_BARS_UNLOCKED"]     = "Barras flotantes: |cff34c759Desbloqueadas|r (puedes mover todas las barras)."
 L["HUD_TIP_OPEN_TITLE"]    = "Abrir Panel DungeonBots"
 L["HUD_TIP_OPEN_DESC"]     = "Abre la ventana completa de configuración, clases y talentos."
-L["HUD_HIDDEN_MSG"]        = "HUD Táctico ocultado. Escribe |cffffd200/db hud|r para mostrarlo."
-L["HUD_VISIBLE_MSG"]       = "HUD Táctico visible."
-L["HUD_ARMED_DUNGEON_MSG"] = "HUD Táctico activado (aparecerá automáticamente al entrar a una mazmorra de 5 jugadores). Puedes cambiar esto en Configuración (el engranaje)."
+L["HUD_HIDDEN_MSG"]        = "Barras flotantes ocultadas. Escribe |cffffd200/db hud|r para mostrarlas."
+L["HUD_VISIBLE_MSG"]       = "Barras flotantes visibles."
+L["HUD_ARMED_GROUP_MSG"]   = "Barras flotantes activadas (aparecerán automáticamente cuando estés en un grupo). Puedes cambiar esto en Configuración (el engranaje)."
+L["HUD_ARMED_DUNGEON_MSG"] = "Barras flotantes activadas (aparecerán automáticamente al entrar a una mazmorra de 5 jugadores). Puedes cambiar esto en Configuración (el engranaje)."
 L["HUD_HIDDEN_NOT_LEADER"] = "No eres el líder del grupo: las barras flotantes se ocultan porque la funcionalidad es solo para el líder."
 
 -- =========================================================================
@@ -508,7 +509,7 @@ L["GUIDE_T5_NOTE"]  = "Si despúes de autoequipar ves el mensaje de |cffffd200in
 L["MINIMAP_TITLE"]         = "|cff00ccffDungeon|r|cffffd200Bots|r |cff71d5ff(El Ojo de Mazmorras)|r"
 L["MINIMAP_SUB"]           = "Gestor táctico de bots para Mazmorras"
 L["MINIMAP_LCLICK"]        = "\n|cffffd200Clic Izquierdo:|r Abrir / Cerrar Panel Principal"
-L["MINIMAP_RCLICK"]        = "|cffffd200Clic Derecho:|r Alternar Barra Táctica (HUD)"
+L["MINIMAP_RCLICK"]        = "|cffffd200Clic Derecho:|r Alternar Barras Flotantes (HUD)"
 L["MINIMAP_DRAG"]          = "|cffffd200Arrastrar:|r Mover este ojo alrededor del minimapa"
 L["LFG_EYE_TIP"]           = "Abre el asistente de bots para mazmorras."
 
@@ -523,6 +524,9 @@ L["SET_SHOW_HUD_DESC"]     = "Muestra la barra rápida flotante de comandos de c
 L["SET_SHOW_UTIL_LABEL"]   = "Mostrar Barra de Utilidades flotante"
 L["SET_SHOW_UTIL_TITLE"]   = "Barra de Utilidades Flotante"
 L["SET_SHOW_UTIL_DESC"]    = "Muestra la segunda barra flotante con accesos rápidos para Hablar con PNJ, abrir Bots en el grupo, inspeccionar bolsas, ver Información del Personaje y ver sus misiones.\n\nDesmarca esta opción para ocultar esta barra por completo."
+L["SET_GROUP_ONLY_LBL"]    = "Mostrar barras flotantes solo cuando estés en un grupo"
+L["SET_GROUP_ONLY_TTL"]    = "Solo en Grupo"
+L["SET_GROUP_ONLY_DSC"]    = "Cuando está activa, las 2 barras flotantes (Táctica y Utilidades) se ocultan si estás solo y aparecen automáticamente al formar o unirte a un grupo."
 L["SET_DUNGEON_ONLY_LBL"]  = "Mostrar barras flotantes solo dentro de mazmorras de 5 jugadores"
 L["SET_DUNGEON_ONLY_TTL"]  = "Solo en Mazmorras de 5 Jugadores"
 L["SET_DUNGEON_ONLY_DSC"]  = "Cuando está activa, las barras flotantes (Táctica y Utilidades) se ocultan fuera de mazmorras de 5 jugadores y aparecen automáticamente al entrar."
@@ -535,6 +539,7 @@ L["SET_MUTE_GROUP_DSC"]    = "También filtra los mensajes públicos de bots en 
 
 L["SET_BAR_HUD"]           = "Barra táctica (HUD)"
 L["SET_BAR_UTIL"]          = "Barra de Utilidades"
+L["SET_MSG_GROUP_ONLY"]    = "Barras flotantes solo en grupo: %s"
 L["SET_MSG_DUNG_ONLY"]     = "Barras flotantes solo en mazmorra (5j): %s"
 L["SET_MSG_MUTE_WHISP"]    = "Ocultar susurros de bots: %s"
 L["SET_MSG_MUTE_GROUP"]    = "Ocultar chat de bots en Grupo/Decir: %s"

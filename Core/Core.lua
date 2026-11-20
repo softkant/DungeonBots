@@ -17,6 +17,7 @@ local DEFAULT_CONFIG = {
     hudVisible = true,
     utilHudVisible = true,
     utilHudLocked = false,
+    hudOnlyInGroup = true,
     hudOnlyInDungeon = false,
     attackWaitSeconds = 2,
     pullWaitSeconds = 6,
